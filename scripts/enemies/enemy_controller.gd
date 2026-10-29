@@ -14,6 +14,7 @@ var target_player: PlayerController = null
 var is_dead: bool = false
 var active_statuses: Dictionary = {} # status_name: remaining_duration
 var knockback_velocity: Vector2 = Vector2.ZERO
+var burning_tick_timer: float = 0.0
 
 @onready var visual_node: Node2D = $Visual
 @onready var hit_area: Area2D = $HitArea
@@ -75,6 +76,15 @@ func update_statuses(delta: float) -> void:
 
 	for s_name in expired:
 		active_statuses.erase(s_name)
+
+	# Process Burning DoT ticks
+	if has_status(StatusEffects.STATUS_BURNING):
+		burning_tick_timer -= delta
+		if burning_tick_timer <= 0.0:
+			burning_tick_timer = 0.5
+			take_damage(4.0)
+			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+			CombatEffects.spawn_impact_sparks(container, global_position, Color(1.0, 0.5, 0.1, 0.9), 2)
 
 	if visual_node and visual_node.has_method("set_statuses"):
 		visual_node.set_statuses(active_statuses.keys())

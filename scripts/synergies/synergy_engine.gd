@@ -1,6 +1,8 @@
 class_name SynergyEngine
 extends Node
 
+signal reaction_triggered(reaction_name: String, position: Vector2)
+
 const MAX_REACTION_DEPTH = 2
 
 var reaction_cooldowns: Dictionary = {} # "target_id_reaction_name": float_time
@@ -35,6 +37,16 @@ func on_hit_landed(context: ReactionContext) -> void:
 		if can_trigger_reaction(target, "lightning_chain"):
 			trigger_lightning_chain(context)
 
+	# 4. Steam Rift (Fire on Slowed)
+	if context.has_tag("fire") and target.has_status(StatusEffects.STATUS_SLOWED):
+		if can_trigger_reaction(target, "steam_rift"):
+			trigger_steam_rift(context)
+
+	# 5. Thermal Conflagration (Fire on Charged)
+	if context.has_tag("fire") and target.has_status(StatusEffects.STATUS_CHARGED):
+		if can_trigger_reaction(target, "thermal_conflagration"):
+			trigger_thermal_conflagration(context)
+
 func trigger_arcane_resonance(context: ReactionContext) -> void:
 	var target = context.target
 	var pos = context.hit_position
@@ -42,6 +54,7 @@ func trigger_arcane_resonance(context: ReactionContext) -> void:
 
 	target.remove_status(StatusEffects.STATUS_CHARGED)
 	record_reaction(target, "resonance")
+	reaction_triggered.emit("resonance", pos)
 
 	CombatEffects.spawn_shockwave(container, pos, 80.0, Color(0.65, 0.3, 1.0, 0.95))
 	CombatEffects.spawn_text_popup(container, pos, "РЕЗОНАНС!", Color(0.8, 0.45, 1.0, 1.0))
@@ -62,6 +75,7 @@ func trigger_frost_shatter(context: ReactionContext) -> void:
 	var container = get_effects_container()
 
 	record_reaction(target, "frost_shatter")
+	reaction_triggered.emit("frost_shatter", pos)
 
 	CombatEffects.spawn_shockwave(container, pos, 65.0, Color(0.2, 0.85, 1.0, 0.9))
 	CombatEffects.spawn_text_popup(container, pos, "РАСКОЛ!", Color(0.3, 0.9, 1.0, 1.0))
@@ -86,6 +100,7 @@ func trigger_lightning_chain(context: ReactionContext) -> void:
 	var container = get_effects_container()
 
 	record_reaction(target, "lightning_chain")
+	reaction_triggered.emit("lightning_chain", pos)
 	CombatEffects.spawn_text_popup(container, pos, "РАЗРЯД!", Color(0.4, 0.8, 1.0, 1.0))
 
 	var nearby = TargetSelector.find_enemies_in_radius(get_tree(), pos, 150.0)
@@ -100,8 +115,45 @@ func trigger_lightning_chain(context: ReactionContext) -> void:
 			if chained_count >= 2:
 				break
 
+func trigger_steam_rift(context: ReactionContext) -> void:
+	var target = context.target
+	var pos = context.hit_position
+	var container = get_effects_container()
+
+	target.remove_status(StatusEffects.STATUS_SLOWED)
+	record_reaction(target, "steam_rift")
+	reaction_triggered.emit("steam_rift", pos)
+
+	CombatEffects.spawn_shockwave(container, pos, 90.0, Color(0.7, 0.88, 1.0, 0.85))
+	CombatEffects.spawn_text_popup(container, pos, "ПАРОВОЙ РАЗЛОМ!", Color(0.75, 0.9, 1.0, 1.0))
+
+	var nearby = TargetSelector.find_enemies_in_radius(get_tree(), pos, 90.0)
+	for enemy in nearby:
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			enemy.take_damage(20.0)
+			enemy.apply_status(StatusEffects.STATUS_SLOWED, 2.5)
+
+func trigger_thermal_conflagration(context: ReactionContext) -> void:
+	var target = context.target
+	var pos = context.hit_position
+	var container = get_effects_container()
+
+	target.remove_status(StatusEffects.STATUS_CHARGED)
+	record_reaction(target, "thermal_conflagration")
+	reaction_triggered.emit("thermal_conflagration", pos)
+
+	CombatEffects.spawn_shockwave(container, pos, 100.0, Color(1.0, 0.35, 0.1, 0.95))
+	CombatEffects.spawn_text_popup(container, pos, "ПЕРЕГРУЗКА!", Color(1.0, 0.45, 0.1, 1.0))
+
+	var nearby = TargetSelector.find_enemies_in_radius(get_tree(), pos, 95.0)
+	for enemy in nearby:
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			enemy.take_damage(38.0)
+			enemy.apply_status(StatusEffects.STATUS_BURNING, 3.5)
+
 func trigger_unstable_explosion(pos: Vector2) -> void:
 	var container = get_effects_container()
+	reaction_triggered.emit("unstable_explosion", pos)
 	CombatEffects.spawn_shockwave(container, pos, 90.0, Color(0.85, 0.25, 1.0, 0.95))
 	CombatEffects.spawn_text_popup(container, pos, "РАЗЛОМ!", Color(0.9, 0.35, 1.0, 1.0))
 

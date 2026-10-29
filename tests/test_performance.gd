@@ -71,3 +71,4 @@ func run_benchmark() -> void:
 
 	print("--- PERFORMANCE BENCHMARK COMPLETE ---")
 	quit(0)
+

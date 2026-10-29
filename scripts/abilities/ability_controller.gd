@@ -8,7 +8,9 @@ var available_scenes: Dictionary = {
 	"magic_bolt": preload("res://scenes/abilities/magic_bolt.tscn"),
 	"runic_blade": preload("res://scenes/abilities/runic_blade.tscn"),
 	"ice_storm": preload("res://scenes/abilities/ice_storm.tscn"),
-	"death_mark": preload("res://scenes/abilities/death_mark.tscn")
+	"death_mark": preload("res://scenes/abilities/death_mark.tscn"),
+	"fireball": preload("res://scenes/abilities/fireball.tscn"),
+	"lightning_strike": preload("res://scenes/abilities/lightning_strike.tscn")
 }
 
 func _ready() -> void:

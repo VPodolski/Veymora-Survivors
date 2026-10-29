@@ -55,8 +55,10 @@ func test_enemy_projectiles_damage_player(main_node: MainGame) -> void:
 	assert(player.current_health == 82.0, "Friendly projectile must not damage player")
 
 	# Clean up
-	enemy_proj.queue_free()
-	friendly_proj.queue_free()
+	if is_instance_valid(enemy_proj):
+		enemy_proj.queue_free()
+	if is_instance_valid(friendly_proj):
+		friendly_proj.queue_free()
 	print("[PASS] Enemy projectile damage, friendly immunity, and single-hit verified.")
 
 func test_consecutive_level_ups_queue(main_node: MainGame) -> void:

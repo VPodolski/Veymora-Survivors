@@ -8,6 +8,9 @@ const SpawnConfigResource = preload("res://scripts/resources/spawn_config.gd")
 
 @export var config: Resource
 @export var enemy_scene: PackedScene = preload("res://scenes/enemies/basic_enemy.tscn")
+@export var fast_enemy_scene: PackedScene = preload("res://scenes/enemies/fast_enemy.tscn")
+@export var heavy_enemy_scene: PackedScene = preload("res://scenes/enemies/heavy_enemy.tscn")
+@export var ranged_enemy_scene: PackedScene = preload("res://scenes/enemies/ranged_enemy.tscn")
 @export var elite_scene: PackedScene = preload("res://scenes/enemies/elite_enemy.tscn")
 @export var boss_scene: PackedScene = preload("res://scenes/enemies/boss_enemy.tscn")
 
@@ -15,9 +18,9 @@ const SpawnConfigResource = preload("res://scripts/resources/spawn_config.gd")
 @export var max_enemies: int = 90
 @export var is_spawning_active: bool = true
 @export var initial_pack_size: int = 4
-@export var swarm_interval: float = 40.0
-@export var elite_interval: float = 45.0
-@export var boss_spawn_time: float = 120.0
+@export var swarm_interval: float = 120.0
+@export var elite_interval: float = 150.0
+@export var boss_spawn_time: float = 600.0
 
 var spawn_timer: float = 0.0
 var swarm_timer: float = 0.0
@@ -81,25 +84,53 @@ func _process(delta: float) -> void:
 			elite_timer = 0.0
 			spawn_elite()
 		else:
-			# Postpone elite spawn until capacity becomes available
 			elite_timer = elite_interval - 3.0
 
-	# 3. Swarm Event
+	# 3. Swarm Event (high pressure waves)
 	if swarm_timer >= swarm_interval:
 		swarm_timer = 0.0
-		trigger_swarm_event(12 + int(elapsed_time / 30.0))
+		var swarm_count = 14 + int(elapsed_time / 45.0)
+		trigger_swarm_event(swarm_count)
 
-	# 4. Regular Wave Spawning
-	var min_interval = config.min_spawn_interval if config else 0.65
-	var max_wave = config.max_wave_size if config else 8
-	var current_interval = max(min_interval, base_spawn_interval - (elapsed_time / 160.0) * 0.95)
-	var wave_size = int(clamp(2 + int(elapsed_time / 20.0), 2, max_wave))
+	# 4. Regular Wave Spawning with dynamic pacing
+	var min_interval = config.min_spawn_interval if config else 0.55
+	var max_wave = config.max_wave_size if config else 9
+	var current_interval = max(min_interval, base_spawn_interval - (elapsed_time / 300.0) * 0.95)
+
+	# Boss encounter clarity: if boss is alive, throttle regular enemy count
+	var active_cap = 25 if has_spawned_boss else max_enemies
+	var wave_size = int(clamp(2 + int(elapsed_time / 60.0), 2, max_wave))
 
 	spawn_timer += delta
 	if spawn_timer >= current_interval:
 		spawn_timer = 0.0
-		if active_enemies.size() < max_enemies:
+		if active_enemies.size() < active_cap:
 			spawn_wave(wave_size)
+
+func get_enemy_scene_for_time(time_seconds: float) -> PackedScene:
+	var roll = randf()
+	if time_seconds < 120.0:
+		return enemy_scene
+	elif time_seconds < 300.0:
+		if roll < 0.40 and fast_enemy_scene:
+			return fast_enemy_scene
+		return enemy_scene
+	elif time_seconds < 480.0:
+		if roll < 0.35 and fast_enemy_scene:
+			return fast_enemy_scene
+		elif roll < 0.55 and heavy_enemy_scene:
+			return heavy_enemy_scene
+		elif roll < 0.70 and ranged_enemy_scene:
+			return ranged_enemy_scene
+		return enemy_scene
+	else:
+		if roll < 0.30 and fast_enemy_scene:
+			return fast_enemy_scene
+		elif roll < 0.55 and heavy_enemy_scene:
+			return heavy_enemy_scene
+		elif roll < 0.75 and ranged_enemy_scene:
+			return ranged_enemy_scene
+		return enemy_scene
 
 func spawn_elite() -> EnemyController:
 	if active_enemies.size() >= max_enemies:
@@ -128,7 +159,6 @@ func spawn_boss() -> BossController:
 	if players.is_empty() or not boss_scene:
 		return null
 
-	# Policy: boss has reserved priority slot. If capacity is full, cull furthest basic enemy.
 	if active_enemies.size() >= max_enemies:
 		_cull_furthest_regular_enemy(players[0] as Node2D)
 
@@ -202,10 +232,13 @@ func spawn_enemy_at(pos: Vector2) -> EnemyController:
 	if active_enemies.size() >= max_enemies:
 		return null
 
-	if not enemy_scene:
+	var selected_scene = get_enemy_scene_for_time(elapsed_time)
+	if not selected_scene:
+		selected_scene = enemy_scene
+	if not selected_scene:
 		return null
 
-	var enemy = enemy_scene.instantiate() as EnemyController
+	var enemy = selected_scene.instantiate() as EnemyController
 	enemy.global_position = pos
 	get_parent().add_child(enemy)
 	enemy.died.connect(_on_enemy_died)

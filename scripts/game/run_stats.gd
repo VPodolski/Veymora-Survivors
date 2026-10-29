@@ -38,3 +38,4 @@ func reset() -> void:
 	defeated_boss = false
 	_recorded_enemy_ids.clear()
 	stats_updated.emit()
+

@@ -16,6 +16,7 @@ var dash_direction: Vector2 = Vector2.ZERO
 
 var pulse_cooldown: float = 6.5
 var pulse_timer: float = 0.0
+var is_enraged: bool = false
 
 func _ready() -> void:
 	stats = EnemyStats.new()
@@ -47,7 +48,8 @@ func _physics_process(delta: float) -> void:
 	# Handle Dash Attack Execution
 	if is_dashing:
 		dash_timer -= delta
-		velocity = dash_direction * 340.0
+		var dash_spd = 400.0 if is_enraged else 340.0
+		velocity = dash_direction * dash_spd
 		move_and_slide()
 		check_player_contact()
 		if dash_timer <= 0.0:
@@ -62,7 +64,7 @@ func _physics_process(delta: float) -> void:
 
 	pulse_cooldown -= delta
 	if pulse_cooldown <= 0.0:
-		pulse_cooldown = 6.5
+		pulse_cooldown = 4.5 if is_enraged else 6.5
 		fire_shadow_ring()
 
 	super._physics_process(delta)
@@ -70,11 +72,11 @@ func _physics_process(delta: float) -> void:
 func start_dash_attack() -> void:
 	if not is_instance_valid(target_player):
 		return
-	dash_cooldown = 5.5
+	dash_cooldown = 3.8 if is_enraged else 5.5
 	dash_direction = (target_player.global_position - global_position).normalized()
 	is_dashing = true
 	is_telegraphing_dash = true
-	dash_telegraph_timer = 0.45
+	dash_telegraph_timer = 0.35 if is_enraged else 0.45
 	dash_timer = 1.0
 
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
@@ -91,9 +93,10 @@ func execute_dash() -> void:
 func fire_shadow_ring() -> void:
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	CombatEffects.spawn_shockwave(container, global_position, 90.0, Color(0.9, 0.1, 0.3, 0.9))
-	CombatEffects.spawn_text_popup(container, global_position, "ТЕНЕВЫЕ КЛЫКИ!", Color(0.95, 0.2, 0.35, 1.0))
+	var msg = "ШКВАЛ ТЕНЕЙ!" if is_enraged else "ТЕНЕВЫЕ КЛЫКИ!"
+	CombatEffects.spawn_text_popup(container, global_position, msg, Color(0.95, 0.2, 0.35, 1.0))
 
-	var count = 8
+	var count = 12 if is_enraged else 8
 	for i in range(count):
 		var angle = (float(i) / float(count)) * TAU
 		var dir = Vector2(cos(angle), sin(angle))
@@ -102,13 +105,21 @@ func fire_shadow_ring() -> void:
 		proj.global_position = global_position + dir * 30.0
 		proj.direction = dir
 		proj.damage = 18.0
-		proj.speed = 340.0
+		proj.speed = 360.0 if is_enraged else 340.0
 		proj.projectile_color = Color(0.95, 0.15, 0.35, 1.0)
 		container.add_child(proj)
 
 func take_damage(amount: float) -> void:
 	super.take_damage(amount)
 	boss_health_changed.emit(current_health, stats.max_health)
+
+	# Low Health Enrage Transition (Phase 3)
+	if current_health <= stats.max_health * 0.35 and not is_enraged and current_health > 0.0:
+		is_enraged = true
+		stats.move_speed = 110.0
+		var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+		CombatEffects.spawn_shockwave(container, global_position, 220.0, Color(1.0, 0.1, 0.3, 1.0))
+		CombatEffects.spawn_text_popup(container, global_position, "ЯРОСТЬ РАЗЛОМА!", Color(1.0, 0.15, 0.2, 1.0))
 
 func die() -> void:
 	if is_dead:

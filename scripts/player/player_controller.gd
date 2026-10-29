@@ -9,6 +9,7 @@ signal died
 var current_health: float = 100.0
 var invulnerable_timer: float = 0.0
 var is_alive: bool = true
+var phoenix_revives_remaining: int = 0
 
 var shake_intensity: float = 0.0
 var shake_duration: float = 0.0
@@ -104,6 +105,16 @@ func take_damage(amount: float) -> void:
 	health_changed.emit(current_health, stats.max_health)
 
 	if current_health <= 0.0:
+		if phoenix_revives_remaining > 0:
+			phoenix_revives_remaining -= 1
+			current_health = stats.max_health * 0.5
+			invulnerable_timer = 2.0
+			trigger_camera_shake(12.0, 0.35)
+			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+			CombatEffects.spawn_shockwave(container, global_position, 220.0, Color(1.0, 0.45, 0.1, 0.95))
+			CombatEffects.spawn_text_popup(container, global_position, "ВОЗРОЖДЕНИЕ ФЕНИКСА!", Color(1.0, 0.7, 0.2, 1.0))
+			health_changed.emit(current_health, stats.max_health)
+			return
 		die()
 
 func trigger_obsidian_pulse() -> void:

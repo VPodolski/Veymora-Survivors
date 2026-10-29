@@ -2,6 +2,8 @@ class_name HUDController
 extends CanvasLayer
 
 const RunStats = preload("res://scripts/game/run_stats.gd")
+const ArchiveDialog = preload("res://scripts/ui/archive_dialog.gd")
+const AudioManager = preload("res://scripts/audio/audio_manager.gd")
 
 signal restart_requested
 
@@ -24,11 +26,19 @@ signal restart_requested
 @onready var summary_time_label: Label = $SummaryScreen/CenterContainer/Panel/VBox/SurvivalTimeLabel
 @onready var summary_stats_label: Label = $SummaryScreen/CenterContainer/Panel/VBox/StatsLabel
 @onready var restart_button: Button = $SummaryScreen/CenterContainer/Panel/VBox/RestartButton
+@onready var summary_archive_btn: Button = get_node_or_null("SummaryScreen/CenterContainer/Panel/VBox/SummaryArchiveButton")
+@onready var summary_menu_btn: Button = get_node_or_null("SummaryScreen/CenterContainer/Panel/VBox/SummaryMenuButton")
 
-# Level Up
+# Pause Menu
+@onready var pause_menu: Control = get_node_or_null("PauseMenu")
+@onready var resume_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/ResumeButton")
+@onready var pause_archive_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseArchiveButton")
+@onready var pause_restart_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseRestartButton")
+@onready var pause_menu_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseMenuButton")
+
+# Level Up & Archive
 @onready var level_up_panel: LevelUpPanel = $LevelUpPanel
-
-# Toast Notification
+@onready var archive_dialog: ArchiveDialog = get_node_or_null("ArchiveDialog")
 @onready var toast_label: Label = $ToastLabel
 
 var elapsed_time: float = 0.0
@@ -43,10 +53,28 @@ func _ready() -> void:
 		summary_screen.visible = false
 	if boss_container:
 		boss_container.visible = false
+	if pause_menu:
+		pause_menu.visible = false
+	if archive_dialog:
+		archive_dialog.visible = false
 	if toast_label:
 		toast_label.modulate.a = 0.0
+
 	if restart_button:
 		restart_button.pressed.connect(_on_restart_pressed)
+	if summary_archive_btn:
+		summary_archive_btn.pressed.connect(_open_archive)
+	if summary_menu_btn:
+		summary_menu_btn.pressed.connect(_go_to_menu)
+
+	if resume_btn:
+		resume_btn.pressed.connect(toggle_pause)
+	if pause_archive_btn:
+		pause_archive_btn.pressed.connect(_open_archive)
+	if pause_restart_btn:
+		pause_restart_btn.pressed.connect(_on_pause_restart_pressed)
+	if pause_menu_btn:
+		pause_menu_btn.pressed.connect(_go_to_menu)
 
 func set_run_stats(stats: RunStats) -> void:
 	if stats:
@@ -54,16 +82,44 @@ func set_run_stats(stats: RunStats) -> void:
 		total_kills = run_stats.total_kills
 
 func _process(delta: float) -> void:
-	if is_game_active:
+	if is_game_active and not get_tree().paused:
 		elapsed_time += delta
 		if run_stats:
 			run_stats.survival_time = elapsed_time
 		update_timer_display()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE):
+		if archive_dialog and archive_dialog.visible:
+			archive_dialog.visible = false
+			return
+		if level_up_panel and level_up_panel.visible:
+			return
+		if is_game_active:
+			toggle_pause()
+			return
+
 	if not is_game_active:
 		if event.is_action_pressed("restart") or (event is InputEventKey and event.pressed and event.keycode == KEY_R):
 			_on_restart_pressed()
+
+func toggle_pause() -> void:
+	var next_pause = not get_tree().paused
+	get_tree().paused = next_pause
+	if pause_menu:
+		pause_menu.visible = next_pause
+
+func _open_archive() -> void:
+	if archive_dialog:
+		archive_dialog.open_codex()
+
+func _on_pause_restart_pressed() -> void:
+	get_tree().paused = false
+	_on_restart_pressed()
+
+func _go_to_menu() -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 func update_health(current_hp: float, max_hp: float) -> void:
 	if hp_bar:
@@ -72,7 +128,6 @@ func update_health(current_hp: float, max_hp: float) -> void:
 	if hp_label:
 		hp_label.text = "HP: %d / %d" % [int(ceil(current_hp)), int(ceil(max_hp))]
 
-		# Low HP warning feedback
 		if current_hp <= max_hp * 0.3:
 			hp_label.add_theme_color_override("font_color", Color(1.0, 0.25, 0.3, 1.0))
 		else:
@@ -92,12 +147,15 @@ func update_level(new_level: int) -> void:
 
 func show_level_up(player: PlayerController, new_level: int) -> void:
 	update_level(new_level)
+	if AudioManager.instance:
+		AudioManager.instance.play_level_up()
 	if level_up_panel:
 		level_up_panel.open_panel(player, new_level)
 
 func add_artifact_icon(item: ItemDefinition) -> void:
 	if not artifacts_container:
 		return
+
 	var icon_panel = PanelContainer.new()
 	icon_panel.custom_minimum_size = Vector2(30, 30)
 	var style = StyleBoxFlat.new()
@@ -116,6 +174,8 @@ func add_artifact_icon(item: ItemDefinition) -> void:
 	artifacts_container.add_child(icon_panel)
 
 func show_chest_notification(reward_name: String) -> void:
+	if AudioManager.instance:
+		AudioManager.instance.play_chest()
 	if toast_label:
 		toast_label.text = "Сундук: получено [%s]" % reward_name
 		var tween = create_tween()
@@ -136,6 +196,8 @@ func setup_boss_bar(boss: BossController) -> void:
 	if not boss_container:
 		return
 	boss_container.visible = true
+	if AudioManager.instance:
+		AudioManager.instance.play_boss_alert()
 	if boss_hp_bar:
 		boss_hp_bar.max_value = boss.stats.max_health
 		boss_hp_bar.value = boss.current_health
@@ -152,7 +214,8 @@ func _on_boss_defeated() -> void:
 		boss_container.visible = false
 	if run_stats:
 		run_stats.defeated_boss = true
-	# Show Victory Screen after brief delay
+	if AudioManager.instance:
+		AudioManager.instance.play_synergy()
 	get_tree().create_timer(1.2).timeout.connect(show_victory_screen)
 
 func update_timer_display() -> void:

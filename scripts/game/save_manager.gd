@@ -11,7 +11,12 @@ static func get_default_data() -> Dictionary:
 		"total_runs": 0,
 		"best_survival_time": 0.0,
 		"bosses_defeated": 0,
-		"total_kills": 0
+		"total_kills": 0,
+		"discovered_spells": ["magic_bolt"],
+		"discovered_synergies": [],
+		"discovered_evolutions": [],
+		"discovered_artifacts": [],
+		"completed_atlas_goals": []
 	}
 
 static func load_data() -> Dictionary:
@@ -64,7 +69,45 @@ static func sanitize_data(raw: Dictionary) -> Dictionary:
 	if (kills is int or kills is float) and kills >= 0:
 		clean["total_kills"] = int(kills)
 
+	# Horizontal discoveries & meta unlocks
+	var array_keys = [
+		"discovered_spells",
+		"discovered_synergies",
+		"discovered_evolutions",
+		"discovered_artifacts",
+		"completed_atlas_goals"
+	]
+	for k in array_keys:
+		if raw.has(k) and raw[k] is Array:
+			var clean_items: Array = []
+			for item in raw[k]:
+				if item is String and not item.is_empty():
+					if not clean_items.has(item):
+						clean_items.append(item)
+			clean[k] = clean_items
+
+	# Ensure base spell is always discovered
+	if not clean["discovered_spells"].has("magic_bolt"):
+		clean["discovered_spells"].append("magic_bolt")
+
 	return clean
+
+static func save_custom_data(data: Dictionary) -> bool:
+	var sanitized = sanitize_data(data)
+	var tmp_file = FileAccess.open(TMP_SAVE_PATH, FileAccess.WRITE)
+	if not tmp_file:
+		return false
+
+	tmp_file.store_string(JSON.stringify(sanitized, "  "))
+	tmp_file.close()
+
+	var dir = DirAccess.open("user://")
+	if dir:
+		if FileAccess.file_exists(SAVE_PATH):
+			dir.remove(SAVE_PATH.replace("user://", ""))
+		var err = dir.rename(TMP_SAVE_PATH.replace("user://", ""), SAVE_PATH.replace("user://", ""))
+		return err == OK
+	return false
 
 static func record_run(time_survived: float, kills: int, defeated_boss: bool) -> Dictionary:
 	var data = load_data()
@@ -78,16 +121,5 @@ static func record_run(time_survived: float, kills: int, defeated_boss: bool) ->
 	if time_survived > best:
 		data["best_survival_time"] = max(0.0, time_survived)
 
-	# Atomic write: write to temp file first, then overwrite target
-	var tmp_file = FileAccess.open(TMP_SAVE_PATH, FileAccess.WRITE)
-	if tmp_file:
-		tmp_file.store_string(JSON.stringify(data, "  "))
-		tmp_file.close()
-
-		var dir = DirAccess.open("user://")
-		if dir:
-			if FileAccess.file_exists(SAVE_PATH):
-				dir.remove(SAVE_PATH.replace("user://", ""))
-			dir.rename(TMP_SAVE_PATH.replace("user://", ""), SAVE_PATH.replace("user://", ""))
-
+	save_custom_data(data)
 	return data

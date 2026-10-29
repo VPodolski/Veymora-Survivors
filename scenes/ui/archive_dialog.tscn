@@ -1,0 +1,98 @@
+[gd_scene load_steps=2 format=3 uid="uid://c7k8m1archive"]
+
+[ext_resource type="Script" path="res://scripts/ui/archive_dialog.gd" id="1_archive"]
+
+[node name="ArchiveDialog" type="Control"]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_archive")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.03, 0.06, 0.88)
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -460.0
+offset_top = -300.0
+offset_right = 460.0
+offset_bottom = 300.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 16.0
+offset_right = -20.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Panel/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
+text = "АРХИВ РАЗЛОМА: КОДЕКС И АТЛАС"
+
+[node name="CloseButton" type="Button" parent="Panel/VBox/Header"]
+custom_minimum_size = Vector2(100, 32)
+layout_mode = 2
+text = "✕ Закрыть"
+
+[node name="TabButtons" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SpellsTab" type="Button" parent="Panel/VBox/TabButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Заклинания"
+
+[node name="SynergiesTab" type="Button" parent="Panel/VBox/TabButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Синергии"
+
+[node name="ArtifactsTab" type="Button" parent="Panel/VBox/TabButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Артефакты"
+
+[node name="AtlasTab" type="Button" parent="Panel/VBox/TabButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Атлас"
+
+[node name="Scroll" type="ScrollContainer" parent="Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Content" type="VBoxContainer" parent="Panel/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
