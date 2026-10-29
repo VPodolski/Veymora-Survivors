@@ -42,7 +42,7 @@ func _physics_process(delta: float) -> void:
 			direction = direction.lerp(to_player, 6.0 * delta).normalized()
 			rotation = direction.angle()
 
-	if elapsed_lifetime >= lifetime:
+	if elapsed_lifetime >= lifetime or abs(global_position.x) > 1300.0 or abs(global_position.y) > 950.0:
 		queue_free()
 		return
 

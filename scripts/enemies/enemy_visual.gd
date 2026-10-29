@@ -3,7 +3,10 @@ extends Node2D
 var facing_direction: Vector2 = Vector2.LEFT
 var is_flashing: bool = false
 var flash_timer: float = 0.0
-var active_statuses: Array[String] = []
+var active_statuses: Array = []
+var hp_ratio: float = 1.0
+var show_hp_bar: bool = false
+var hp_bar_timer: float = 0.0
 
 func _process(delta: float) -> void:
 	if is_flashing:
@@ -11,6 +14,12 @@ func _process(delta: float) -> void:
 		if flash_timer <= 0.0:
 			is_flashing = false
 			modulate = Color.WHITE
+
+	if show_hp_bar:
+		hp_bar_timer -= delta
+		if hp_bar_timer <= 0.0 and hp_ratio >= 1.0:
+			show_hp_bar = false
+
 	queue_redraw()
 
 func trigger_hit_flash(duration: float = 0.12) -> void:
@@ -22,8 +31,13 @@ func update_facing(dir: Vector2) -> void:
 	if dir.length_squared() > 0.01:
 		facing_direction = dir.normalized()
 
-func set_statuses(statuses: Array[String]) -> void:
+func set_statuses(statuses: Array) -> void:
 	active_statuses = statuses
+
+func update_health_display(current_hp: float, max_hp: float) -> void:
+	hp_ratio = clamp(current_hp / max(1.0, max_hp), 0.0, 1.0)
+	show_hp_bar = true
+	hp_bar_timer = 2.5
 
 func _draw() -> void:
 	# 1. Shadow / Void aura
@@ -62,3 +76,14 @@ func _draw() -> void:
 		var dot_pos = Vector2(status_offset_x + float(i) * 10.0, -18.0)
 		draw_circle(dot_pos, 3.0, col)
 		draw_circle(dot_pos, 1.2, Color.WHITE)
+
+	# 6. Mini Health Bar (shown when damaged)
+	if show_hp_bar and hp_ratio < 1.0:
+		var bar_w = 22.0
+		var bar_h = 3.0
+		var bar_pos = Vector2(-bar_w * 0.5, -16.0)
+		# Background
+		draw_rect(Rect2(bar_pos, Vector2(bar_w, bar_h)), Color(0.1, 0.1, 0.12, 0.8), true)
+		# Fill
+		var fill_w = bar_w * hp_ratio
+		draw_rect(Rect2(bar_pos, Vector2(fill_w, bar_h)), Color(0.85, 0.2, 0.25, 0.95), true)

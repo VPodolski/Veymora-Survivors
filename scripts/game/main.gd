@@ -16,12 +16,14 @@ func _ready() -> void:
 		player.died.connect(_on_player_died)
 		if player.inventory:
 			player.inventory.artifact_added.connect(hud.add_artifact_icon)
-		# Initialize HUD with initial player stats
 		hud.update_health(player.current_health, player.stats.max_health)
 
 	if experience_manager and hud:
 		experience_manager.experience_changed.connect(hud.update_experience)
 		experience_manager.level_up.connect(_on_player_level_up)
+
+	if spawn_manager and hud:
+		spawn_manager.boss_spawned.connect(hud.setup_boss_bar)
 
 	if hud:
 		hud.restart_requested.connect(_on_restart_game)

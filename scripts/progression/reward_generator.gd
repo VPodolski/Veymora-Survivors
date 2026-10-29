@@ -48,6 +48,16 @@ static func generate_choices(player: PlayerController, count: int = 3) -> Array[
 				opt.description = "Сгустки чародейской энергии в дальних врагов."
 				opt.category_badge = "НОВОЕ ЗАКЛИНАНИЕ"
 				opt.level_badge = "Ур. 1"
+			elif ability_id == "ice_storm":
+				opt.title = "Ледяной шторм"
+				opt.description = "Область вьюги с периодическим уроном и замедлением."
+				opt.category_badge = "НОВОЕ ЗАКЛИНАНИЕ"
+				opt.level_badge = "Ур. 1"
+			elif ability_id == "death_mark":
+				opt.title = "Клеймо смерти"
+				opt.description = "Помечает сильнейших врагов, увеличивая получаемый ими урон."
+				opt.category_badge = "НОВОЕ ЗАКЛИНАНИЕ"
+				opt.level_badge = "Ур. 1"
 			candidates.append(opt)
 
 	# 2. Upgrades for active abilities

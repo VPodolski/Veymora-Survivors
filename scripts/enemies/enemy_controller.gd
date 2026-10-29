@@ -21,6 +21,8 @@ func _ready() -> void:
 	add_to_group("enemies")
 	if stats == null:
 		stats = EnemyStats.new()
+	else:
+		stats = stats.duplicate()
 	current_health = stats.max_health
 	find_target()
 
@@ -60,7 +62,7 @@ func _physics_process(delta: float) -> void:
 	check_player_contact()
 
 func update_statuses(delta: float) -> void:
-	var expired: Array[String] = []
+	var expired: Array = []
 	for s_name in active_statuses.keys():
 		active_statuses[s_name] -= delta
 		if active_statuses[s_name] <= 0.0:
@@ -70,10 +72,7 @@ func update_statuses(delta: float) -> void:
 		active_statuses.erase(s_name)
 
 	if visual_node and visual_node.has_method("set_statuses"):
-		var keys: Array[String] = []
-		for k in active_statuses.keys():
-			keys.append(str(k))
-		visual_node.set_statuses(keys)
+		visual_node.set_statuses(active_statuses.keys())
 
 func apply_status(status_name: String, duration: float) -> void:
 	if is_dead:
@@ -81,10 +80,7 @@ func apply_status(status_name: String, duration: float) -> void:
 	active_statuses[status_name] = max(active_statuses.get(status_name, 0.0), duration)
 	status_applied.emit(status_name)
 	if visual_node and visual_node.has_method("set_statuses"):
-		var keys: Array[String] = []
-		for k in active_statuses.keys():
-			keys.append(str(k))
-		visual_node.set_statuses(keys)
+		visual_node.set_statuses(active_statuses.keys())
 
 func has_status(status_name: String) -> bool:
 	return active_statuses.has(status_name) and active_statuses[status_name] > 0.0
@@ -114,10 +110,25 @@ func take_damage(amount: float) -> void:
 	if is_dead:
 		return
 
+	# Death mark damage amplification
+	if has_status(StatusEffects.STATUS_MARKED):
+		var amp = get_meta("death_mark_amp", 0.40)
+		amount *= (1.0 + amp)
+
 	current_health = max(0.0, current_health - amount)
 
-	if visual_node and visual_node.has_method("trigger_hit_flash"):
-		visual_node.trigger_hit_flash()
+	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+
+	# Visual effects
+	if visual_node:
+		if visual_node.has_method("trigger_hit_flash"):
+			visual_node.trigger_hit_flash()
+		if visual_node.has_method("update_health_display"):
+			visual_node.update_health_display(current_health, stats.max_health)
+
+	var num_col = Color(1.0, 0.3, 0.4, 1.0) if has_status(StatusEffects.STATUS_MARKED) else Color(1.0, 0.92, 0.5, 1.0)
+	CombatEffects.spawn_damage_number(container, global_position, amount, num_col)
+	CombatEffects.spawn_impact_sparks(container, global_position)
 
 	if current_health <= 0.0:
 		die()
@@ -131,9 +142,22 @@ func die() -> void:
 	if hit_area and hit_area.has_node("CollisionShape2D"):
 		hit_area.get_node("CollisionShape2D").set_deferred("disabled", true)
 
+	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+	CombatEffects.spawn_death_burst(container, global_position)
+
 	died.emit(self)
 
-	# Check for unstable rift explosion on death
+	# Death Mark Soul Harvest explosion
+	if has_status(StatusEffects.STATUS_MARKED):
+		var burst_dmg = get_meta("death_mark_burst_dmg", 35.0)
+		CombatEffects.spawn_shockwave(container, global_position, 90.0, Color(0.95, 0.1, 0.25, 0.95))
+		CombatEffects.spawn_text_popup(container, global_position, "ЖАТВА ДУШ!", Color(1.0, 0.3, 0.4, 1.0))
+		var nearby = TargetSelector.find_enemies_in_radius(get_tree(), global_position, 90.0)
+		for e in nearby:
+			if e != self and is_instance_valid(e) and not e.is_dead:
+				e.take_damage(burst_dmg)
+
+	# Unstable rift explosion on death
 	if has_status(StatusEffects.STATUS_UNSTABLE):
 		var engine_nodes = get_tree().get_nodes_in_group("synergy_engine")
 		if engine_nodes.size() > 0:
@@ -143,7 +167,6 @@ func die() -> void:
 	if xp_gem_scene:
 		var gem = xp_gem_scene.instantiate() as Node2D
 		gem.global_position = global_position
-		var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 		container.call_deferred("add_child", gem)
 
 	var tween = create_tween()

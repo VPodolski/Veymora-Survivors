@@ -21,6 +21,27 @@ static func spawn_text_popup(parent: Node, pos: Vector2, text: String, col: Colo
 	popup.global_position = pos
 	parent.add_child(popup)
 
+static func spawn_damage_number(parent: Node, pos: Vector2, amount: float, col: Color = Color(1.0, 0.92, 0.5, 1.0)) -> void:
+	if not parent:
+		return
+	var dmg_num = DamageNumberEffect.new(int(round(amount)), col)
+	dmg_num.global_position = pos + Vector2(randf_range(-8.0, 8.0), randf_range(-14.0, -6.0))
+	parent.add_child(dmg_num)
+
+static func spawn_impact_sparks(parent: Node, pos: Vector2, col: Color = Color(0.4, 0.9, 1.0, 1.0), count: int = 4) -> void:
+	if not parent:
+		return
+	var sparks = ImpactSparksEffect.new(col, count)
+	sparks.global_position = pos
+	parent.add_child(sparks)
+
+static func spawn_death_burst(parent: Node, pos: Vector2) -> void:
+	if not parent:
+		return
+	var burst = DeathBurstEffect.new()
+	burst.global_position = pos
+	parent.add_child(burst)
+
 # 1. Shockwave circle effect
 class ShockwaveEffect extends Node2D:
 	var target_radius: float
@@ -98,3 +119,73 @@ class FloatingTextEffect extends Node2D:
 		tween.parallel().tween_property(self, "modulate:a", 0.0, 0.5)
 		tween.tween_callback(queue_free)
 
+# 4. Floating damage number
+class DamageNumberEffect extends Node2D:
+	var label: Label
+
+	func _init(dmg_value: int, col: Color) -> void:
+		label = Label.new()
+		label.text = str(dmg_value)
+		label.add_theme_color_override("font_color", col)
+		label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+		label.add_theme_constant_override("outline_size", 2)
+		label.add_theme_font_size_override("font_size", 12)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.position = Vector2(-20, -10)
+		label.custom_minimum_size = Vector2(40, 18)
+		add_child(label)
+
+	func _ready() -> void:
+		var target_y = position.y - randf_range(18.0, 26.0)
+		var tween = create_tween()
+		tween.tween_property(self, "position:y", target_y, 0.38).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.parallel().tween_property(self, "modulate:a", 0.0, 0.38)
+		tween.tween_callback(queue_free)
+
+# 5. Impact Sparks
+class ImpactSparksEffect extends Node2D:
+	var spark_color: Color
+	var spark_count: int
+	var spark_offsets: Array[Vector2] = []
+	var spark_vels: Array[Vector2] = []
+
+	func _init(col: Color, count: int) -> void:
+		spark_color = col
+		spark_count = count
+		for i in range(count):
+			spark_offsets.append(Vector2.ZERO)
+			var angle = randf() * TAU
+			var spd = randf_range(60.0, 160.0)
+			spark_vels.append(Vector2(cos(angle), sin(angle)) * spd)
+
+	func _ready() -> void:
+		var tween = create_tween()
+		tween.tween_property(self, "modulate:a", 0.0, 0.22)
+		tween.tween_callback(queue_free)
+
+	func _process(delta: float) -> void:
+		for i in range(spark_count):
+			spark_offsets[i] += spark_vels[i] * delta
+			spark_vels[i] *= 0.9
+		queue_redraw()
+
+	func _draw() -> void:
+		for i in range(spark_count):
+			draw_circle(spark_offsets[i], 1.8, spark_color)
+
+# 6. Death Burst
+class DeathBurstEffect extends Node2D:
+	var radius: float = 4.0
+
+	func _ready() -> void:
+		var tween = create_tween()
+		tween.tween_property(self, "radius", 26.0, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.parallel().tween_property(self, "modulate:a", 0.0, 0.25)
+		tween.tween_callback(queue_free)
+
+	func _process(_delta: float) -> void:
+		queue_redraw()
+
+	func _draw() -> void:
+		draw_circle(Vector2.ZERO, radius, Color(0.4, 0.08, 0.18, 0.4))
+		draw_arc(Vector2.ZERO, radius, 0, TAU, 16, Color(0.7, 0.15, 0.25, 0.8), 2.0)

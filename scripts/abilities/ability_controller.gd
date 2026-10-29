@@ -6,7 +6,9 @@ extends Node2D
 var active_abilities: Dictionary = {} # ability_id: AbilityBase
 var available_scenes: Dictionary = {
 	"magic_bolt": preload("res://scenes/abilities/magic_bolt.tscn"),
-	"runic_blade": preload("res://scenes/abilities/runic_blade.tscn")
+	"runic_blade": preload("res://scenes/abilities/runic_blade.tscn"),
+	"ice_storm": preload("res://scenes/abilities/ice_storm.tscn"),
+	"death_mark": preload("res://scenes/abilities/death_mark.tscn")
 }
 
 func _ready() -> void:
@@ -44,4 +46,3 @@ func upgrade_ability(id: String) -> bool:
 		ability.upgrade()
 		return true
 	return false
-

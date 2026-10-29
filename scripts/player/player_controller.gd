@@ -10,8 +10,12 @@ var current_health: float = 100.0
 var invulnerable_timer: float = 0.0
 var is_alive: bool = true
 
+var shake_intensity: float = 0.0
+var shake_duration: float = 0.0
+
 @onready var visual_node: Node2D = $Visual
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
+@onready var camera: Camera2D = $Camera2D
 @onready var ability_controller: AbilityController = $Abilities
 @onready var inventory: InventoryState = $Inventory
 
@@ -36,6 +40,14 @@ func _physics_process(delta: float) -> void:
 
 	if invulnerable_timer > 0.0:
 		invulnerable_timer -= delta
+
+	# Process screen shake
+	if shake_duration > 0.0:
+		shake_duration -= delta
+		if camera:
+			camera.offset = Vector2(randf_range(-shake_intensity, shake_intensity), randf_range(-shake_intensity, shake_intensity))
+		if shake_duration <= 0.0 and camera:
+			camera.offset = Vector2.ZERO
 
 	var input_vector = get_input_direction()
 	if input_vector != Vector2.ZERO:
@@ -69,12 +81,18 @@ func get_input_direction() -> Vector2:
 
 	return dir.normalized()
 
+func trigger_camera_shake(intensity: float = 6.0, duration: float = 0.2) -> void:
+	shake_intensity = intensity
+	shake_duration = duration
+
 func take_damage(amount: float) -> void:
 	if not is_alive or invulnerable_timer > 0.0:
 		return
 
 	current_health = max(0.0, current_health - amount)
 	invulnerable_timer = stats.invulnerability_duration
+
+	trigger_camera_shake(7.0, 0.22)
 
 	if visual_node and visual_node.has_method("trigger_hit_flash"):
 		visual_node.trigger_hit_flash()
@@ -89,6 +107,7 @@ func take_damage(amount: float) -> void:
 		die()
 
 func trigger_obsidian_pulse() -> void:
+	trigger_camera_shake(10.0, 0.28)
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	CombatEffects.spawn_shockwave(container, global_position, 110.0, Color(0.9, 0.2, 0.35, 0.95))
 	CombatEffects.spawn_text_popup(container, global_position, "ОБСИДИАН!", Color(1.0, 0.3, 0.4, 1.0))
@@ -126,6 +145,8 @@ func die() -> void:
 		return
 	is_alive = false
 	velocity = Vector2.ZERO
+	if camera:
+		camera.offset = Vector2.ZERO
 	if collision_shape:
 		collision_shape.set_deferred("disabled", true)
 	if visual_node:
