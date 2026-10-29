@@ -55,3 +55,4 @@ func _draw() -> void:
 	draw_rect(Rect2(bar_pos, Vector2(bar_w, bar_h)), Color(0.1, 0.1, 0.12, 0.9), true)
 	draw_rect(Rect2(bar_pos, Vector2(bar_w * hp_ratio, bar_h)), Color(1.0, 0.25, 0.3, 1.0), true)
 	draw_rect(Rect2(bar_pos, Vector2(bar_w, bar_h)), Color(1.0, 0.8, 0.2, 0.8), false, 1.0)
+

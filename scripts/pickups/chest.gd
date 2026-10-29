@@ -77,3 +77,4 @@ func _draw() -> void:
 	# Chest lock / core
 	draw_circle(Vector2(0, 0), 4.5, Color(1.0, 0.85, 0.3, 1.0))
 	draw_circle(Vector2(0, 0), 2.0, Color.WHITE)
+

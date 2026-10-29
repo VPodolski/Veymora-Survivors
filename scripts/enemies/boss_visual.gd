@@ -53,3 +53,4 @@ func _draw() -> void:
 	draw_circle(eye_center, 9.0, Color(0.9, 0.1, 0.3, 1.0))
 	draw_circle(eye_center, 4.5, Color(1.0, 0.85, 0.3, 1.0))
 	draw_circle(eye_center, 2.0, Color.WHITE)
+

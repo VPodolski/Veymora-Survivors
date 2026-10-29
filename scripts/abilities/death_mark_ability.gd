@@ -83,3 +83,4 @@ func get_next_upgrade_description() -> String:
 		4: return "+65% усиления урона и перезарядка 3.2с"
 		5: return "Казнь: 3 цели, +80% урона, взрыв 70 урона"
 		_: return "Максимальный уровень"
+

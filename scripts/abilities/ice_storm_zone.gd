@@ -66,3 +66,4 @@ func _draw() -> void:
 		var base_pos = flake_offsets[i]
 		var rotated = base_pos.rotated(swirl_angle)
 		draw_circle(rotated, 2.2, Color(0.85, 0.95, 1.0, 0.85))
+

@@ -46,3 +46,4 @@ static func record_run(time_survived: float, kills: int, defeated_boss: bool) ->
 		file.close()
 
 	return data
+

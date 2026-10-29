@@ -70,3 +70,4 @@ func get_next_upgrade_description() -> String:
 		4: return "+Урон тика (15) и длительность 4.2с"
 		5: return "Великая вьюга: радиус 175px, урон 20, кд 2.2с"
 		_: return "Максимальный уровень"
+
