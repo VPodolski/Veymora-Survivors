@@ -4,6 +4,7 @@ extends CharacterBody2D
 signal died(enemy: EnemyController)
 
 @export var stats: EnemyStats
+@export var xp_gem_scene: PackedScene = preload("res://scenes/pickups/xp_gem.tscn")
 
 var current_health: float = 30.0
 var attack_cooldown_timer: float = 0.0
@@ -87,7 +88,13 @@ func die() -> void:
 
 	died.emit(self)
 
+	# Spawn XP Gem
+	if xp_gem_scene:
+		var gem = xp_gem_scene.instantiate() as Node2D
+		gem.global_position = global_position
+		var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+		container.call_deferred("add_child", gem)
+
 	var tween = create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, 0.2)
 	tween.tween_callback(queue_free)
-

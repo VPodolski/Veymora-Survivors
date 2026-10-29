@@ -12,13 +12,22 @@ var is_alive: bool = true
 
 @onready var visual_node: Node2D = $Visual
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
+@onready var ability_controller: AbilityController = $Abilities
 
 func _ready() -> void:
 	add_to_group("player")
 	if stats == null:
 		stats = PlayerStats.new()
+	else:
+		stats = stats.duplicate() # Duplicate so runtime changes don't overwrite the original asset
+
 	current_health = stats.max_health
+	update_modifiers_meta()
 	health_changed.emit(current_health, stats.max_health)
+
+func update_modifiers_meta() -> void:
+	set_meta("spell_power_mult", stats.spell_power_mult)
+	set_meta("cooldown_mult", stats.cooldown_mult)
 
 func _physics_process(delta: float) -> void:
 	if not is_alive:
@@ -77,6 +86,27 @@ func take_damage(amount: float) -> void:
 	if current_health <= 0.0:
 		die()
 
+func heal(amount: float) -> void:
+	if not is_alive:
+		return
+	current_health = min(stats.max_health, current_health + amount)
+	health_changed.emit(current_health, stats.max_health)
+
+func increase_max_health(amount: float) -> void:
+	stats.max_health += amount
+	heal(amount)
+
+func increase_move_speed(percentage: float) -> void:
+	stats.move_speed *= (1.0 + percentage)
+
+func increase_spell_power(percentage: float) -> void:
+	stats.spell_power_mult += percentage
+	update_modifiers_meta()
+
+func reduce_cooldown(percentage: float) -> void:
+	stats.cooldown_mult = max(0.35, stats.cooldown_mult - percentage)
+	update_modifiers_meta()
+
 func die() -> void:
 	if not is_alive:
 		return
@@ -88,4 +118,3 @@ func die() -> void:
 		var tween = create_tween()
 		tween.tween_property(visual_node, "modulate", Color(0.2, 0.1, 0.1, 0.4), 0.5)
 	died.emit()
-

@@ -6,9 +6,12 @@ signal restart_requested
 @onready var hp_bar: ProgressBar = $TopBar/HBox/HealthContainer/HPBar
 @onready var hp_label: Label = $TopBar/HBox/HealthContainer/HPLabel
 @onready var timer_label: Label = $TopBar/HBox/TimerContainer/TimerLabel
+@onready var level_label: Label = $TopBar/HBox/LevelContainer/LevelLabel
+@onready var xp_bar: ProgressBar = $XPBarContainer/XPBar
 @onready var death_screen: Control = $DeathScreen
 @onready var death_time_label: Label = $DeathScreen/CenterContainer/Panel/VBox/SurvivalTimeLabel
 @onready var restart_button: Button = $DeathScreen/CenterContainer/Panel/VBox/RestartButton
+@onready var level_up_panel: LevelUpPanel = $LevelUpPanel
 
 var elapsed_time: float = 0.0
 var is_game_active: bool = true
@@ -35,6 +38,20 @@ func update_health(current_hp: float, max_hp: float) -> void:
 		hp_bar.value = current_hp
 	if hp_label:
 		hp_label.text = "HP: %d / %d" % [int(ceil(current_hp)), int(ceil(max_hp))]
+
+func update_experience(current_xp: int, required_xp: int) -> void:
+	if xp_bar:
+		xp_bar.max_value = required_xp
+		xp_bar.value = current_xp
+
+func update_level(new_level: int) -> void:
+	if level_label:
+		level_label.text = "УР. %d" % new_level
+
+func show_level_up(player: PlayerController, new_level: int) -> void:
+	update_level(new_level)
+	if level_up_panel:
+		level_up_panel.open_panel(player, new_level)
 
 func update_timer_display() -> void:
 	if timer_label:

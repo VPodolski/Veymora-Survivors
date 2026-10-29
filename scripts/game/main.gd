@@ -5,6 +5,7 @@ extends Node2D
 @onready var player: PlayerController = $Player
 @onready var spawn_manager: SpawnManager = $SpawnManager
 @onready var hud: HUDController = $HUD
+@onready var experience_manager: ExperienceManager = $ExperienceManager
 
 func _ready() -> void:
 	ensure_input_mappings()
@@ -15,8 +16,16 @@ func _ready() -> void:
 		# Initialize HUD with initial player stats
 		hud.update_health(player.current_health, player.stats.max_health)
 
+	if experience_manager and hud:
+		experience_manager.experience_changed.connect(hud.update_experience)
+		experience_manager.level_up.connect(_on_player_level_up)
+
 	if hud:
 		hud.restart_requested.connect(_on_restart_game)
+
+func _on_player_level_up(new_level: int) -> void:
+	if hud and player:
+		hud.show_level_up(player, new_level)
 
 func _on_player_died() -> void:
 	if spawn_manager:
@@ -25,6 +34,8 @@ func _on_player_died() -> void:
 		hud.show_death_screen()
 
 func _on_restart_game() -> void:
+	# Unpause before reloading scene just in case
+	get_tree().paused = false
 	get_tree().reload_current_scene()
 
 func ensure_input_mappings() -> void:
@@ -42,4 +53,3 @@ func _add_action_if_missing(action_name: String, keycodes: Array) -> void:
 			var event = InputEventKey.new()
 			event.physical_keycode = code
 			InputMap.action_add_event(action_name, event)
-
