@@ -8,6 +8,8 @@ signal boss_defeated
 @export var projectile_scene: PackedScene = preload("res://scenes/combat/projectile.tscn")
 
 var is_dashing: bool = false
+var is_telegraphing_dash: bool = false
+var dash_telegraph_timer: float = 0.0
 var dash_timer: float = 0.0
 var dash_cooldown: float = 5.0
 var dash_direction: Vector2 = Vector2.ZERO
@@ -33,7 +35,16 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
 
-	# Handle Dash Attack
+	# Handle Dash Telegraph
+	if is_telegraphing_dash:
+		dash_telegraph_timer -= delta
+		velocity = Vector2.ZERO
+		if dash_telegraph_timer <= 0.0:
+			is_telegraphing_dash = false
+			execute_dash()
+		return
+
+	# Handle Dash Attack Execution
 	if is_dashing:
 		dash_timer -= delta
 		velocity = dash_direction * 340.0
@@ -62,8 +73,17 @@ func start_dash_attack() -> void:
 	dash_cooldown = 5.5
 	dash_direction = (target_player.global_position - global_position).normalized()
 	is_dashing = true
+	is_telegraphing_dash = true
+	dash_telegraph_timer = 0.45
 	dash_timer = 1.0
 
+	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+	CombatEffects.spawn_shockwave(container, global_position, 70.0, Color(0.9, 0.2, 0.4, 0.8))
+	CombatEffects.spawn_text_popup(container, global_position, "ЗАРЯД РАЗЛОМА...", Color(1.0, 0.3, 0.5, 1.0))
+
+func execute_dash() -> void:
+	is_dashing = true
+	dash_timer = 1.0
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	CombatEffects.spawn_shockwave(container, global_position, 130.0, Color(0.85, 0.2, 1.0, 0.95))
 	CombatEffects.spawn_text_popup(container, global_position, "РЫВОК РАЗЛОМА!", Color(0.9, 0.3, 1.0, 1.0))
@@ -71,17 +91,19 @@ func start_dash_attack() -> void:
 func fire_shadow_ring() -> void:
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	CombatEffects.spawn_shockwave(container, global_position, 90.0, Color(0.9, 0.1, 0.3, 0.9))
+	CombatEffects.spawn_text_popup(container, global_position, "ТЕНЕВЫЕ КЛЫКИ!", Color(0.95, 0.2, 0.35, 1.0))
 
 	var count = 8
 	for i in range(count):
 		var angle = (float(i) / float(count)) * TAU
 		var dir = Vector2(cos(angle), sin(angle))
 		var proj = projectile_scene.instantiate() as Projectile
+		proj.faction = Projectile.Faction.ENEMY
 		proj.global_position = global_position + dir * 30.0
 		proj.direction = dir
 		proj.damage = 18.0
-		proj.projectile_color = Color(0.9, 0.15, 0.3, 1.0)
-		proj.collision_mask = 1 # Hits player!
+		proj.speed = 340.0
+		proj.projectile_color = Color(0.95, 0.15, 0.35, 1.0)
 		container.add_child(proj)
 
 func take_damage(amount: float) -> void:

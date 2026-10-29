@@ -1,6 +1,9 @@
 class_name CombatEffects
 extends RefCounted
 
+static var active_damage_numbers: int = 0
+const MAX_DAMAGE_NUMBERS = 24
+
 static func spawn_shockwave(parent: Node, pos: Vector2, max_radius: float = 85.0, col: Color = Color(0.4, 0.7, 1.0, 0.9)) -> void:
 	if not parent:
 		return
@@ -24,7 +27,11 @@ static func spawn_text_popup(parent: Node, pos: Vector2, text: String, col: Colo
 static func spawn_damage_number(parent: Node, pos: Vector2, amount: float, col: Color = Color(1.0, 0.92, 0.5, 1.0)) -> void:
 	if not parent:
 		return
+	if active_damage_numbers >= MAX_DAMAGE_NUMBERS and amount < 20.0:
+		return # Throttle low damage spam during dense combat
+	active_damage_numbers += 1
 	var dmg_num = DamageNumberEffect.new(int(round(amount)), col)
+	dmg_num.tree_exited.connect(func(): active_damage_numbers = max(0, active_damage_numbers - 1))
 	dmg_num.global_position = pos + Vector2(randf_range(-8.0, 8.0), randf_range(-14.0, -6.0))
 	parent.add_child(dmg_num)
 

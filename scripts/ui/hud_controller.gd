@@ -1,6 +1,8 @@
 class_name HUDController
 extends CanvasLayer
 
+const RunStats = preload("res://scripts/game/run_stats.gd")
+
 signal restart_requested
 
 @onready var hp_bar: ProgressBar = $TopBar/HBox/HealthContainer/HPBar
@@ -17,7 +19,7 @@ signal restart_requested
 
 # Death & Victory Screens
 @onready var summary_screen: Control = $SummaryScreen
-@onready var death_screen: Control = $SummaryScreen
+@onready var death_screen: Control = $SummaryScreen # backward compatibility alias
 @onready var summary_title: Label = $SummaryScreen/CenterContainer/Panel/VBox/Title
 @onready var summary_time_label: Label = $SummaryScreen/CenterContainer/Panel/VBox/SurvivalTimeLabel
 @onready var summary_stats_label: Label = $SummaryScreen/CenterContainer/Panel/VBox/StatsLabel
@@ -33,6 +35,7 @@ var elapsed_time: float = 0.0
 var is_game_active: bool = true
 var total_kills: int = 0
 var current_level: int = 1
+var run_stats: RunStats = RunStats.new()
 
 func _ready() -> void:
 	add_to_group("hud")
@@ -45,9 +48,16 @@ func _ready() -> void:
 	if restart_button:
 		restart_button.pressed.connect(_on_restart_pressed)
 
+func set_run_stats(stats: RunStats) -> void:
+	if stats:
+		run_stats = stats
+		total_kills = run_stats.total_kills
+
 func _process(delta: float) -> void:
 	if is_game_active:
 		elapsed_time += delta
+		if run_stats:
+			run_stats.survival_time = elapsed_time
 		update_timer_display()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -62,6 +72,12 @@ func update_health(current_hp: float, max_hp: float) -> void:
 	if hp_label:
 		hp_label.text = "HP: %d / %d" % [int(ceil(current_hp)), int(ceil(max_hp))]
 
+		# Low HP warning feedback
+		if current_hp <= max_hp * 0.3:
+			hp_label.add_theme_color_override("font_color", Color(1.0, 0.25, 0.3, 1.0))
+		else:
+			hp_label.add_theme_color_override("font_color", Color.WHITE)
+
 func update_experience(current_xp: int, required_xp: int) -> void:
 	if xp_bar:
 		xp_bar.max_value = required_xp
@@ -69,6 +85,8 @@ func update_experience(current_xp: int, required_xp: int) -> void:
 
 func update_level(new_level: int) -> void:
 	current_level = new_level
+	if run_stats:
+		run_stats.level_reached = new_level
 	if level_label:
 		level_label.text = "УР. %d" % new_level
 
@@ -81,13 +99,18 @@ func add_artifact_icon(item: ItemDefinition) -> void:
 	if not artifacts_container:
 		return
 	var icon_panel = PanelContainer.new()
-	icon_panel.custom_minimum_size = Vector2(28, 28)
+	icon_panel.custom_minimum_size = Vector2(30, 30)
 	var style = StyleBoxFlat.new()
 	style.bg_color = item.icon_color
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_right = 4
-	style.corner_radius_bottom_left = 4
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_right = 6
+	style.corner_radius_bottom_left = 6
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(1.0, 1.0, 1.0, 0.6)
 	icon_panel.add_theme_stylebox_override("panel", style)
 	icon_panel.tooltip_text = "%s: %s" % [item.name, item.description]
 	artifacts_container.add_child(icon_panel)
@@ -100,8 +123,14 @@ func show_chest_notification(reward_name: String) -> void:
 		tween.tween_interval(2.0)
 		tween.tween_property(toast_label, "modulate:a", 0.0, 0.4)
 
-func register_kill() -> void:
-	total_kills += 1
+func register_kill(enemy: EnemyController = null) -> void:
+	if enemy and run_stats:
+		run_stats.record_kill(enemy)
+		total_kills = run_stats.total_kills
+	else:
+		total_kills += 1
+		if run_stats:
+			run_stats.total_kills = total_kills
 
 func setup_boss_bar(boss: BossController) -> void:
 	if not boss_container:
@@ -121,6 +150,8 @@ func _on_boss_health_changed(cur: float, max_hp: float) -> void:
 func _on_boss_defeated() -> void:
 	if boss_container:
 		boss_container.visible = false
+	if run_stats:
+		run_stats.defeated_boss = true
 	# Show Victory Screen after brief delay
 	get_tree().create_timer(1.2).timeout.connect(show_victory_screen)
 
@@ -160,9 +191,11 @@ func populate_summary_stats(saved_data: Dictionary) -> void:
 		var best_sec = int(saved_data.get("best_survival_time", 0.0))
 		var b_min = best_sec / 60
 		var b_sec = best_sec % 60
-		summary_stats_label.text = "Уровень мага: %d\nУничтожено врагов: %d\nРекорд выживания: %02d:%02d\nВсего забегов: %d" % [
+		var elite_txt = (" (Элита: %d, Боссы: %d)" % [run_stats.elite_kills, run_stats.boss_kills]) if run_stats else ""
+		summary_stats_label.text = "Уровень мага: %d\nУничтожено врагов: %d%s\nРекорд выживания: %02d:%02d\nВсего забегов: %d" % [
 			current_level,
 			total_kills,
+			elite_txt,
 			b_min,
 			b_sec,
 			int(saved_data.get("total_runs", 1))

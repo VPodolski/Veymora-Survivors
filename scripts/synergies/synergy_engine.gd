@@ -73,6 +73,7 @@ func trigger_frost_shatter(context: ReactionContext) -> void:
 		var dir = Vector2(cos(angle), sin(angle))
 		var proj_scene = preload("res://scenes/combat/projectile.tscn")
 		var proj = proj_scene.instantiate() as Projectile
+		proj.faction = Projectile.Faction.PLAYER
 		proj.global_position = pos + dir * 10.0
 		proj.direction = dir
 		proj.damage = 14.0
@@ -110,6 +111,8 @@ func trigger_unstable_explosion(pos: Vector2) -> void:
 			enemy.take_damage(25.0)
 
 func can_trigger_reaction(target: EnemyController, reaction_name: String) -> bool:
+	if not is_instance_valid(target):
+		return false
 	var key = str(target.get_instance_id()) + "_" + reaction_name
 	if not reaction_cooldowns.has(key):
 		return true
@@ -118,8 +121,41 @@ func can_trigger_reaction(target: EnemyController, reaction_name: String) -> boo
 	return (now - last_time) >= 0.35
 
 func record_reaction(target: EnemyController, reaction_name: String) -> void:
-	var key = str(target.get_instance_id()) + "_" + reaction_name
+	if not is_instance_valid(target):
+		return
+	var target_id = target.get_instance_id()
+	var key = str(target_id) + "_" + reaction_name
 	reaction_cooldowns[key] = Time.get_ticks_msec() / 1000.0
+
+	# Auto-clean on enemy tree_exited
+	if not target.is_connected("tree_exited", Callable(self, "_on_target_tree_exited")):
+		target.tree_exited.connect(Callable(self, "_on_target_tree_exited").bind(target_id))
+
+func clear_target_cooldowns(target: EnemyController) -> void:
+	if not target:
+		return
+	_clean_id_cooldowns(target.get_instance_id())
+
+func _on_target_tree_exited(target_id: int) -> void:
+	_clean_id_cooldowns(target_id)
+
+func _clean_id_cooldowns(target_id: int) -> void:
+	var prefix = str(target_id) + "_"
+	var keys_to_remove: Array = []
+	for k in reaction_cooldowns.keys():
+		if k.begins_with(prefix):
+			keys_to_remove.append(k)
+	for k in keys_to_remove:
+		reaction_cooldowns.erase(k)
+
+func prune_stale_cooldowns(max_age_seconds: float = 2.0) -> void:
+	var now = Time.get_ticks_msec() / 1000.0
+	var keys_to_remove: Array = []
+	for k in reaction_cooldowns.keys():
+		if (now - reaction_cooldowns[k]) > max_age_seconds:
+			keys_to_remove.append(k)
+	for k in keys_to_remove:
+		reaction_cooldowns.erase(k)
 
 func get_effects_container() -> Node:
 	return get_tree().current_scene if get_tree().current_scene else get_tree().root

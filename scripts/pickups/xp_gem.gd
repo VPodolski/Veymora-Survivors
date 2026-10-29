@@ -15,18 +15,40 @@ func _ready() -> void:
 	add_to_group("pickups")
 	body_entered.connect(_on_body_entered)
 	pulse_time = randf() * TAU
-	call_deferred("check_gem_condensation")
+
+static func condense_gems(tree: SceneTree, max_threshold: int = 65) -> void:
+	if not tree:
+		return
+	var pickups = tree.get_nodes_in_group("pickups")
+	if pickups.size() <= max_threshold:
+		return
+
+	# Merge nearby gems to preserve FPS
+	for i in range(pickups.size()):
+		var gem_a = pickups[i] as XPGem
+		if not is_instance_valid(gem_a) or gem_a.is_collected:
+			continue
+		for j in range(i + 1, pickups.size()):
+			var gem_b = pickups[j] as XPGem
+			if not is_instance_valid(gem_b) or gem_b.is_collected:
+				continue
+			if gem_a.global_position.distance_squared_to(gem_b.global_position) < 14400.0: # within 120px
+				gem_a.xp_value += gem_b.xp_value
+				gem_a.scale = Vector2(1.3, 1.3)
+				gem_b.is_collected = true
+				gem_b.queue_free()
+				break
 
 func check_gem_condensation() -> void:
+	# Retained for backwards compatibility with tests
 	var pickups = get_tree().get_nodes_in_group("pickups")
-	# If floor has more than 65 active gems, merge with a nearby gem
 	if pickups.size() > 65:
 		for node in pickups:
 			if node != self and is_instance_valid(node) and not node.is_collected:
 				var other = node as XPGem
-				if other and global_position.distance_squared_to(other.global_position) < 14400.0: # within 120px
+				if other and global_position.distance_squared_to(other.global_position) < 14400.0:
 					other.xp_value += xp_value
-					other.scale = Vector2(1.3, 1.3) # Slightly larger visual
+					other.scale = Vector2(1.3, 1.3)
 					queue_free()
 					return
 
@@ -35,6 +57,7 @@ func _process(delta: float) -> void:
 		return
 
 	pulse_time += delta * 4.0
+	rotation += 1.2 * delta
 	queue_redraw()
 
 	if not is_instance_valid(target_player):
@@ -43,11 +66,12 @@ func _process(delta: float) -> void:
 
 	var dist = global_position.distance_to(target_player.global_position)
 
-	# If within magnet radius, fly towards player
+	# If within magnet radius, fly towards player with accelerating velocity
 	if dist <= magnet_radius:
-		current_speed += 420.0 * delta
+		current_speed += 480.0 * delta
 		var dir = (target_player.global_position - global_position).normalized()
 		global_position += dir * (base_fly_speed + current_speed) * delta
+		rotation += 6.0 * delta # Faster rotation when attracted
 
 		if dist <= pickup_distance:
 			collect()
@@ -71,9 +95,9 @@ func collect() -> void:
 	if exp_managers.size() > 0:
 		exp_managers[0].add_experience(xp_value)
 
-	# Small collection shrink animation
+	# Collection shrink animation
 	var tween = create_tween()
-	tween.tween_property(self, "scale", Vector2.ZERO, 0.12)
+	tween.tween_property(self, "scale", Vector2.ZERO, 0.10)
 	tween.tween_callback(queue_free)
 
 func _draw() -> void:

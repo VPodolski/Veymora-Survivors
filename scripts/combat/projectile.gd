@@ -1,6 +1,9 @@
 class_name Projectile
 extends Area2D
 
+enum Faction { PLAYER, ENEMY }
+
+@export var faction: Faction = Faction.PLAYER
 @export var speed: float = 480.0
 @export var damage: float = 16.0
 @export var lifetime: float = 2.2
@@ -14,6 +17,7 @@ var direction: Vector2 = Vector2.RIGHT
 var elapsed_lifetime: float = 0.0
 var hits_remaining: int = 1
 var hit_enemies: Array[EnemyController] = []
+var has_hit_player: bool = false
 var has_turned_back: bool = false
 var player_ref: Node2D = null
 
@@ -21,7 +25,14 @@ func _ready() -> void:
 	hits_remaining = pierce_count
 	body_entered.connect(_on_body_entered)
 	rotation = direction.angle()
-	find_player()
+
+	# Configure collision layer and mask according to faction
+	collision_layer = 8 # Layer 4 (Projectiles)
+	if faction == Faction.PLAYER:
+		collision_mask = 4 # Layer 3 (Enemies)
+		find_player()
+	else:
+		collision_mask = 1 # Layer 1 (Player)
 
 func find_player() -> void:
 	var players = get_tree().get_nodes_in_group("player")
@@ -31,11 +42,11 @@ func find_player() -> void:
 func _physics_process(delta: float) -> void:
 	elapsed_lifetime += delta
 
-	# Returning trajectory logic (Hourglass artifact / Evolution)
-	if is_returning and elapsed_lifetime >= lifetime * 0.45:
+	# Returning trajectory logic (Hourglass artifact / Evolution) - Player only
+	if faction == Faction.PLAYER and is_returning and elapsed_lifetime >= lifetime * 0.45:
 		if not has_turned_back:
 			has_turned_back = true
-			hit_enemies.clear() # Allow hitting enemies again on the way back!
+			hit_enemies.clear() # Allow hitting enemies again on the way back
 
 		if is_instance_valid(player_ref):
 			var to_player = (player_ref.global_position - global_position).normalized()
@@ -50,6 +61,12 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 func _on_body_entered(body: Node2D) -> void:
+	if faction == Faction.PLAYER:
+		_handle_player_projectile_hit(body)
+	elif faction == Faction.ENEMY:
+		_handle_enemy_projectile_hit(body)
+
+func _handle_player_projectile_hit(body: Node2D) -> void:
 	if body is EnemyController and not body.is_dead:
 		if not hit_enemies.has(body):
 			hit_enemies.append(body)
@@ -65,6 +82,20 @@ func _on_body_entered(body: Node2D) -> void:
 			if hits_remaining <= 0 and not is_returning:
 				destroy()
 
+func _handle_enemy_projectile_hit(body: Node2D) -> void:
+	if has_hit_player:
+		return
+
+	if body is PlayerController and body.is_alive:
+		has_hit_player = true
+		body.take_damage(damage)
+
+		var tree = get_tree()
+		if tree:
+			var container = tree.current_scene if tree.current_scene else tree.root
+			CombatEffects.spawn_impact_sparks(container, global_position)
+		destroy()
+
 func destroy() -> void:
 	set_deferred("monitoring", false)
 	var tween = create_tween()
@@ -72,6 +103,10 @@ func destroy() -> void:
 	tween.tween_callback(queue_free)
 
 func _draw() -> void:
+	if faction == Faction.ENEMY:
+		_draw_enemy_projectile()
+		return
+
 	# Evolved prismatic / rift visual
 	if is_evolved:
 		draw_circle(Vector2.ZERO, 13.0, Color(0.9, 0.3, 1.0, 0.35))
@@ -95,3 +130,15 @@ func _draw() -> void:
 		draw_colored_polygon(pts, projectile_color)
 		# Center bright core
 		draw_line(Vector2(-4, 0), Vector2(4, 0), Color.WHITE, 2.0)
+
+func _draw_enemy_projectile() -> void:
+	# Sharp crimson/void shadow dagger
+	draw_circle(Vector2.ZERO, 10.0, Color(0.9, 0.1, 0.3, 0.35))
+	var front = Vector2(11, 0)
+	var back = Vector2(-11, 0)
+	var top = Vector2(-3, -4)
+	var bot = Vector2(-3, 4)
+	var pts = PackedVector2Array([front, top, back, bot])
+	draw_colored_polygon(pts, Color(0.95, 0.15, 0.3, 1.0))
+	# Inner dark core
+	draw_line(Vector2(-7, 0), Vector2(7, 0), Color(1.0, 0.8, 0.9, 1.0), 2.2)

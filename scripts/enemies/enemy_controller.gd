@@ -13,9 +13,13 @@ var attack_cooldown_timer: float = 0.0
 var target_player: PlayerController = null
 var is_dead: bool = false
 var active_statuses: Dictionary = {} # status_name: remaining_duration
+var knockback_velocity: Vector2 = Vector2.ZERO
 
 @onready var visual_node: Node2D = $Visual
 @onready var hit_area: Area2D = $HitArea
+
+func apply_knockback(impulse: Vector2) -> void:
+	knockback_velocity = impulse
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -41,21 +45,22 @@ func _physics_process(delta: float) -> void:
 	if attack_cooldown_timer > 0.0:
 		attack_cooldown_timer -= delta
 
-	if not is_instance_valid(target_player) or not target_player.is_alive:
-		find_target()
-		velocity = Vector2.ZERO
-		move_and_slide()
-		return
+	if knockback_velocity.length_squared() > 10.0:
+		velocity = knockback_velocity
+		knockback_velocity = knockback_velocity.move_toward(Vector2.ZERO, 900.0 * delta)
+	elif is_instance_valid(target_player) and target_player.is_alive:
+		var to_player = target_player.global_position - global_position
+		var distance = to_player.length()
 
-	var to_player = target_player.global_position - global_position
-	var distance = to_player.length()
-
-	if distance > 4.0:
-		var dir = to_player.normalized()
-		velocity = dir * get_effective_speed()
-		if visual_node and visual_node.has_method("update_facing"):
-			visual_node.update_facing(dir)
+		if distance > 4.0:
+			var dir = to_player.normalized()
+			velocity = dir * get_effective_speed()
+			if visual_node and visual_node.has_method("update_facing"):
+				visual_node.update_facing(dir)
+		else:
+			velocity = Vector2.ZERO
 	else:
+		find_target()
 		velocity = Vector2.ZERO
 
 	move_and_slide()

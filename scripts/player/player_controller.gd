@@ -116,7 +116,10 @@ func trigger_obsidian_pulse() -> void:
 	for enemy in enemies:
 		if is_instance_valid(enemy) and not enemy.is_dead:
 			var push_dir = (enemy.global_position - global_position).normalized()
-			enemy.global_position += push_dir * 30.0
+			if enemy.has_method("apply_knockback"):
+				enemy.apply_knockback(push_dir * 380.0)
+			else:
+				enemy.global_position += push_dir * 30.0
 			enemy.take_damage(16.0)
 
 func heal(amount: float) -> void:

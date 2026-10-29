@@ -8,23 +8,49 @@ signal upgrade_picked(option: RewardGenerator.UpgradeOption)
 
 var current_player: PlayerController = null
 var current_options: Array[RewardGenerator.UpgradeOption] = []
+var pending_levels: Array[int] = []
+var is_panel_open: bool = false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 
 func open_panel(player: PlayerController, new_level: int) -> void:
+	if is_panel_open:
+		# Queue consecutive level up
+		pending_levels.append(new_level)
+		return
+
+	is_panel_open = true
 	current_player = player
-	current_options = RewardGenerator.generate_choices(player, 3)
+	_show_level_choices(new_level)
+
+func _show_level_choices(level: int) -> void:
+	if not current_player:
+		return
+
+	_ensure_node_references()
+	current_options = RewardGenerator.generate_choices(current_player, 3)
 
 	if title_label:
-		title_label.text = "ПОВЫШЕНИЕ УРОВНЯ! (УР. %d)" % new_level
+		title_label.text = "ПОВЫШЕНИЕ УРОВНЯ! (УР. %d)" % level
 
 	populate_cards()
 	visible = true
-	get_tree().paused = true
+	var tree = get_tree()
+	if tree:
+		tree.paused = true
+
+func _ensure_node_references() -> void:
+	if not cards_container and has_node("CenterContainer/VBox/CardsContainer"):
+		cards_container = $CenterContainer/VBox/CardsContainer
+	if not title_label and has_node("CenterContainer/VBox/TitleLabel"):
+		title_label = $CenterContainer/VBox/TitleLabel
 
 func populate_cards() -> void:
+	_ensure_node_references()
+	if not cards_container:
+		return
 	# Clear previous cards
 	for child in cards_container.get_children():
 		child.queue_free()
@@ -105,6 +131,14 @@ func _on_card_selected(opt: RewardGenerator.UpgradeOption) -> void:
 		RewardGenerator.apply_upgrade(current_player, opt)
 
 	upgrade_picked.emit(opt)
-	visible = false
-	get_tree().paused = false
 
+	# Check for pending consecutive level-ups
+	if pending_levels.size() > 0:
+		var next_lvl = pending_levels.pop_front()
+		_show_level_choices(next_lvl)
+	else:
+		is_panel_open = false
+		visible = false
+		var tree = get_tree()
+		if tree:
+			tree.paused = false

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SpawnConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/spawn_config.gd" id="1_sc"]
+
+[resource]
+script = ExtResource("1_sc")
+max_enemies = 90
+base_spawn_interval = 1.6
+initial_pack_size = 4
+swarm_interval = 40.0
+elite_interval = 45.0
+boss_spawn_time = 120.0
+min_spawn_interval = 0.65
+max_wave_size = 8
