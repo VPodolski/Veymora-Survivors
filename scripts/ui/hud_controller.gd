@@ -1,0 +1,55 @@
+class_name HUDController
+extends CanvasLayer
+
+signal restart_requested
+
+@onready var hp_bar: ProgressBar = $TopBar/HBox/HealthContainer/HPBar
+@onready var hp_label: Label = $TopBar/HBox/HealthContainer/HPLabel
+@onready var timer_label: Label = $TopBar/HBox/TimerContainer/TimerLabel
+@onready var death_screen: Control = $DeathScreen
+@onready var death_time_label: Label = $DeathScreen/CenterContainer/Panel/VBox/SurvivalTimeLabel
+@onready var restart_button: Button = $DeathScreen/CenterContainer/Panel/VBox/RestartButton
+
+var elapsed_time: float = 0.0
+var is_game_active: bool = true
+
+func _ready() -> void:
+	if death_screen:
+		death_screen.visible = false
+	if restart_button:
+		restart_button.pressed.connect(_on_restart_pressed)
+
+func _process(delta: float) -> void:
+	if is_game_active:
+		elapsed_time += delta
+		update_timer_display()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_game_active:
+		if event.is_action_pressed("restart") or (event is InputEventKey and event.pressed and event.keycode == KEY_R):
+			_on_restart_pressed()
+
+func update_health(current_hp: float, max_hp: float) -> void:
+	if hp_bar:
+		hp_bar.max_value = max_hp
+		hp_bar.value = current_hp
+	if hp_label:
+		hp_label.text = "HP: %d / %d" % [int(ceil(current_hp)), int(ceil(max_hp))]
+
+func update_timer_display() -> void:
+	if timer_label:
+		var minutes = int(elapsed_time) / 60
+		var seconds = int(elapsed_time) % 60
+		timer_label.text = "%02d:%02d" % [minutes, seconds]
+
+func show_death_screen() -> void:
+	is_game_active = false
+	if death_screen:
+		death_screen.visible = true
+	if death_time_label:
+		var minutes = int(elapsed_time) / 60
+		var seconds = int(elapsed_time) % 60
+		death_time_label.text = "Время выживания: %02d:%02d" % [minutes, seconds]
+
+func _on_restart_pressed() -> void:
+	restart_requested.emit()
