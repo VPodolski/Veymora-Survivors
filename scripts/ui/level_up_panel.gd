@@ -57,14 +57,22 @@ func create_card_button(opt: RewardGenerator.UpgradeOption) -> Button:
 	var badge_label = Label.new()
 	badge_label.text = opt.category_badge
 	badge_label.add_theme_font_size_override("font_size", 12)
-	badge_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0, 0.8))
+	if opt.type == "evolution":
+		badge_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2, 1.0))
+	elif opt.type == "artifact":
+		badge_label.add_theme_color_override("font_color", Color(0.85, 0.4, 1.0, 1.0))
+	else:
+		badge_label.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0, 0.8))
 	vbox.add_child(badge_label)
 
 	# 2. Title
 	var title_lbl = Label.new()
 	title_lbl.text = opt.title
 	title_lbl.add_theme_font_size_override("font_size", 18)
-	title_lbl.add_theme_color_override("font_color", Color.WHITE)
+	if opt.type == "evolution":
+		title_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4, 1.0))
+	else:
+		title_lbl.add_theme_color_override("font_color", Color.WHITE)
 	title_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(title_lbl)
 
@@ -99,3 +107,4 @@ func _on_card_selected(opt: RewardGenerator.UpgradeOption) -> void:
 	upgrade_picked.emit(opt)
 	visible = false
 	get_tree().paused = false
+

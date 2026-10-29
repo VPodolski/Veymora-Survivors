@@ -44,3 +44,4 @@ func upgrade_ability(id: String) -> bool:
 		ability.upgrade()
 		return true
 	return false
+

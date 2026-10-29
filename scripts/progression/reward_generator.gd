@@ -3,7 +3,7 @@ extends RefCounted
 
 class UpgradeOption:
 	var id: String = ""
-	var type: String = "" # "new_ability", "upgrade_ability", "passive"
+	var type: String = "" # "new_ability", "upgrade_ability", "passive", "artifact", "evolution"
 	var title: String = ""
 	var description: String = ""
 	var level_badge: String = ""
@@ -11,11 +11,26 @@ class UpgradeOption:
 
 static func generate_choices(player: PlayerController, count: int = 3) -> Array[UpgradeOption]:
 	var candidates: Array[UpgradeOption] = []
+	var priority_choices: Array[UpgradeOption] = []
 
 	if not player or not player.ability_controller:
 		return candidates
 
 	var ac = player.ability_controller
+	var inv = player.inventory
+
+	# 0. Check for EVOLUTIONS (Top priority!)
+	var bolt = ac.get_ability("magic_bolt") as MagicBoltAbility
+	if bolt and bolt.current_level >= 5 and not bolt.is_evolved:
+		if inv and inv.has_artifact("hourglass"):
+			var evo = UpgradeOption.new()
+			evo.id = "evolve_magic_bolt"
+			evo.type = "evolution"
+			evo.title = "Возвращающийся разлом"
+			evo.description = "★ ЭВОЛЮЦИЯ! Снаряды преобразуются в призматические разломы с бесконечным пробиванием и уроном 55."
+			evo.category_badge = "★ ЭВОЛЮЦИЯ ★"
+			evo.level_badge = "ЛЕГЕНДАРНОЕ"
+			priority_choices.append(evo)
 
 	# 1. New abilities to unlock
 	for ability_id in ac.available_scenes.keys():
@@ -47,7 +62,21 @@ static func generate_choices(player: PlayerController, count: int = 3) -> Array[
 			opt.level_badge = "Ур. %d → %d" % [ability.current_level, ability.current_level + 1]
 			candidates.append(opt)
 
-	# 3. Passive upgrades
+	# 3. Artifacts (if inventory has space)
+	if inv and inv.artifacts.size() < inv.max_artifacts:
+		for art_id in InventoryState.ALL_ARTIFACTS.keys():
+			if not inv.has_artifact(art_id):
+				var art_data = InventoryState.ALL_ARTIFACTS[art_id]
+				var opt = UpgradeOption.new()
+				opt.id = art_id
+				opt.type = "artifact"
+				opt.title = art_data["name"]
+				opt.description = art_data["desc"]
+				opt.category_badge = "АРТЕФАКТ"
+				opt.level_badge = "РЕДКОЕ"
+				candidates.append(opt)
+
+	# 4. Passive upgrades
 	var passives = [
 		{
 			"id": "passive_spell_power",
@@ -85,13 +114,16 @@ static func generate_choices(player: PlayerController, count: int = 3) -> Array[
 		opt.level_badge = "+БОНУС"
 		candidates.append(opt)
 
-	# Shuffle candidates
 	candidates.shuffle()
 
-	# Select up to 'count' options
 	var selected: Array[UpgradeOption] = []
-	for i in range(min(count, candidates.size())):
-		selected.append(candidates[i])
+	for p_opt in priority_choices:
+		selected.append(p_opt)
+
+	for c in candidates:
+		if selected.size() >= count:
+			break
+		selected.append(c)
 
 	return selected
 
@@ -100,6 +132,18 @@ static func apply_upgrade(player: PlayerController, option: UpgradeOption) -> vo
 		return
 
 	match option.type:
+		"evolution":
+			if option.id == "evolve_magic_bolt" and player.ability_controller:
+				var bolt = player.ability_controller.get_ability("magic_bolt") as MagicBoltAbility
+				if bolt:
+					bolt.evolve()
+					# Evolution visual banner
+					var container = player.get_tree().current_scene if player.get_tree().current_scene else player.get_tree().root
+					CombatEffects.spawn_shockwave(container, player.global_position, 160.0, Color(1.0, 0.85, 0.3, 0.95))
+					CombatEffects.spawn_text_popup(container, player.global_position + Vector2(0, -35), "ЭВОЛЮЦИЯ СОВЕРШЕНА!", Color(1.0, 0.9, 0.3, 1.0))
+		"artifact":
+			if player.inventory:
+				player.inventory.add_artifact(option.id)
 		"new_ability":
 			if player.ability_controller:
 				player.ability_controller.unlock_ability(option.id)

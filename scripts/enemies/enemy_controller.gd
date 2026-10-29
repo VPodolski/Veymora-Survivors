@@ -2,14 +2,17 @@ class_name EnemyController
 extends CharacterBody2D
 
 signal died(enemy: EnemyController)
+signal status_applied(status_name: String)
 
 @export var stats: EnemyStats
 @export var xp_gem_scene: PackedScene = preload("res://scenes/pickups/xp_gem.tscn")
+@export var tags: Array = ["enemy"]
 
 var current_health: float = 30.0
 var attack_cooldown_timer: float = 0.0
 var target_player: PlayerController = null
 var is_dead: bool = false
+var active_statuses: Dictionary = {} # status_name: remaining_duration
 
 @onready var visual_node: Node2D = $Visual
 @onready var hit_area: Area2D = $HitArea
@@ -30,6 +33,9 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
 
+	# Update active status effects
+	update_statuses(delta)
+
 	if attack_cooldown_timer > 0.0:
 		attack_cooldown_timer -= delta
 
@@ -44,7 +50,7 @@ func _physics_process(delta: float) -> void:
 
 	if distance > 4.0:
 		var dir = to_player.normalized()
-		velocity = dir * stats.move_speed
+		velocity = dir * get_effective_speed()
 		if visual_node and visual_node.has_method("update_facing"):
 			visual_node.update_facing(dir)
 	else:
@@ -52,6 +58,45 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 	check_player_contact()
+
+func update_statuses(delta: float) -> void:
+	var expired: Array[String] = []
+	for s_name in active_statuses.keys():
+		active_statuses[s_name] -= delta
+		if active_statuses[s_name] <= 0.0:
+			expired.append(s_name)
+
+	for s_name in expired:
+		active_statuses.erase(s_name)
+
+	if visual_node and visual_node.has_method("set_statuses"):
+		var keys: Array[String] = []
+		for k in active_statuses.keys():
+			keys.append(str(k))
+		visual_node.set_statuses(keys)
+
+func apply_status(status_name: String, duration: float) -> void:
+	if is_dead:
+		return
+	active_statuses[status_name] = max(active_statuses.get(status_name, 0.0), duration)
+	status_applied.emit(status_name)
+	if visual_node and visual_node.has_method("set_statuses"):
+		var keys: Array[String] = []
+		for k in active_statuses.keys():
+			keys.append(str(k))
+		visual_node.set_statuses(keys)
+
+func has_status(status_name: String) -> bool:
+	return active_statuses.has(status_name) and active_statuses[status_name] > 0.0
+
+func remove_status(status_name: String) -> void:
+	active_statuses.erase(status_name)
+
+func get_effective_speed() -> float:
+	var spd = stats.move_speed
+	if has_status(StatusEffects.STATUS_SLOWED):
+		spd *= 0.65
+	return spd
 
 func check_player_contact() -> void:
 	if attack_cooldown_timer > 0.0:
@@ -87,6 +132,12 @@ func die() -> void:
 		hit_area.get_node("CollisionShape2D").set_deferred("disabled", true)
 
 	died.emit(self)
+
+	# Check for unstable rift explosion on death
+	if has_status(StatusEffects.STATUS_UNSTABLE):
+		var engine_nodes = get_tree().get_nodes_in_group("synergy_engine")
+		if engine_nodes.size() > 0:
+			engine_nodes[0].trigger_unstable_explosion(global_position)
 
 	# Spawn XP Gem
 	if xp_gem_scene:

@@ -6,19 +6,42 @@ extends Area2D
 @export var lifetime: float = 2.2
 @export var pierce_count: int = 1
 @export var projectile_color: Color = Color(0.2, 0.8, 1.0, 1.0)
+@export var tags: Array = ["arcane", "projectile"]
+@export var is_returning: bool = false
+@export var is_evolved: bool = false
 
 var direction: Vector2 = Vector2.RIGHT
 var elapsed_lifetime: float = 0.0
 var hits_remaining: int = 1
 var hit_enemies: Array[EnemyController] = []
+var has_turned_back: bool = false
+var player_ref: Node2D = null
 
 func _ready() -> void:
 	hits_remaining = pierce_count
 	body_entered.connect(_on_body_entered)
 	rotation = direction.angle()
+	find_player()
+
+func find_player() -> void:
+	var players = get_tree().get_nodes_in_group("player")
+	if players.size() > 0:
+		player_ref = players[0] as Node2D
 
 func _physics_process(delta: float) -> void:
 	elapsed_lifetime += delta
+
+	# Returning trajectory logic (Hourglass artifact / Evolution)
+	if is_returning and elapsed_lifetime >= lifetime * 0.45:
+		if not has_turned_back:
+			has_turned_back = true
+			hit_enemies.clear() # Allow hitting enemies again on the way back!
+
+		if is_instance_valid(player_ref):
+			var to_player = (player_ref.global_position - global_position).normalized()
+			direction = direction.lerp(to_player, 6.0 * delta).normalized()
+			rotation = direction.angle()
+
 	if elapsed_lifetime >= lifetime:
 		queue_free()
 		return
@@ -31,27 +54,44 @@ func _on_body_entered(body: Node2D) -> void:
 		if not hit_enemies.has(body):
 			hit_enemies.append(body)
 			body.take_damage(damage)
-			hits_remaining -= 1
 
-			if hits_remaining <= 0:
+			# Trigger synergy reaction
+			var engines = get_tree().get_nodes_in_group("synergy_engine")
+			if engines.size() > 0:
+				var ctx = ReactionContext.new(self, body, tags, global_position, damage, 0)
+				engines[0].on_hit_landed(ctx)
+
+			hits_remaining -= 1
+			if hits_remaining <= 0 and not is_returning:
 				destroy()
 
 func destroy() -> void:
 	set_deferred("monitoring", false)
-	# Mini impact flash
 	var tween = create_tween()
 	tween.tween_property(self, "scale", Vector2.ZERO, 0.08)
 	tween.tween_callback(queue_free)
 
 func _draw() -> void:
-	# Glow halo
-	draw_circle(Vector2.ZERO, 8.0, Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.35))
-	# Inner elongated bolt
-	var front = Vector2(6, 0)
-	var back = Vector2(-10, 0)
-	var top = Vector2(-2, -3)
-	var bot = Vector2(-2, 3)
-	var pts = PackedVector2Array([front, top, back, bot])
-	draw_colored_polygon(pts, projectile_color)
-	# Center bright core
-	draw_line(Vector2(-4, 0), Vector2(4, 0), Color.WHITE, 2.0)
+	# Evolved prismatic / rift visual
+	if is_evolved:
+		draw_circle(Vector2.ZERO, 13.0, Color(0.9, 0.3, 1.0, 0.35))
+		draw_circle(Vector2.ZERO, 9.0, Color(0.3, 0.9, 1.0, 0.5))
+		# Star prism shape
+		var p1 = Vector2(10, 0)
+		var p2 = Vector2(-12, -5)
+		var p3 = Vector2(-6, 0)
+		var p4 = Vector2(-12, 5)
+		draw_colored_polygon(PackedVector2Array([p1, p2, p3, p4]), Color(1.0, 0.85, 0.3, 1.0))
+		draw_line(Vector2(-10, 0), Vector2(10, 0), Color.WHITE, 3.0)
+	else:
+		# Glow halo
+		draw_circle(Vector2.ZERO, 8.0, Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.35))
+		# Inner elongated bolt
+		var front = Vector2(6, 0)
+		var back = Vector2(-10, 0)
+		var top = Vector2(-2, -3)
+		var bot = Vector2(-2, 3)
+		var pts = PackedVector2Array([front, top, back, bot])
+		draw_colored_polygon(pts, projectile_color)
+		# Center bright core
+		draw_line(Vector2(-4, 0), Vector2(4, 0), Color.WHITE, 2.0)

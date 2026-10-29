@@ -92,3 +92,4 @@ func run_tests() -> void:
 
 	print("--- ALL STAGE 2 TESTS PASSED SUCCESSFULLY! ---")
 	quit(0)
+

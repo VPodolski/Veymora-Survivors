@@ -1,9 +1,10 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="1_controller"]
 [ext_resource type="Resource" path="res://resources/player/default_player_stats.tres" id="2_stats"]
 [ext_resource type="Script" path="res://scripts/player/player_visual.gd" id="3_visual"]
 [ext_resource type="Script" path="res://scripts/abilities/ability_controller.gd" id="4_abilities"]
+[ext_resource type="Script" path="res://scripts/items/inventory_state.gd" id="5_inventory"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_1"]
 radius = 14.0
@@ -26,3 +27,6 @@ position_smoothing_speed = 7.0
 
 [node name="Abilities" type="Node2D" parent="."]
 script = ExtResource("4_abilities")
+
+[node name="Inventory" type="Node" parent="."]
+script = ExtResource("5_inventory")

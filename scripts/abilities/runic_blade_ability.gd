@@ -5,6 +5,7 @@ extends AbilityBase
 @export var orbit_radius: float = 92.0
 @export var orbit_speed: float = 3.4 # Radians per second
 @export var hit_interval_per_enemy: float = 0.45
+@export var tags: Array = ["arcane", "melee", "orbit"]
 
 var current_angle: float = 0.0
 var enemy_hit_timers: Dictionary = {} # enemy_id: float
@@ -78,7 +79,14 @@ func _on_blade_hit(body: Node2D) -> void:
 		var id = body.get_instance_id()
 		if not enemy_hit_timers.has(id):
 			enemy_hit_timers[id] = hit_interval_per_enemy
-			body.take_damage(get_effective_damage())
+			var dmg = get_effective_damage()
+			body.take_damage(dmg)
+
+			# Trigger synergy reaction
+			var engines = get_tree().get_nodes_in_group("synergy_engine")
+			if engines.size() > 0:
+				var ctx = ReactionContext.new(self, body, tags, body.global_position, dmg, 0)
+				engines[0].on_hit_landed(ctx)
 
 func apply_level_modifiers() -> void:
 	match current_level:

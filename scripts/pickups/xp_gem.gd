@@ -86,3 +86,4 @@ func _draw() -> void:
 		Vector2(-r * 0.5, 0)
 	])
 	draw_colored_polygon(inner_points, Color.WHITE)
+

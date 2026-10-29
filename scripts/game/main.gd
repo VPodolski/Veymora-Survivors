@@ -6,6 +6,7 @@ extends Node2D
 @onready var spawn_manager: SpawnManager = $SpawnManager
 @onready var hud: HUDController = $HUD
 @onready var experience_manager: ExperienceManager = $ExperienceManager
+@onready var synergy_engine: SynergyEngine = $SynergyEngine
 
 func _ready() -> void:
 	ensure_input_mappings()
@@ -13,6 +14,8 @@ func _ready() -> void:
 	if player and hud:
 		player.health_changed.connect(hud.update_health)
 		player.died.connect(_on_player_died)
+		if player.inventory:
+			player.inventory.artifact_added.connect(hud.add_artifact_icon)
 		# Initialize HUD with initial player stats
 		hud.update_health(player.current_health, player.stats.max_health)
 
@@ -34,12 +37,10 @@ func _on_player_died() -> void:
 		hud.show_death_screen()
 
 func _on_restart_game() -> void:
-	# Unpause before reloading scene just in case
 	get_tree().paused = false
 	get_tree().reload_current_scene()
 
 func ensure_input_mappings() -> void:
-	# Guarantee input actions exist at runtime
 	_add_action_if_missing("move_left", [KEY_A, KEY_LEFT])
 	_add_action_if_missing("move_right", [KEY_D, KEY_RIGHT])
 	_add_action_if_missing("move_up", [KEY_W, KEY_UP])

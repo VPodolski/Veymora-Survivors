@@ -35,6 +35,8 @@ func get_effective_damage() -> float:
 	var mult = 1.0
 	if player_owner and player_owner.has_meta("spell_power_mult"):
 		mult = player_owner.get_meta("spell_power_mult")
+	if player_owner and player_owner.has_meta("obsidian_heart_bonus"):
+		mult += player_owner.get_meta("obsidian_heart_bonus")
 	return base_damage * mult
 
 func upgrade() -> void:
@@ -47,3 +49,4 @@ func apply_level_modifiers() -> void:
 
 func get_next_upgrade_description() -> String:
 	return "Увеличение характеристик заклинания"
+

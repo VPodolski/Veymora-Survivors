@@ -34,3 +34,4 @@ static func find_enemies_in_radius(tree: SceneTree, from_position: Vector2, radi
 				result.append(enemy)
 
 	return result
+

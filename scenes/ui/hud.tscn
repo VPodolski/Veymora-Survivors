@@ -59,6 +59,7 @@ theme_override_constants/margin_bottom = 6
 
 [node name="HBox" type="HBoxContainer" parent="TopBar"]
 layout_mode = 2
+theme_override_constants/separation = 14
 alignment = 1
 
 [node name="HealthContainer" type="VBoxContainer" parent="TopBar/HBox"]
@@ -84,7 +85,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="TimerContainer" type="CenterContainer" parent="TopBar/HBox"]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 
 [node name="TimerLabel" type="Label" parent="TopBar/HBox/TimerContainer"]
@@ -99,7 +100,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="LevelContainer" type="CenterContainer" parent="TopBar/HBox"]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 
 [node name="LevelLabel" type="Label" parent="TopBar/HBox/LevelContainer"]
@@ -107,6 +108,12 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
 theme_override_font_sizes/font_size = 18
 text = "УР. 1"
+
+[node name="ArtifactsContainer" type="HBoxContainer" parent="TopBar/HBox"]
+custom_minimum_size = Vector2(120, 28)
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 2
 
 [node name="DeathScreen" type="Control" parent="."]
 visible = false

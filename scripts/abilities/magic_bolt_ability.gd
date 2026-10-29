@@ -4,6 +4,7 @@ extends AbilityBase
 @export var projectile_scene: PackedScene = preload("res://scenes/combat/projectile.tscn")
 @export var projectile_count: int = 1
 @export var spread_angle: float = 0.25 # Radians
+@export var is_evolved: bool = false
 
 func _init() -> void:
 	ability_id = "magic_bolt"
@@ -36,7 +37,7 @@ func try_cast() -> bool:
 	elif player_owner.velocity.length_squared() > 0.01:
 		target_dir = player_owner.velocity.normalized()
 	else:
-		return false # Don't waste shots if no enemy in range and not moving
+		return false
 
 	fire_projectiles(target_dir)
 	return true
@@ -44,6 +45,9 @@ func try_cast() -> bool:
 func fire_projectiles(base_dir: Vector2) -> void:
 	var count = projectile_count
 	var base_angle = base_dir.angle()
+
+	var has_hourglass = player_owner and player_owner.has_meta("has_hourglass")
+	var has_rift = player_owner and player_owner.has_meta("has_rift_compass")
 
 	for i in range(count):
 		var angle = base_angle
@@ -55,6 +59,28 @@ func fire_projectiles(base_dir: Vector2) -> void:
 		proj.global_position = player_owner.global_position
 		proj.direction = Vector2(cos(angle), sin(angle))
 		proj.damage = get_effective_damage()
+
+		# Hourglass / Evolution returning & pierce logic
+		if is_evolved:
+			proj.is_evolved = true
+			proj.is_returning = true
+			proj.pierce_count = 999
+			proj.speed = 520.0
+			for t in ["spatial", "piercing", "returning"]:
+				if not proj.tags.has(t):
+					proj.tags.append(t)
+		elif has_hourglass:
+			proj.is_returning = true
+			proj.pierce_count = 3
+			if not proj.tags.has("returning"):
+				proj.tags.append("returning")
+			if not proj.tags.has("piercing"):
+				proj.tags.append("piercing")
+
+		# Rift compass tag logic
+		if has_rift and not proj.tags.has("spatial"):
+			proj.tags.append("spatial")
+
 		var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 		container.add_child(proj)
 
@@ -74,10 +100,21 @@ func apply_level_modifiers() -> void:
 			base_damage = 42.0
 			base_cooldown = 0.8
 
+func evolve() -> void:
+	is_evolved = true
+	ability_name = "Возвращающийся разлом"
+	description = "Эволюция Магической стрелы. Призматические разломные снаряды с бесконечным пробиванием."
+	base_damage = 55.0
+	projectile_count = 4
+	base_cooldown = 0.7
+	spread_angle = 0.32
+
 func get_next_upgrade_description() -> String:
+	if is_evolved:
+		return "Способность эволюционировала до пиковой формы"
 	match current_level + 1:
 		2: return "+Урон (26) и быстрее перезарядка (1.05с)"
 		3: return "+1 Снаряд (2 стрелы веером)"
 		4: return "+Урон (34) и быстрее перезарядка (0.9с)"
 		5: return "+1 Снаряд (3 стрелы веером), урон 42"
-		_: return "Максимальный уровень"
+		_: return "Максимальный уровень (готова к эволюции)"

@@ -13,13 +13,14 @@ var is_alive: bool = true
 @onready var visual_node: Node2D = $Visual
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 @onready var ability_controller: AbilityController = $Abilities
+@onready var inventory: InventoryState = $Inventory
 
 func _ready() -> void:
 	add_to_group("player")
 	if stats == null:
 		stats = PlayerStats.new()
 	else:
-		stats = stats.duplicate() # Duplicate so runtime changes don't overwrite the original asset
+		stats = stats.duplicate()
 
 	current_health = stats.max_health
 	update_modifiers_meta()
@@ -49,16 +50,13 @@ func _physics_process(delta: float) -> void:
 func get_input_direction() -> Vector2:
 	var dir = Vector2.ZERO
 
-	# Check custom action names if mapped
 	if InputMap.has_action("move_left") and InputMap.has_action("move_right") and \
 	   InputMap.has_action("move_up") and InputMap.has_action("move_down"):
 		dir = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 
-	# Fallback to ui_* actions if custom actions are zero
 	if dir == Vector2.ZERO:
 		dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 
-	# Explicit keyboard key fallback for WASD
 	if dir == Vector2.ZERO:
 		if Input.is_physical_key_pressed(KEY_A) or Input.is_key_pressed(KEY_A):
 			dir.x -= 1.0
@@ -81,10 +79,26 @@ func take_damage(amount: float) -> void:
 	if visual_node and visual_node.has_method("trigger_hit_flash"):
 		visual_node.trigger_hit_flash()
 
+	# Obsidian heart defensive pulse
+	if has_meta("has_obsidian_heart"):
+		trigger_obsidian_pulse()
+
 	health_changed.emit(current_health, stats.max_health)
 
 	if current_health <= 0.0:
 		die()
+
+func trigger_obsidian_pulse() -> void:
+	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+	CombatEffects.spawn_shockwave(container, global_position, 110.0, Color(0.9, 0.2, 0.35, 0.95))
+	CombatEffects.spawn_text_popup(container, global_position, "ОБСИДИАН!", Color(1.0, 0.3, 0.4, 1.0))
+
+	var enemies = TargetSelector.find_enemies_in_radius(get_tree(), global_position, 110.0)
+	for enemy in enemies:
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			var push_dir = (enemy.global_position - global_position).normalized()
+			enemy.global_position += push_dir * 30.0
+			enemy.take_damage(16.0)
 
 func heal(amount: float) -> void:
 	if not is_alive:

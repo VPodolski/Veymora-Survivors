@@ -35,3 +35,4 @@ func add_experience(amount: int) -> void:
 func calculate_required_xp(level: int) -> int:
 	# Smooth scaling curve: 25, 48, 79, 121, 178...
 	return int(round(base_required_xp * pow(level, 1.35)))
+

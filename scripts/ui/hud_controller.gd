@@ -7,6 +7,7 @@ signal restart_requested
 @onready var hp_label: Label = $TopBar/HBox/HealthContainer/HPLabel
 @onready var timer_label: Label = $TopBar/HBox/TimerContainer/TimerLabel
 @onready var level_label: Label = $TopBar/HBox/LevelContainer/LevelLabel
+@onready var artifacts_container: HBoxContainer = $TopBar/HBox/ArtifactsContainer
 @onready var xp_bar: ProgressBar = $XPBarContainer/XPBar
 @onready var death_screen: Control = $DeathScreen
 @onready var death_time_label: Label = $DeathScreen/CenterContainer/Panel/VBox/SurvivalTimeLabel
@@ -52,6 +53,21 @@ func show_level_up(player: PlayerController, new_level: int) -> void:
 	update_level(new_level)
 	if level_up_panel:
 		level_up_panel.open_panel(player, new_level)
+
+func add_artifact_icon(item: ItemDefinition) -> void:
+	if not artifacts_container:
+		return
+	var icon_panel = PanelContainer.new()
+	icon_panel.custom_minimum_size = Vector2(28, 28)
+	var style = StyleBoxFlat.new()
+	style.bg_color = item.icon_color
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_right = 4
+	style.corner_radius_bottom_left = 4
+	icon_panel.add_theme_stylebox_override("panel", style)
+	icon_panel.tooltip_text = "%s: %s" % [item.name, item.description]
+	artifacts_container.add_child(icon_panel)
 
 func update_timer_display() -> void:
 	if timer_label:
