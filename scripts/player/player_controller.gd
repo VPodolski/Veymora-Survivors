@@ -17,6 +17,7 @@ var shake_intensity: float = 0.0
 var shake_duration: float = 0.0
 var active_rune_zones: int = 0
 var active_frost_zones: int = 0
+var virtual_joystick: Node = null
 
 @onready var visual_node: Node2D = $Visual
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
@@ -83,6 +84,10 @@ func get_input_direction() -> Vector2:
 			dir.y -= 1.0
 		if Input.is_physical_key_pressed(KEY_S) or Input.is_key_pressed(KEY_S):
 			dir.y += 1.0
+		dir = dir.normalized()
+
+	if dir == Vector2.ZERO and virtual_joystick != null and virtual_joystick.has_method("get_direction"):
+		dir = virtual_joystick.get_direction()
 
 	return dir.normalized()
 
@@ -208,6 +213,23 @@ func reset_frost_zones() -> void:
 
 func get_effective_speed_mult() -> float:
 	return 0.65 if active_frost_zones > 0 else 1.0
+
+func set_virtual_joystick(vj: Node) -> void:
+	virtual_joystick = vj
+
+func revive_second_chance(hp_ratio: float = 0.5) -> void:
+	is_alive = true
+	current_health = stats.max_health * hp_ratio
+	invulnerable_timer = 2.5
+	velocity = Vector2.ZERO
+	if collision_shape:
+		collision_shape.set_deferred("disabled", false)
+	if visual_node:
+		visual_node.modulate = Color.WHITE
+	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+	CombatEffects.spawn_shockwave(container, global_position, 220.0, Color(0.4, 0.9, 1.0, 0.95))
+	CombatEffects.spawn_text_popup(container, global_position, "ВТОРОЙ ШАНС!", Color(0.4, 0.9, 1.0, 1.0))
+	health_changed.emit(current_health, stats.max_health)
 
 func _exit_tree() -> void:
 	reset_rune_zones()

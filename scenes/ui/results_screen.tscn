@@ -124,3 +124,4 @@ custom_minimum_size = Vector2(190, 46)
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
 text = "🏠 В ГЛАВНОЕ МЕНЮ"
+

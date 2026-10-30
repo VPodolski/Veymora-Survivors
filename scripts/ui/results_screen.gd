@@ -7,6 +7,8 @@ const ArchiveDialog = preload("res://scripts/ui/archive_dialog.gd")
 const ArchiveDialogScene = preload("res://scenes/ui/archive_dialog.tscn")
 const MainMenuBackground = preload("res://scripts/ui/main_menu_background.gd")
 const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
+const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
+const LocalizationManager = preload("res://scripts/game/localization_manager.gd")
 
 const SYNERGY_NAMES = {
 	"resonance": "Чародейский резонанс",
@@ -53,17 +55,34 @@ func display_stats(run_data: RunStats) -> void:
 	if not run_data:
 		return
 
+	var loc = LocalizationManager.instance
+
 	# Title & outcome styling
 	if title_label:
 		if run_data.defeated_boss:
-			title_label.text = "РАЗЛОМ ЗАКРЫТ! ПОБЕДА"
+			title_label.text = loc.get_text("results_victory", "РАЗЛОМ ЗАКРЫТ! ПОБЕДА") if loc else "РАЗЛОМ ЗАКРЫТ! ПОБЕДА"
 			title_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25, 1.0))
 		else:
-			title_label.text = "МАГ ПОГИБ"
+			title_label.text = loc.get_text("results_defeat", "МАГ ПОГИБ") if loc else "МАГ ПОГИБ"
 			title_label.add_theme_color_override("font_color", Color(0.95, 0.25, 0.3, 1.0))
 
 	if arena_label:
-		arena_label.text = "Пространство: %s" % run_data.arena_name
+		var arena_fmt = loc.get_text("results_space", "Пространство: %s") if loc else "Пространство: %s"
+		arena_label.text = arena_fmt % run_data.arena_name
+
+	if retry_btn:
+		retry_btn.text = loc.get_text("btn_retry", "Повторить забег") if loc else "Повторить забег"
+	if arena_btn:
+		arena_btn.text = loc.get_text("menu_start", "Выбор арены") if loc else "Выбор арены"
+	if menu_btn:
+		menu_btn.text = loc.get_text("btn_menu", "Главное меню") if loc else "Главное меню"
+	if codex_btn:
+		codex_btn.text = loc.get_text("btn_codex", "Кодекс и Атлас") if loc else "Кодекс и Атлас"
+
+	# Submit run score to Yandex Games leaderboard
+	var final_score = int(run_data.survival_time * 10.0 + run_data.total_kills * 5.0)
+	if YandexGamesBridge.instance:
+		YandexGamesBridge.instance.submit_score(final_score)
 
 	# Metrics Grid
 	_populate_metrics(run_data)
@@ -178,23 +197,36 @@ func _create_synergy_card(title: String, count: int, dmg: float, is_star: bool) 
 
 	return panel
 
-func _on_retry_pressed() -> void:
-	if GameFlowController.instance:
-		GameFlowController.instance.restart_run()
+func _navigate_with_ad(action: Callable) -> void:
+	var bridge = YandexGamesBridge.instance
+	if bridge and bridge.can_show_interstitial():
+		bridge.show_interstitial(func(_was_shown): action.call())
 	else:
-		get_tree().change_scene_to_file("res://scenes/main/main.tscn")
+		action.call()
+
+func _on_retry_pressed() -> void:
+	_navigate_with_ad(func():
+		if GameFlowController.instance:
+			GameFlowController.instance.restart_run()
+		else:
+			get_tree().change_scene_to_file("res://scenes/main/main.tscn")
+	)
 
 func _on_arena_pressed() -> void:
-	if GameFlowController.instance:
-		GameFlowController.instance.open_arena_select()
-	else:
-		get_tree().change_scene_to_file("res://scenes/ui/arena_select.tscn")
+	_navigate_with_ad(func():
+		if GameFlowController.instance:
+			GameFlowController.instance.open_arena_select()
+		else:
+			get_tree().change_scene_to_file("res://scenes/ui/arena_select.tscn")
+	)
 
 func _on_menu_pressed() -> void:
-	if GameFlowController.instance:
-		GameFlowController.instance.go_to_main_menu()
-	else:
-		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	_navigate_with_ad(func():
+		if GameFlowController.instance:
+			GameFlowController.instance.go_to_main_menu()
+		else:
+			get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	)
 
 func _on_codex_pressed() -> void:
 	if not archive_dialog:

@@ -40,6 +40,8 @@ func _ready() -> void:
 	if player and hud:
 		player.health_changed.connect(hud.update_health)
 		player.died.connect(_on_player_died)
+		if hud.virtual_joystick:
+			player.set_virtual_joystick(hud.virtual_joystick)
 		if player.inventory:
 			player.inventory.artifact_added.connect(hud.add_artifact_icon)
 			player.inventory.artifact_added.connect(func(_art): run_stats.artifacts_collected += 1)
@@ -130,7 +132,7 @@ func _on_player_died() -> void:
 	if spawn_manager:
 		spawn_manager.stop_spawning()
 	if hud:
-		hud.show_death_screen()
+		hud.trigger_player_death_flow(player)
 
 func _on_restart_game() -> void:
 	if GameFlowController.instance:

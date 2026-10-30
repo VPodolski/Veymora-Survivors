@@ -18,6 +18,9 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameFlow="*res://scripts/game/game_flow_controller.gd"
+PauseMgr="*res://scripts/game/pause_manager.gd"
+LocMgr="*res://scripts/game/localization_manager.gd"
+YandexBridge="*res://scripts/platform/yandex_games_bridge.gd"
 
 [display]
 

@@ -21,6 +21,7 @@ var master_volume: float = 1.0
 var sfx_volume: float = 0.8
 var hit_cooldown: float = 0.05
 var hit_cooldown_timer: float = 0.0
+var is_temporary_muted: bool = false
 
 func _enter_tree() -> void:
 	if instance == null:
@@ -44,6 +45,11 @@ func _init_players() -> void:
 		add_child(p)
 		players.append(p)
 
+func set_temporary_mute(muted: bool) -> void:
+	is_temporary_muted = muted
+	AudioServer.set_bus_mute(0, muted)
+	update_playing_volumes()
+
 func set_master_volume(val: float) -> void:
 	master_volume = clampf(val, 0.0, 1.0)
 	update_playing_volumes()
@@ -59,7 +65,7 @@ func update_playing_volumes() -> void:
 			p.volume_db = -6.0 + linear_to_db(effective_gain)
 
 func _play_stream(stream: AudioStreamWAV, base_volume_db: float = -6.0, randomize_pitch: bool = true) -> void:
-	if not stream or players.is_empty():
+	if is_temporary_muted or not stream or players.is_empty():
 		return
 	if master_volume <= 0.001 or sfx_volume <= 0.001:
 		return

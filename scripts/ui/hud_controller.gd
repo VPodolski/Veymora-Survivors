@@ -6,6 +6,11 @@ const ArchiveDialog = preload("res://scripts/ui/archive_dialog.gd")
 const AudioManager = preload("res://scripts/audio/audio_manager.gd")
 const ChestRewardPanel = preload("res://scripts/ui/chest_reward_panel.gd")
 const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
+const PauseManager = preload("res://scripts/game/pause_manager.gd")
+const LocalizationManager = preload("res://scripts/game/localization_manager.gd")
+const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
+const SecondChanceDialog = preload("res://scripts/ui/second_chance_dialog.gd")
+const VirtualJoystick = preload("res://scripts/ui/virtual_joystick.gd")
 
 signal restart_requested
 
@@ -35,6 +40,7 @@ signal restart_requested
 
 # Pause Menu
 @onready var pause_menu: Control = get_node_or_null("PauseMenu")
+@onready var pause_title: Label = get_node_or_null("PauseMenu/Center/Panel/VBox/Title")
 @onready var resume_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/ResumeButton")
 @onready var pause_archive_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseArchiveButton")
 @onready var pause_restart_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseRestartButton")
@@ -42,6 +48,12 @@ signal restart_requested
 @onready var volume_slider: HSlider = get_node_or_null("PauseMenu/Center/Panel/VBox/AudioSettings/VolumeSlider")
 @onready var sfx_volume_slider: HSlider = get_node_or_null("PauseMenu/Center/Panel/VBox/AudioSettings/SfxVolumeSlider")
 @onready var fx_intensity_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/FxIntensityButton")
+
+# Mobile & Platform Nodes
+@onready var mobile_pause_btn: Button = get_node_or_null("TopBar/HBox/MobilePauseButton")
+@onready var virtual_joystick: VirtualJoystick = get_node_or_null("VirtualJoystick")
+@onready var second_chance_dialog: SecondChanceDialog = get_node_or_null("SecondChanceDialog")
+@onready var orientation_warning: Control = get_node_or_null("OrientationWarning")
 
 # Level Up, Chest Reward & Archive Modals
 @onready var level_up_panel: LevelUpPanel = $LevelUpPanel
@@ -54,6 +66,9 @@ var is_game_active: bool = true
 var total_kills: int = 0
 var current_level: int = 1
 var run_stats: RunStats = RunStats.new()
+
+var has_used_second_chance: bool = false
+var bound_player: PlayerController = null
 
 var pending_chest_players: Array[PlayerController] = []
 var pending_level_up_players: Array[Dictionary] = []
@@ -90,6 +105,21 @@ func _ready() -> void:
 	if pause_menu_btn:
 		pause_menu_btn.pressed.connect(_go_to_menu)
 
+	if mobile_pause_btn:
+		mobile_pause_btn.pressed.connect(toggle_pause)
+		var is_touch = DisplayServer.is_touchscreen_available()
+		var is_mob = OS.has_feature("mobile") or (YandexGamesBridge.instance and YandexGamesBridge.instance.is_mobile())
+		mobile_pause_btn.visible = is_mob or is_touch or OS.has_feature("web")
+
+	if virtual_joystick:
+		var is_touch = DisplayServer.is_touchscreen_available()
+		var is_mob = OS.has_feature("mobile") or (YandexGamesBridge.instance and YandexGamesBridge.instance.is_mobile())
+		virtual_joystick.visible = is_mob or is_touch
+
+	if second_chance_dialog:
+		second_chance_dialog.revived.connect(_on_second_chance_revived)
+		second_chance_dialog.declined.connect(_on_second_chance_declined)
+
 	if volume_slider:
 		if AudioManager.instance:
 			volume_slider.value = AudioManager.instance.master_volume
@@ -107,6 +137,10 @@ func _ready() -> void:
 	if level_up_panel:
 		level_up_panel.upgrade_picked.connect(_on_level_up_picked)
 		level_up_panel.panel_closed.connect(_on_level_up_closed)
+
+	if LocalizationManager.instance:
+		LocalizationManager.instance.language_changed.connect(func(_l): _update_localized_ui())
+	_update_localized_ui()
 
 	if not bool(SaveManager.get_setting("tutorial_completed", false)):
 		call_deferred("_show_starter_tutorial")
@@ -151,21 +185,37 @@ func _unhandled_input(event: InputEvent) -> void:
 			_on_restart_pressed()
 
 func toggle_pause() -> void:
-	var next_pause = not get_tree().paused
-	get_tree().paused = next_pause
-	if pause_menu:
-		pause_menu.visible = next_pause
+	if PauseManager.instance:
+		if PauseManager.instance.has_pause_reason(PauseManager.REASON_USER):
+			PauseManager.instance.remove_pause_reason(PauseManager.REASON_USER)
+			if pause_menu:
+				pause_menu.visible = false
+		else:
+			PauseManager.instance.add_pause_reason(PauseManager.REASON_USER)
+			if pause_menu:
+				pause_menu.visible = true
+	else:
+		var next_pause = not get_tree().paused
+		get_tree().paused = next_pause
+		if pause_menu:
+			pause_menu.visible = next_pause
 
 func _open_archive() -> void:
 	if archive_dialog:
 		archive_dialog.open_codex()
 
 func _on_pause_restart_pressed() -> void:
-	get_tree().paused = false
+	if PauseManager.instance:
+		PauseManager.instance.clear_reasons(false)
+	else:
+		get_tree().paused = false
 	_on_restart_pressed()
 
 func _go_to_menu() -> void:
-	get_tree().paused = false
+	if PauseManager.instance:
+		PauseManager.instance.clear_reasons(false)
+	else:
+		get_tree().paused = false
 	if GameFlowController.instance:
 		GameFlowController.instance.go_to_main_menu()
 	else:
@@ -192,6 +242,27 @@ func _on_fx_intensity_toggle() -> void:
 	SaveManager.set_setting("fx_intensity", next_mode)
 	_update_fx_button_label()
 
+func _update_localized_ui() -> void:
+	var loc = LocalizationManager.instance
+	if not loc:
+		return
+	if pause_title:
+		pause_title.text = loc.get_text("pause_title", "ПАУЗА")
+	if resume_btn:
+		resume_btn.text = loc.get_text("pause_resume", "Продолжить")
+	if pause_archive_btn:
+		pause_archive_btn.text = loc.get_text("pause_archive", "📖 Кодекс и Атлас")
+	if pause_restart_btn:
+		pause_restart_btn.text = loc.get_text("pause_restart", "Начать заново")
+	if pause_menu_btn:
+		pause_menu_btn.text = loc.get_text("pause_menu", "В главное меню")
+	if restart_button:
+		restart_button.text = loc.get_text("btn_retry", "Повторить забег")
+	if summary_archive_btn:
+		summary_archive_btn.text = loc.get_text("btn_codex", "Кодекс и Атлас")
+	if summary_menu_btn:
+		summary_menu_btn.text = loc.get_text("btn_menu", "В главное меню")
+
 # Unified Modal Coordination: Level Up & Chest Rewards
 func request_chest_reward(player: PlayerController) -> void:
 	if not is_game_active or not player:
@@ -206,6 +277,8 @@ func request_chest_reward(player: PlayerController) -> void:
 		return
 
 	if chest_reward_panel:
+		if PauseManager.instance:
+			PauseManager.instance.add_pause_reason(PauseManager.REASON_MODAL)
 		chest_reward_panel.open_panel(player)
 
 func _on_chest_reward_closed(_opt: Dictionary) -> void:
@@ -229,8 +302,10 @@ func _on_chest_reward_closed(_opt: Dictionary) -> void:
 	if level_up_panel and level_up_panel.is_panel_open:
 		return
 
+	if PauseManager.instance:
+		PauseManager.instance.remove_pause_reason(PauseManager.REASON_MODAL)
 	var tree = get_tree()
-	if tree:
+	if tree and (PauseManager.instance == null or not PauseManager.instance.is_paused()):
 		tree.paused = false
 
 func _on_level_up_picked(_opt: RewardGenerator.UpgradeOption) -> void:
@@ -255,8 +330,10 @@ func _on_level_up_closed() -> void:
 			level_up_panel.open_panel(p, lvl)
 			return
 
+	if PauseManager.instance:
+		PauseManager.instance.remove_pause_reason(PauseManager.REASON_MODAL)
 	var tree = get_tree()
-	if tree:
+	if tree and (PauseManager.instance == null or not PauseManager.instance.is_paused()):
 		tree.paused = false
 
 func update_health(current_hp: float, max_hp: float) -> void:
@@ -296,6 +373,8 @@ func show_level_up(player: PlayerController, new_level: int) -> void:
 		pending_level_up_players.append({"player": player, "level": new_level})
 		return
 	if level_up_panel:
+		if PauseManager.instance:
+			PauseManager.instance.add_pause_reason(PauseManager.REASON_MODAL)
 		level_up_panel.open_panel(player, new_level)
 
 func update_active_spells(ability_controller: AbilityController) -> void:
@@ -448,6 +527,23 @@ func show_victory_screen() -> void:
 	populate_summary_stats(saved_data)
 	if GameFlowController.instance:
 		GameFlowController.instance.open_results_screen(run_stats)
+
+func trigger_player_death_flow(player: PlayerController = null, force_second_chance: bool = false) -> void:
+	bound_player = player
+	var is_web = OS.has_feature("web")
+	if not has_used_second_chance and second_chance_dialog != null and (force_second_chance or is_web):
+		has_used_second_chance = true
+		second_chance_dialog.open_dialog()
+	else:
+		show_death_screen()
+
+func _on_second_chance_revived() -> void:
+	if bound_player and is_instance_valid(bound_player):
+		bound_player.revive_second_chance(0.5)
+		is_game_active = true
+
+func _on_second_chance_declined() -> void:
+	show_death_screen()
 
 func show_death_screen() -> void:
 	is_game_active = false

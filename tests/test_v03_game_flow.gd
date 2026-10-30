@@ -305,3 +305,4 @@ func test_settings_dialog_persistence() -> void:
 	assert(dialog.visible == false, "Dialog closed")
 	dialog.queue_free()
 	print("[PASS] SettingsDialog options persistence verified.")
+

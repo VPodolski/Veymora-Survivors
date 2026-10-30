@@ -29,9 +29,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -280.0
-offset_top = -240.0
+offset_top = -260.0
 offset_right = 280.0
-offset_bottom = 240.0
+offset_bottom = 260.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -70,6 +70,20 @@ layout_mode = 2
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 14
+
+[node name="Language" type="HBoxContainer" parent="Panel/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Panel/VBox/Content/Language"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+text = "Язык (Language):"
+
+[node name="LangButton" type="Button" parent="Panel/VBox/Content/Language"]
+custom_minimum_size = Vector2(210, 34)
+layout_mode = 2
+text = "Русский (RU)"
 
 [node name="MasterVolume" type="HBoxContainer" parent="Panel/VBox/Content"]
 layout_mode = 2
@@ -181,3 +195,4 @@ alignment = 2
 custom_minimum_size = Vector2(140, 36)
 layout_mode = 2
 text = "Готово"
+

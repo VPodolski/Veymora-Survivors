@@ -222,6 +222,94 @@ static func unlock_arena(arena_id: String) -> void:
 		data["unlocked_arenas"] = unlocked
 		save_custom_data(data)
 
+static func merge_with_cloud(cloud_raw: Dictionary, base_local_data: Dictionary = {}) -> Dictionary:
+	var local_data = base_local_data if not base_local_data.is_empty() else load_data()
+	if cloud_raw.is_empty():
+		return local_data
+
+	var cloud_data = sanitize_data(cloud_raw)
+	var merged = get_default_data()
+	merged["version"] = CURRENT_VERSION
+
+	# Max numerical metrics
+	merged["total_runs"] = max(local_data.get("total_runs", 0), cloud_data.get("total_runs", 0))
+	merged["best_survival_time"] = max(local_data.get("best_survival_time", 0.0), cloud_data.get("best_survival_time", 0.0))
+	merged["bosses_defeated"] = max(local_data.get("bosses_defeated", 0), cloud_data.get("bosses_defeated", 0))
+	merged["total_kills"] = max(local_data.get("total_kills", 0), cloud_data.get("total_kills", 0))
+
+	# Settings: prioritize local if set, else cloud
+	merged["fx_intensity"] = local_data.get("fx_intensity", cloud_data.get("fx_intensity", "standard"))
+	merged["master_volume"] = local_data.get("master_volume", cloud_data.get("master_volume", 1.0))
+	merged["sfx_volume"] = local_data.get("sfx_volume", cloud_data.get("sfx_volume", 0.8))
+	merged["screen_shake"] = local_data.get("screen_shake", cloud_data.get("screen_shake", true))
+	merged["damage_numbers"] = local_data.get("damage_numbers", cloud_data.get("damage_numbers", true))
+	merged["vsync"] = local_data.get("vsync", cloud_data.get("vsync", true))
+	merged["tutorial_completed"] = local_data.get("tutorial_completed", false) or cloud_data.get("tutorial_completed", false)
+
+	# Union of unlocked arenas
+	var arenas: Array = []
+	for a in local_data.get("unlocked_arenas", ["forgotten_forest"]):
+		if not arenas.has(a): arenas.append(a)
+	for a in cloud_data.get("unlocked_arenas", []):
+		if not arenas.has(a): arenas.append(a)
+	merged["unlocked_arenas"] = arenas
+
+	# Merge arena stats
+	var merged_astats: Dictionary = {}
+	var all_arena_keys = []
+	for k in local_data.get("arena_stats", {}).keys():
+		if not all_arena_keys.has(k): all_arena_keys.append(k)
+	for k in cloud_data.get("arena_stats", {}).keys():
+		if not all_arena_keys.has(k): all_arena_keys.append(k)
+
+	for k in all_arena_keys:
+		var loc_a = local_data.get("arena_stats", {}).get(k, {})
+		var cld_a = cloud_data.get("arena_stats", {}).get(k, {})
+		merged_astats[k] = {
+			"runs": max(loc_a.get("runs", 0), cld_a.get("runs", 0)),
+			"wins": max(loc_a.get("wins", 0), cld_a.get("wins", 0)),
+			"best_time": max(loc_a.get("best_time", 0.0), cld_a.get("best_time", 0.0)),
+			"kills": max(loc_a.get("kills", 0), cld_a.get("kills", 0))
+		}
+	merged["arena_stats"] = merged_astats
+
+	# Union of discoveries & atlas goals
+	var array_keys = [
+		"discovered_spells",
+		"discovered_synergies",
+		"discovered_evolutions",
+		"discovered_artifacts",
+		"completed_atlas_goals"
+	]
+	for ak in array_keys:
+		var union_items: Array = []
+		for item in local_data.get(ak, []):
+			if not union_items.has(item): union_items.append(item)
+		for item in cloud_data.get(ak, []):
+			if not union_items.has(item): union_items.append(item)
+		merged[ak] = union_items
+
+	# Merge history (deduplicated by timestamp or survival_time, up to 10 latest)
+	var history: Array = []
+	for h in local_data.get("run_history", []):
+		history.append(h)
+	for h in cloud_data.get("run_history", []):
+		var is_dup = false
+		for existing in history:
+			if existing.get("timestamp", 0) == h.get("timestamp", -1) and existing.get("survival_time", 0) == h.get("survival_time", -1):
+				is_dup = true
+				break
+		if not is_dup:
+			history.append(h)
+
+	if history.size() > 10:
+		history = history.slice(0, 10)
+	merged["run_history"] = history
+
+	if base_local_data.is_empty():
+		save_custom_data(merged)
+	return merged
+
 static func get_setting(key: String, default_value: Variant = null) -> Variant:
 	var data = load_data()
 	return data.get(key, default_value)

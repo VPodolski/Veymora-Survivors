@@ -122,3 +122,4 @@ func _draw() -> void:
 	draw_circle(orb_pos, orb_pulse + 4.0, Color(0.3, 0.8, 1.0, 0.2))
 	draw_circle(orb_pos, orb_pulse, Color(0.4, 0.9, 1.0, 0.85))
 	draw_circle(orb_pos, 2.0, Color.WHITE)
+
