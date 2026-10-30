@@ -105,16 +105,16 @@ func _ready() -> void:
 	if pause_menu_btn:
 		pause_menu_btn.pressed.connect(_go_to_menu)
 
+	var is_touch = DisplayServer.is_touchscreen_available()
+	var is_mob = OS.has_feature("mobile") or (YandexGamesBridge.instance and YandexGamesBridge.instance.is_mobile())
+	var show_touch_controls = is_mob or is_touch
+
 	if mobile_pause_btn:
 		mobile_pause_btn.pressed.connect(toggle_pause)
-		var is_touch = DisplayServer.is_touchscreen_available()
-		var is_mob = OS.has_feature("mobile") or (YandexGamesBridge.instance and YandexGamesBridge.instance.is_mobile())
-		mobile_pause_btn.visible = is_mob or is_touch or OS.has_feature("web")
+		mobile_pause_btn.visible = show_touch_controls
 
 	if virtual_joystick:
-		var is_touch = DisplayServer.is_touchscreen_available()
-		var is_mob = OS.has_feature("mobile") or (YandexGamesBridge.instance and YandexGamesBridge.instance.is_mobile())
-		virtual_joystick.visible = is_mob or is_touch
+		virtual_joystick.visible = show_touch_controls
 
 	if second_chance_dialog:
 		second_chance_dialog.revived.connect(_on_second_chance_revived)

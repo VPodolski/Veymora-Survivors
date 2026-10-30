@@ -107,8 +107,18 @@ func test_yandex_bridge_lifecycle_and_fallback() -> void:
 	bridge.gameplay_stop()
 	assert(!bridge.is_gameplay_active, "Gameplay stopped")
 
-	# Interstitial fallback
+	# Interstitial fallback & cooldown
 	var ad_shown_result = false
+	assert(!bridge.can_show_interstitial(), "Cannot show interstitial in local mode")
+	bridge.is_web = true
+	bridge.is_sdk_available = true
+	bridge.last_interstitial_time = -999.0
+	assert(bridge.can_show_interstitial(), "Can show interstitial when cooled down")
+	bridge.last_interstitial_time = Time.get_ticks_msec() / 1000.0
+	assert(!bridge.can_show_interstitial(), "Cannot show interstitial during cooldown window")
+	bridge.is_web = false
+	bridge.is_sdk_available = false
+
 	bridge.show_interstitial(func(was_shown): ad_shown_result = was_shown)
 	assert(!ad_shown_result, "Local mode interstitial returns false safely without hanging")
 

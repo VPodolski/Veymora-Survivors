@@ -17,7 +17,13 @@ var is_active: bool = false
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	custom_minimum_size = Vector2(base_radius * 2.4, base_radius * 2.4)
+	visibility_changed.connect(func(): if not is_visible_in_tree() and is_active: _reset_joystick())
 	queue_redraw()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_PAUSED:
+		if is_active:
+			_reset_joystick()
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:

@@ -214,9 +214,24 @@ func _create_synergy_card(title: String, count: int, dmg: float, is_star: bool) 
 
 	return panel
 
+var _is_navigating: bool = false
+
 func _navigate_with_ad(action: Callable) -> void:
+	if _is_navigating:
+		return
+	_is_navigating = true
+
+	if retry_btn:
+		retry_btn.disabled = true
+	if arena_btn:
+		arena_btn.disabled = true
+	if menu_btn:
+		menu_btn.disabled = true
+	if codex_btn:
+		codex_btn.disabled = true
+
 	var bridge = YandexGamesBridge.instance
-	if bridge and bridge.can_show_interstitial():
+	if bridge and bridge.has_method("can_show_interstitial") and bridge.can_show_interstitial():
 		bridge.show_interstitial(func(_was_shown): action.call())
 	else:
 		action.call()

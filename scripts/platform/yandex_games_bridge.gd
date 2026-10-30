@@ -401,7 +401,19 @@ func _on_js_browser_focus(_args: Array = []) -> void:
 	resume_requested.emit(PauseManager.REASON_BROWSER_FOCUS)
 
 # --- Interstitial Advertisement ---
+var last_interstitial_time: float = -999.0
+const INTERSTITIAL_COOLDOWN_SECONDS: float = 65.0
+
+func can_show_interstitial() -> bool:
+	if not is_web or not is_sdk_available:
+		return false
+	if _current_interstitial_state == AdSessionState.PENDING or _current_interstitial_state == AdSessionState.OPENED:
+		return false
+	var now = Time.get_ticks_msec() / 1000.0
+	return (now - last_interstitial_time) >= INTERSTITIAL_COOLDOWN_SECONDS
+
 func show_interstitial(callback: Callable = Callable()) -> void:
+	last_interstitial_time = Time.get_ticks_msec() / 1000.0
 	_current_interstitial_session_id += 1
 	var session_id = _current_interstitial_session_id
 	_current_interstitial_state = AdSessionState.PENDING
