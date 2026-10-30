@@ -148,7 +148,8 @@ func _ready() -> void:
 func _show_starter_tutorial() -> void:
 	SaveManager.set_setting("tutorial_completed", true)
 	if toast_label:
-		toast_label.text = "✦ Движение: [W, A, S, D] • Атака: заклинания применяются автоматически"
+		var loc = LocalizationManager.instance
+		toast_label.text = loc.get_text("starter_tutorial", "✦ Движение: [W, A, S, D] или Джойстик • Заклинания срабатывают автоматически") if loc else "✦ Движение: [W, A, S, D] • Атака: заклинания применяются автоматически"
 		var tween = create_tween()
 		tween.tween_property(toast_label, "modulate:a", 1.0, 0.3)
 		tween.tween_interval(4.5)
@@ -233,8 +234,15 @@ func _on_sfx_volume_changed(val: float) -> void:
 
 func _update_fx_button_label() -> void:
 	if fx_intensity_btn:
+		var loc = LocalizationManager.instance
 		var is_standard = CombatEffects.fx_intensity == "standard"
-		fx_intensity_btn.text = "Эффекты: Стандартные" if is_standard else "Эффекты: Сниженные"
+		if loc:
+			fx_intensity_btn.text = "%s %s" % [
+				loc.get_text("settings_fx", "Визуальные эффекты:"),
+				loc.get_text("settings_fx_full", "Стандартные") if is_standard else loc.get_text("settings_fx_reduced", "Сниженные")
+			]
+		else:
+			fx_intensity_btn.text = "Эффекты: Стандартные" if is_standard else "Эффекты: Сниженные"
 
 func _on_fx_intensity_toggle() -> void:
 	var next_mode = "reduced" if CombatEffects.fx_intensity == "standard" else "standard"
@@ -363,7 +371,9 @@ func update_level(new_level: int) -> void:
 	if run_stats:
 		run_stats.level_reached = new_level
 	if level_label:
-		level_label.text = "УР. %d" % new_level
+		var loc = LocalizationManager.instance
+		var pref = loc.get_text("lvl_prefix", "УР. %d") if loc else "УР. %d"
+		level_label.text = pref % new_level
 
 func show_level_up(player: PlayerController, new_level: int) -> void:
 	update_level(new_level)
@@ -410,7 +420,9 @@ func update_active_spells(ability_controller: AbilityController) -> void:
 		lbl.add_theme_font_size_override("font_size", 11)
 		lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4) if is_evo else Color(0.8, 0.9, 1.0))
 		chip.add_child(lbl)
-		chip.tooltip_text = "%s (Ур. %d)" % [ability.ability_name, ability.current_level]
+		var loc = LocalizationManager.instance
+		var lvl_fmt = loc.get_text("lvl_format", "Ур. %d") if loc else "Ур. %d"
+		chip.tooltip_text = "%s (%s)" % [ability.ability_name, lvl_fmt % ability.current_level]
 		spells_container.add_child(chip)
 
 func add_artifact_icon(item: ItemDefinition) -> void:
@@ -464,7 +476,9 @@ func show_chest_notification(reward_name: String) -> void:
 	if AudioManager.instance:
 		AudioManager.instance.play_chest()
 	if toast_label:
-		toast_label.text = "Получено: [%s]" % reward_name
+		var loc = LocalizationManager.instance
+		var toast_fmt = loc.get_text("toast_acquired", "Получено: [%s]") if loc else "Получено: [%s]"
+		toast_label.text = toast_fmt % reward_name
 		var tween = create_tween()
 		tween.tween_property(toast_label, "modulate:a", 1.0, 0.2)
 		tween.tween_interval(2.2)

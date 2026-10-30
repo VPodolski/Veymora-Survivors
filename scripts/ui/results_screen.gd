@@ -90,10 +90,20 @@ func display_stats(run_data: RunStats) -> void:
 	# Synergies Panel
 	_populate_synergies(run_data)
 
+func get_synergy_name(syn_id: String) -> String:
+	var loc = LocalizationManager.instance
+	if loc:
+		var key = "syn_" + syn_id + "_name"
+		var val = loc.get_text(key, "")
+		if not val.is_empty():
+			return val
+	return syn_id
+
 func _populate_metrics(data: RunStats) -> void:
 	if not stats_grid:
 		return
 
+	var loc = LocalizationManager.instance
 	for child in stats_grid.get_children():
 		stats_grid.remove_child(child)
 		child.queue_free()
@@ -102,16 +112,17 @@ func _populate_metrics(data: RunStats) -> void:
 	var m = sec / 60
 	var s = sec % 60
 	var time_str = "%02d:%02d" % [m, s]
+	var lvl_fmt = loc.get_text("lvl_format", "Ур. %d") if loc else "Ур. %d"
 
 	var metrics = [
-		{"label": "Время выживания:", "value": time_str, "color": Color(0.4, 0.8, 1.0)},
-		{"label": "Достигнутый уровень:", "value": "Ур. %d" % data.level_reached, "color": Color(1.0, 0.9, 0.4)},
-		{"label": "Уничтожено теней:", "value": "%d" % data.total_kills, "color": Color(0.9, 0.9, 0.9)},
-		{"label": "Элитные монстры:", "value": "%d" % data.elite_kills, "color": Color(1.0, 0.6, 0.2)},
-		{"label": "Повержено боссов:", "value": "%d" % data.boss_kills, "color": Color(1.0, 0.3, 0.5)},
-		{"label": "Общий нанесённый урон:", "value": "%d" % int(data.damage_dealt), "color": Color(0.95, 0.7, 1.0)},
-		{"label": "Собрано маны (XP):", "value": "%d XP" % int(data.experience_gained), "color": Color(0.4, 1.0, 0.7)},
-		{"label": "Артефакты в сумке:", "value": "%d" % data.artifacts_collected, "color": Color(0.5, 0.85, 1.0)}
+		{"label": loc.get_text("metric_time", "Время выживания:") if loc else "Время выживания:", "value": time_str, "color": Color(0.4, 0.8, 1.0)},
+		{"label": loc.get_text("metric_lvl", "Достигнутый уровень:") if loc else "Достигнутый уровень:", "value": lvl_fmt % data.level_reached, "color": Color(1.0, 0.9, 0.4)},
+		{"label": loc.get_text("metric_kills", "Уничтожено теней:") if loc else "Уничтожено теней:", "value": "%d" % data.total_kills, "color": Color(0.9, 0.9, 0.9)},
+		{"label": loc.get_text("metric_elites", "Элитные монстры:") if loc else "Элитные монстры:", "value": "%d" % data.elite_kills, "color": Color(1.0, 0.6, 0.2)},
+		{"label": loc.get_text("metric_bosses", "Повержено боссов:") if loc else "Повержено боссов:", "value": "%d" % data.boss_kills, "color": Color(1.0, 0.3, 0.5)},
+		{"label": loc.get_text("metric_damage", "Общий нанесённый урон:") if loc else "Общий нанесённый урон:", "value": "%d" % int(data.damage_dealt), "color": Color(0.95, 0.7, 1.0)},
+		{"label": loc.get_text("metric_xp", "Собрано маны (XP):") if loc else "Собрано маны (XP):", "value": "%d XP" % int(data.experience_gained), "color": Color(0.4, 1.0, 0.7)},
+		{"label": loc.get_text("metric_artifacts", "Артефакты в сумке:") if loc else "Артефакты в сумке:", "value": "%d" % data.artifacts_collected, "color": Color(0.5, 0.85, 1.0)}
 	]
 
 	for item in metrics:
@@ -131,6 +142,7 @@ func _populate_synergies(data: RunStats) -> void:
 	if not synergy_headline_label or not synergy_cards_container:
 		return
 
+	var loc = LocalizationManager.instance
 	for child in synergy_cards_container.get_children():
 		synergy_cards_container.remove_child(child)
 		child.queue_free()
@@ -138,15 +150,17 @@ func _populate_synergies(data: RunStats) -> void:
 	var most_effective = data.get_most_effective_synergy()
 	var ratio = data.get_synergy_damage_ratio() * 100.0
 
-	var headline = "✦ Вклад синергий в общий урон: %d%%" % int(ratio)
+	var headline_fmt = loc.get_text("synergy_share", "✦ Вклад синергий в общий урон: %d%%") if loc else "✦ Вклад синергий в общий урон: %d%%"
+	var headline = headline_fmt % int(ratio)
 	if most_effective != "—":
-		var display_best = SYNERGY_NAMES.get(most_effective, most_effective)
-		headline += "   |   Ключевая синергия: %s" % display_best
+		var star_fmt = loc.get_text("synergy_star", "   |   Ключевая синергия: %s") if loc else "   |   Ключевая синергия: %s"
+		var display_best = get_synergy_name(most_effective)
+		headline += star_fmt % display_best
 	synergy_headline_label.text = headline
 
 	if data.synergy_counts.is_empty():
 		var empty_lbl = Label.new()
-		empty_lbl.text = "В этом забеге магические реакции не были активированы.\nКомбинируйте школы магии для активации мощных стихийных резонансов!"
+		empty_lbl.text = loc.get_text("synergy_empty", "В этом забеге магические реакции не были активированы.\nКомбинируйте школы магии для активации мощных стихийных резонансов!") if loc else "В этом забеге магические реакции не были активированы.\nКомбинируйте школы магии для активации мощных стихийных резонансов!"
 		empty_lbl.add_theme_font_size_override("font_size", 12)
 		empty_lbl.add_theme_color_override("font_color", Color(0.55, 0.6, 0.7))
 		synergy_cards_container.add_child(empty_lbl)
@@ -155,13 +169,14 @@ func _populate_synergies(data: RunStats) -> void:
 	for syn_id in data.synergy_counts.keys():
 		var count = data.synergy_counts[syn_id]
 		var dmg = data.synergy_damage.get(syn_id, 0.0)
-		var display_name = SYNERGY_NAMES.get(syn_id, syn_id)
+		var display_name = get_synergy_name(syn_id)
 		var is_star = (syn_id == most_effective)
 
 		var card = _create_synergy_card(display_name, count, dmg, is_star)
 		synergy_cards_container.add_child(card)
 
 func _create_synergy_card(title: String, count: int, dmg: float, is_star: bool) -> Control:
+	var loc = LocalizationManager.instance
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(175, 95)
 
@@ -184,13 +199,15 @@ func _create_synergy_card(title: String, count: int, dmg: float, is_star: bool) 
 	vbox.add_child(name_lbl)
 
 	var count_lbl = Label.new()
-	count_lbl.text = "Активаций: %d" % count
+	var act_fmt = loc.get_text("synergy_activations", "Активаций: %d") if loc else "Активаций: %d"
+	count_lbl.text = act_fmt % count
 	count_lbl.add_theme_font_size_override("font_size", 11)
 	count_lbl.add_theme_color_override("font_color", Color(0.75, 0.8, 0.9))
 	vbox.add_child(count_lbl)
 
 	var dmg_lbl = Label.new()
-	dmg_lbl.text = "Урон: %d" % int(dmg)
+	var dmg_fmt = loc.get_text("synergy_dmg", "Урон: %d") if loc else "Урон: %d"
+	dmg_lbl.text = dmg_fmt % int(dmg)
 	dmg_lbl.add_theme_font_size_override("font_size", 11)
 	dmg_lbl.add_theme_color_override("font_color", Color(0.9, 0.65, 1.0))
 	vbox.add_child(dmg_lbl)

@@ -265,6 +265,19 @@ func test_localization_manager() -> void:
 	# Fallback for unknown key
 	assert(loc.get_text("non_existent_key_xyz", "DefaultVal") == "DefaultVal", "Fallback returned for unknown key")
 
+	# Verify complete key parity between RU and EN dictionaries with no missing/empty strings
+	var ru_keys = LocalizationManager.STRINGS["ru"].keys()
+	var en_keys = LocalizationManager.STRINGS["en"].keys()
+	ru_keys.sort()
+	en_keys.sort()
+	assert(ru_keys.size() == en_keys.size(), "RU and EN dictionaries must have identical key count! RU: %d vs EN: %d" % [ru_keys.size(), en_keys.size()])
+	for k in ru_keys:
+		assert(LocalizationManager.STRINGS["en"].has(k), "Missing EN key for: " + k)
+		assert(!str(LocalizationManager.STRINGS["ru"][k]).is_empty(), "Empty RU value for key: " + k)
+		assert(!str(LocalizationManager.STRINGS["en"][k]).is_empty(), "Empty EN value for key: " + k)
+	for k in en_keys:
+		assert(LocalizationManager.STRINGS["ru"].has(k), "Missing RU key for: " + k)
+
 	# Restore RU
 	loc.set_language("ru")
 	loc.queue_free()

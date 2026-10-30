@@ -6,6 +6,7 @@ signal closed
 const MetaArchive = preload("res://scripts/game/meta_archive.gd")
 const SaveManager = preload("res://scripts/game/save_manager.gd")
 const InventoryState = preload("res://scripts/items/inventory_state.gd")
+const LocalizationManager = preload("res://scripts/game/localization_manager.gd")
 
 @onready var tab_spells_btn: Button = $Panel/VBox/TabButtons/SpellsTab
 @onready var tab_synergies_btn: Button = $Panel/VBox/TabButtons/SynergiesTab
@@ -105,59 +106,85 @@ func _refresh_current_tab() -> void:
 			_render_atlas_tab(archive)
 
 func _render_spells_tab(archive: Dictionary) -> void:
+	var loc = LocalizationManager.instance
 	var spells = archive.get("spells", [])
 	var evolutions = archive.get("evolutions", [])
 
-	_add_section_header("БАЗОВЫЕ ЗАКЛИНАНИЯ (%d/%d)" % [spells.size(), SPELLS_DATA.size()])
+	var sec_spells_fmt = loc.get_text("codex_sec_spells", "БАЗОВЫЕ ЗАКЛИНАНИЯ (%d/%d)") if loc else "БАЗОВЫЕ ЗАКЛИНАНИЯ (%d/%d)"
+	_add_section_header(sec_spells_fmt % [spells.size(), SPELLS_DATA.size()])
 	for s in SPELLS_DATA:
 		var is_known = spells.has(s["id"])
-		var title = s["name"] if is_known else "??? Неизведанное заклинание"
-		var desc = s["desc"] if is_known else "Используйте свитки и повышайте уровень, чтобы открыть эту школу магии."
+		var unk_name = loc.get_text("codex_unknown_spell", "??? Неизведанное заклинание") if loc else "??? Неизведанное заклинание"
+		var unk_desc = loc.get_text("codex_unknown_spell_desc", "Используйте свитки и повышайте уровень, чтобы открыть эту школу магии.") if loc else "Используйте свитки и повышайте уровень, чтобы открыть эту школу магии."
+		var title = s["name"] if is_known else unk_name
+		var desc = s["desc"] if is_known else unk_desc
 		var color = Color(0.3, 0.8, 1.0) if is_known else Color(0.5, 0.5, 0.5)
-		_add_card(title, desc, "[Школа: %s]" % s["school"], color, is_known)
+		var school_fmt = loc.get_text("codex_school_prefix", "[Школа: %s]") if loc else "[Школа: %s]"
+		_add_card(title, desc, school_fmt % s["school"], color, is_known)
 
-	_add_section_header("ВЫСШИЕ ЭВОЛЮЦИИ (%d/%d)" % [evolutions.size(), EVOLUTIONS_DATA.size()])
+	var sec_evo_fmt = loc.get_text("codex_sec_evolutions", "ВЫСШИЕ ЭВОЛЮЦИИ (%d/%d)") if loc else "ВЫСШИЕ ЭВОЛЮЦИИ (%d/%d)"
+	_add_section_header(sec_evo_fmt % [evolutions.size(), EVOLUTIONS_DATA.size()])
 	for e in EVOLUTIONS_DATA:
 		var is_known = evolutions.has(e["id"])
-		var title = e["name"] if is_known else "??? Скрытая трансмутация"
-		var desc = ("Условие: %s\n%s" % [e["req"], e["desc"]]) if is_known else "Требуется заклинание 5-го уровня и резонирующий артефакт."
+		var unk_name = loc.get_text("codex_unknown_evo", "??? Скрытая трансмутация") if loc else "??? Скрытая трансмутация"
+		var unk_desc = loc.get_text("codex_unknown_evo_desc", "Требуется заклинание 5-го уровня и резонирующий артефакт.") if loc else "Требуется заклинание 5-го уровня и резонирующий артефакт."
+		var title = e["name"] if is_known else unk_name
+		var req_fmt = loc.get_text("codex_req_prefix", "Условие: %s\n%s") if loc else "Условие: %s\n%s"
+		var desc = (req_fmt % [e["req"], e["desc"]]) if is_known else unk_desc
 		var color = Color(1.0, 0.85, 0.3) if is_known else Color(0.5, 0.5, 0.5)
-		_add_card(title, desc, "★ ЭВОЛЮЦИЯ ★", color, is_known)
+		var evo_badge = loc.get_text("codex_badge_evo", "★ ЭВОЛЮЦИЯ ★") if loc else "★ ЭВОЛЮЦИЯ ★"
+		_add_card(title, desc, evo_badge, color, is_known)
 
 func _render_synergies_tab(archive: Dictionary) -> void:
+	var loc = LocalizationManager.instance
 	var discovered = archive.get("synergies", [])
-	_add_section_header("МАГИЧЕСКИЕ СИНЕРГИИ И РЕАКЦИИ (%d/%d)" % [discovered.size(), SYNERGIES_DATA.size()])
+	var sec_syn_fmt = loc.get_text("codex_sec_synergies", "МАГИЧЕСКИЕ СИНЕРГИИ И РЕАКЦИИ (%d/%d)") if loc else "МАГИЧЕСКИЕ СИНЕРГИИ И РЕАКЦИИ (%d/%d)"
+	_add_section_header(sec_syn_fmt % [discovered.size(), SYNERGIES_DATA.size()])
 
 	for syn in SYNERGIES_DATA:
 		var is_known = discovered.has(syn["id"]) or discovered.has(syn["name"])
-		var title = syn["name"] if is_known else "??? Скрытая комбинация стихий"
-		var desc = ("Формула: %s\n%s" % [syn["formula"], syn["desc"]]) if is_known else "Комбинируйте эффекты разных стихий в бою, чтобы раскрыть резонанс."
+		var unk_name = loc.get_text("codex_unknown_syn", "??? Скрытая комбинация стихий") if loc else "??? Скрытая комбинация стихий"
+		var unk_desc = loc.get_text("codex_unknown_syn_desc", "Комбинируйте эффекты разных стихий в бою, чтобы раскрыть резонанс.") if loc else "Комбинируйте эффекты разных стихий в бою, чтобы раскрыть резонанс."
+		var title = syn["name"] if is_known else unk_name
+		var formula_fmt = loc.get_text("codex_formula_prefix", "Формула: %s\n%s") if loc else "Формула: %s\n%s"
+		var desc = (formula_fmt % [syn["formula"], syn["desc"]]) if is_known else unk_desc
 		var color = Color(0.85, 0.45, 1.0) if is_known else Color(0.5, 0.5, 0.5)
-		_add_card(title, desc, "СИНЕРГИЯ", color, is_known)
+		var syn_badge = loc.get_text("codex_badge_syn", "СИНЕРГИЯ") if loc else "СИНЕРГИЯ"
+		_add_card(title, desc, syn_badge, color, is_known)
 
 func _render_artifacts_tab(archive: Dictionary) -> void:
+	var loc = LocalizationManager.instance
 	var discovered = archive.get("artifacts", [])
 	var all_arts = InventoryState.ALL_ARTIFACTS
-	_add_section_header("АРТЕФАКТЫ И РЕЛИКВИИ (%d/%d)" % [discovered.size(), all_arts.size()])
+	var sec_art_fmt = loc.get_text("codex_sec_artifacts", "АРТЕФАКТЫ И РЕЛИКВИИ (%d/%d)") if loc else "АРТЕФАКТЫ И РЕЛИКВИИ (%d/%d)"
+	_add_section_header(sec_art_fmt % [discovered.size(), all_arts.size()])
 
 	for art_id in all_arts.keys():
 		var art = all_arts[art_id]
 		var is_known = discovered.has(art_id)
-		var title = art["name"] if is_known else "??? Запечатанный артефакт"
-		var desc = art["desc"] if is_known else "Побеждайте элитных врагов и находите сокровищницы Разлома."
+		var unk_name = loc.get_text("codex_unknown_art", "??? Запечатанный артефакт") if loc else "??? Запечатанный артефакт"
+		var unk_desc = loc.get_text("codex_unknown_art_desc", "Побеждайте элитных врагов и находите сокровищницы Разлома.") if loc else "Побеждайте элитных врагов и находите сокровищницы Разлома."
+		var title = art["name"] if is_known else unk_name
+		var desc = art["desc"] if is_known else unk_desc
 		var color = art["color"] if is_known else Color(0.5, 0.5, 0.5)
-		var badge = art.get("rarity", "АРТЕФАКТ") if is_known else "АРТЕФАКТ"
+		var art_badge = loc.get_text("codex_badge_art", "АРТЕФАКТ") if loc else "АРТЕФАКТ"
+		var badge = art.get("rarity", art_badge) if is_known else art_badge
 		_add_card(title, desc, badge, color, is_known)
 
 func _render_atlas_tab(archive: Dictionary) -> void:
+	var loc = LocalizationManager.instance
 	var completed = archive.get("completed_goals", [])
-	_add_section_header("АТЛАС РАЗЛОМОВ: ИСПЫТАНИЯ И НАГРАДЫ (%d/%d)" % [completed.size(), MetaArchive.ATLAS_GOALS.size()])
+	var sec_atlas_fmt = loc.get_text("codex_sec_atlas", "АТЛАС РАЗЛОМОВ: ИСПЫТАНИЯ И НАГРАДЫ (%d/%d)") if loc else "АТЛАС РАЗЛОМОВ: ИСПЫТАНИЯ И НАГРАДЫ (%d/%d)"
+	_add_section_header(sec_atlas_fmt % [completed.size(), MetaArchive.ATLAS_GOALS.size()])
 
 	for goal in MetaArchive.ATLAS_GOALS:
 		var is_done = completed.has(goal["id"])
-		var badge = "[✓ ВЫПОЛНЕНО]" if is_done else "[✕ В ПРОЦЕССЕ]"
+		var done_badge = loc.get_text("codex_badge_done", "[✓ ВЫПОЛНЕНО]") if loc else "[✓ ВЫПОЛНЕНО]"
+		var prog_badge = loc.get_text("codex_badge_progress", "[✕ В ПРОЦЕССЕ]") if loc else "[✕ В ПРОЦЕССЕ]"
+		var badge = done_badge if is_done else prog_badge
 		var color = Color(1.0, 0.85, 0.2) if is_done else Color(0.7, 0.7, 0.7)
-		var desc = "%s\nНаграда: %s" % [goal["desc"], goal["reward"]]
+		var reward_fmt = loc.get_text("codex_reward_prefix", "%s\nНаграда: %s") if loc else "%s\nНаграда: %s"
+		var desc = reward_fmt % [goal["desc"], goal["reward"]]
 		_add_card(goal["title"], desc, badge, color, true)
 
 func _add_section_header(text: String) -> void:
