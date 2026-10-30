@@ -73,3 +73,4 @@ static func get_archive_data() -> Dictionary:
 		"artifacts": data.get("discovered_artifacts", []),
 		"completed_goals": data.get("completed_atlas_goals", [])
 	}
+

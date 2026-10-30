@@ -10,46 +10,68 @@ var player_owner: PlayerController = null
 
 static var ALL_ARTIFACTS: Dictionary = {
 	"hourglass": {
-		"name": "Песочные часы обратного течения",
-		"desc": "Снаряды мага пробивают врагов и устремляются назад. Открывает эволюцию Магической стрелы.",
+		"name": "Песочные часы",
+		"desc": "-15% к перезарядке заклинаний. Снаряды пробивают врагов и летят назад. Катализатор эволюции Магической стрелы.",
 		"color": Color(0.3, 0.9, 1.0, 1.0),
-		"tags": ["returning", "piercing", "catalyst"]
+		"tags": ["utility", "cooldown", "catalyst"],
+		"icon_symbol": "hourglass",
+		"rarity": "РЕДКОЕ"
 	},
 	"obsidian_heart": {
 		"name": "Обсидиановое сердце",
-		"desc": "Потерянное здоровье увеличивает силу магии (до +80%). При ранении выпускает волну отталкивания. Катализатор Огненной сферы.",
-		"color": Color(0.9, 0.2, 0.3, 1.0),
-		"tags": ["blood_magic", "defense", "catalyst"]
+		"desc": "Потерянное HP увеличивает силу магии (до +80%). Волна отталкивания при ранении. Катализатор Огненной сферы.",
+		"color": Color(0.95, 0.22, 0.32, 1.0),
+		"tags": ["defense", "damage", "catalyst"],
+		"icon_symbol": "heart",
+		"rarity": "РЕДКОЕ"
+	},
+	"frost_core": {
+		"name": "Ледяное ядро",
+		"desc": "+35% к урону холодом и +50% к длительности замедления. Катализатор эволюции Ледяного шторма.",
+		"color": Color(0.2, 0.85, 1.0, 1.0),
+		"tags": ["damage", "ice", "catalyst"],
+		"icon_symbol": "ice",
+		"rarity": "РЕДКОЕ"
 	},
 	"rift_compass": {
 		"name": "Компас разломов",
 		"desc": "Поражённые враги становятся нестабильными и при гибели взрываются пространственным разломом.",
 		"color": Color(0.85, 0.35, 1.0, 1.0),
-		"tags": ["spatial", "explosive"]
-	},
-	"frost_core": {
-		"name": "Ледяное ядро",
-		"desc": "Увеличивает длительность замедления на +50% и урон льдом на +35%. Катализатор эволюции Ледяного шторма.",
-		"color": Color(0.2, 0.85, 1.0, 1.0),
-		"tags": ["ice", "catalyst", "control"]
+		"tags": ["damage", "spatial", "offensive"],
+		"icon_symbol": "compass",
+		"rarity": "РЕДКОЕ"
 	},
 	"phoenix_feather": {
 		"name": "Перо феникса",
-		"desc": "При смертельном ударе воскрешает мага с 50% HP и испускает термо-волну (1 раз за забег).",
+		"desc": "Легендарное перо: при смертельном ударе воскрешает мага с 50% HP и испускает термо-волну (1 раз за забег).",
 		"color": Color(1.0, 0.45, 0.1, 1.0),
-		"tags": ["revival", "fire", "survival"]
+		"tags": ["defense", "survival", "legendary"],
+		"icon_symbol": "feather",
+		"rarity": "ЛЕГЕНДАРНОЕ"
 	},
 	"lightning_rod": {
 		"name": "Громоотвод",
-		"desc": "Все снаряды выпускают +1 снаряд, а цепные разряды совершают +1 дополнительный скачок.",
+		"desc": "Все заклинания выпускают +1 снаряд, а цепные разряды совершают +1 дополнительный скачок.",
 		"color": Color(0.45, 0.9, 1.0, 1.0),
-		"tags": ["lightning", "projectiles"]
+		"tags": ["offensive", "lightning", "projectiles"],
+		"icon_symbol": "lightning",
+		"rarity": "РЕДКОЕ"
+	},
+	"amulet_of_haste": {
+		"name": "Амулет спешки",
+		"desc": "+18% к скорости передвижения мага.",
+		"color": Color(0.3, 1.0, 0.7, 1.0),
+		"tags": ["utility", "mobility"],
+		"icon_symbol": "wing",
+		"rarity": "ОБЫЧНОЕ"
 	},
 	"scholars_tome": {
 		"name": "Фолиант учёного",
-		"desc": "Увеличивает радиус сбора опыта на +60% и ускоряет набор уровней на +25%.",
+		"desc": "+50% к радиусу сбора сфер опыта и +20% к получаемому опыту.",
 		"color": Color(1.0, 0.85, 0.25, 1.0),
-		"tags": ["utility", "experience"]
+		"tags": ["utility", "experience"],
+		"icon_symbol": "book",
+		"rarity": "ОБЫЧНОЕ"
 	}
 }
 
@@ -58,7 +80,7 @@ func _ready() -> void:
 	if parent is PlayerController:
 		player_owner = parent
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if not player_owner:
 		return
 
@@ -70,13 +92,31 @@ func _process(delta: float) -> void:
 func has_artifact(id: String) -> bool:
 	return artifacts.has(id)
 
+func is_full() -> bool:
+	return artifacts.size() >= max_artifacts
+
+func get_unowned_artifacts() -> Array[String]:
+	var list: Array[String] = []
+	for id in ALL_ARTIFACTS.keys():
+		if not has_artifact(id):
+			list.append(id)
+	return list
+
 func add_artifact(id: String) -> bool:
-	if has_artifact(id) or artifacts.size() >= max_artifacts:
+	if has_artifact(id) or is_full():
 		return false
 
 	if ALL_ARTIFACTS.has(id):
 		var data = ALL_ARTIFACTS[id]
-		var item = ItemDefinition.new(id, data["name"], data["desc"], data["color"], data["tags"])
+		var item = ItemDefinition.new(
+			id,
+			data["name"],
+			data["desc"],
+			data["color"],
+			data.get("tags", []),
+			data.get("icon_symbol", "gem"),
+			data.get("rarity", "РЕДКОЕ")
+		)
 		artifacts[id] = item
 		artifact_added.emit(item)
 		apply_artifact_effect(id)
@@ -101,5 +141,8 @@ func apply_artifact_effect(id: String) -> void:
 			player_owner.phoenix_revives_remaining += 1
 		"lightning_rod":
 			player_owner.set_meta("has_lightning_rod", true)
+		"amulet_of_haste":
+			player_owner.increase_move_speed(0.18)
+			player_owner.set_meta("has_amulet_of_haste", true)
 		"scholars_tome":
 			player_owner.set_meta("has_scholars_tome", true)

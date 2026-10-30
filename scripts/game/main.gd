@@ -29,6 +29,8 @@ func _ready() -> void:
 		if player.inventory:
 			player.inventory.artifact_added.connect(hud.add_artifact_icon)
 		hud.update_health(player.current_health, player.stats.max_health)
+		if player.ability_controller:
+			call_deferred("_sync_hud_spells")
 
 	if experience_manager and hud:
 		experience_manager.experience_changed.connect(hud.update_experience)
@@ -79,10 +81,15 @@ func _on_enemy_killed(enemy: EnemyController) -> void:
 	if (enemy is BossController) or enemy.name.to_lower().contains("boss"):
 		MetaArchive.check_and_complete_goal("defeat_colossus")
 
+func _sync_hud_spells() -> void:
+	if hud and player and player.ability_controller:
+		hud.update_active_spells(player.ability_controller)
+
 func _on_player_level_up(new_level: int) -> void:
 	run_stats.level_reached = new_level
 	if hud and player:
 		hud.show_level_up(player, new_level)
+		_sync_hud_spells()
 
 func _on_player_died() -> void:
 	if spawn_manager:

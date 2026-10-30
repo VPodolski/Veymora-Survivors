@@ -4,11 +4,14 @@ extends CanvasLayer
 const RunStats = preload("res://scripts/game/run_stats.gd")
 const ArchiveDialog = preload("res://scripts/ui/archive_dialog.gd")
 const AudioManager = preload("res://scripts/audio/audio_manager.gd")
+const ChestRewardPanel = preload("res://scripts/ui/chest_reward_panel.gd")
 
 signal restart_requested
 
 @onready var hp_bar: ProgressBar = $TopBar/HBox/HealthContainer/HPBar
-@onready var hp_label: Label = $TopBar/HBox/HealthContainer/HPLabel
+@onready var hp_label: Label = $TopBar/HBox/HealthContainer/HPHeader/HPLabel
+@onready var heart_icon: Label = $TopBar/HBox/HealthContainer/HPHeader/HeartIcon
+@onready var spells_container: HBoxContainer = $TopBar/HBox/SpellsContainer
 @onready var timer_label: Label = $TopBar/HBox/TimerContainer/TimerLabel
 @onready var level_label: Label = $TopBar/HBox/LevelContainer/LevelLabel
 @onready var artifacts_container: HBoxContainer = $TopBar/HBox/ArtifactsContainer
@@ -35,9 +38,11 @@ signal restart_requested
 @onready var pause_archive_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseArchiveButton")
 @onready var pause_restart_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseRestartButton")
 @onready var pause_menu_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseMenuButton")
+@onready var volume_slider: HSlider = get_node_or_null("PauseMenu/Center/Panel/VBox/AudioSettings/VolumeSlider")
 
-# Level Up & Archive
+# Level Up, Chest Reward & Archive Modals
 @onready var level_up_panel: LevelUpPanel = $LevelUpPanel
+@onready var chest_reward_panel: ChestRewardPanel = get_node_or_null("ChestRewardPanel")
 @onready var archive_dialog: ArchiveDialog = get_node_or_null("ArchiveDialog")
 @onready var toast_label: Label = $ToastLabel
 
@@ -46,6 +51,9 @@ var is_game_active: bool = true
 var total_kills: int = 0
 var current_level: int = 1
 var run_stats: RunStats = RunStats.new()
+
+var pending_chest_players: Array[PlayerController] = []
+var pending_level_up_players: Array[Dictionary] = []
 
 func _ready() -> void:
 	add_to_group("hud")
@@ -57,6 +65,9 @@ func _ready() -> void:
 		pause_menu.visible = false
 	if archive_dialog:
 		archive_dialog.visible = false
+	if chest_reward_panel:
+		chest_reward_panel.visible = false
+		chest_reward_panel.reward_selected.connect(_on_chest_reward_closed)
 	if toast_label:
 		toast_label.modulate.a = 0.0
 
@@ -76,6 +87,15 @@ func _ready() -> void:
 	if pause_menu_btn:
 		pause_menu_btn.pressed.connect(_go_to_menu)
 
+	if volume_slider:
+		if AudioManager.instance:
+			volume_slider.value = AudioManager.instance.master_volume
+		volume_slider.value_changed.connect(_on_volume_changed)
+
+	if level_up_panel:
+		level_up_panel.upgrade_picked.connect(_on_level_up_picked)
+		level_up_panel.panel_closed.connect(_on_level_up_closed)
+
 func set_run_stats(stats: RunStats) -> void:
 	if stats:
 		run_stats = stats
@@ -93,7 +113,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if archive_dialog and archive_dialog.visible:
 			archive_dialog.visible = false
 			return
-		if level_up_panel and level_up_panel.visible:
+		# If level up or chest modal is open, don't open pause menu
+		if level_up_panel and level_up_panel.is_panel_open:
+			return
+		if chest_reward_panel and chest_reward_panel.is_panel_open:
 			return
 		if is_game_active:
 			toggle_pause()
@@ -121,17 +144,93 @@ func _go_to_menu() -> void:
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
+func _on_volume_changed(val: float) -> void:
+	if AudioManager.instance:
+		AudioManager.instance.set_master_volume(val)
+
+# Unified Modal Coordination: Level Up & Chest Rewards
+func request_chest_reward(player: PlayerController) -> void:
+	if not is_game_active or not player:
+		return
+
+	if level_up_panel and level_up_panel.is_panel_open:
+		pending_chest_players.append(player)
+		return
+
+	if chest_reward_panel and chest_reward_panel.is_panel_open:
+		pending_chest_players.append(player)
+		return
+
+	if chest_reward_panel:
+		chest_reward_panel.open_panel(player)
+
+func _on_chest_reward_closed(_opt: Dictionary) -> void:
+	# Priority 1: Check if another chest is queued
+	if pending_chest_players.size() > 0:
+		var next_player = pending_chest_players.pop_front()
+		if chest_reward_panel and is_instance_valid(next_player) and next_player.is_alive:
+			chest_reward_panel.open_panel(next_player)
+			return
+
+	# Priority 2: Check if a level up was queued while chest was open
+	if pending_level_up_players.size() > 0:
+		var next_req = pending_level_up_players.pop_front()
+		var p = next_req.get("player")
+		var lvl = next_req.get("level", 1)
+		if level_up_panel and is_instance_valid(p) and p.is_alive:
+			level_up_panel.open_panel(p, lvl)
+			return
+
+	# If no more chests or level-ups pending
+	if level_up_panel and level_up_panel.is_panel_open:
+		return
+
+	var tree = get_tree()
+	if tree:
+		tree.paused = false
+
+func _on_level_up_picked(_opt: RewardGenerator.UpgradeOption) -> void:
+	var players = get_tree().get_nodes_in_group("player")
+	if players.size() > 0 and players[0].get("ability_controller"):
+		update_active_spells(players[0].ability_controller)
+
+func _on_level_up_closed() -> void:
+	# Priority 1: Check pending chests
+	if pending_chest_players.size() > 0:
+		var next_player = pending_chest_players.pop_front()
+		if chest_reward_panel and is_instance_valid(next_player) and next_player.is_alive:
+			chest_reward_panel.open_panel(next_player)
+			return
+
+	# Priority 2: Check pending level ups
+	if pending_level_up_players.size() > 0:
+		var next_req = pending_level_up_players.pop_front()
+		var p = next_req.get("player")
+		var lvl = next_req.get("level", 1)
+		if level_up_panel and is_instance_valid(p) and p.is_alive:
+			level_up_panel.open_panel(p, lvl)
+			return
+
+	var tree = get_tree()
+	if tree:
+		tree.paused = false
+
 func update_health(current_hp: float, max_hp: float) -> void:
 	if hp_bar:
 		hp_bar.max_value = max_hp
 		hp_bar.value = current_hp
 	if hp_label:
-		hp_label.text = "HP: %d / %d" % [int(ceil(current_hp)), int(ceil(max_hp))]
+		hp_label.text = "%d / %d" % [int(ceil(current_hp)), int(ceil(max_hp))]
 
-		if current_hp <= max_hp * 0.3:
+		# Low HP warning feedback with pulse
+		if current_hp <= max_hp * 0.25:
 			hp_label.add_theme_color_override("font_color", Color(1.0, 0.25, 0.3, 1.0))
+			if heart_icon:
+				heart_icon.add_theme_color_override("font_color", Color(1.0, 0.15, 0.2, 1.0))
 		else:
 			hp_label.add_theme_color_override("font_color", Color.WHITE)
+			if heart_icon:
+				heart_icon.add_theme_color_override("font_color", Color(1.0, 0.3, 0.35, 1.0))
 
 func update_experience(current_xp: int, required_xp: int) -> void:
 	if xp_bar:
@@ -149,8 +248,47 @@ func show_level_up(player: PlayerController, new_level: int) -> void:
 	update_level(new_level)
 	if AudioManager.instance:
 		AudioManager.instance.play_level_up()
+	if chest_reward_panel and chest_reward_panel.is_panel_open:
+		pending_level_up_players.append({"player": player, "level": new_level})
+		return
 	if level_up_panel:
 		level_up_panel.open_panel(player, new_level)
+
+func update_active_spells(ability_controller: AbilityController) -> void:
+	if not spells_container or not ability_controller:
+		return
+
+	for child in spells_container.get_children():
+		child.queue_free()
+
+	for ability in ability_controller.get_active_abilities():
+		var chip = PanelContainer.new()
+		chip.custom_minimum_size = Vector2(28, 28)
+		var style = StyleBoxFlat.new()
+		style.bg_color = Color(0.1, 0.12, 0.18, 0.9)
+		style.border_width_left = 1
+		style.border_width_top = 1
+		style.border_width_right = 1
+		style.border_width_bottom = 1
+		style.corner_radius_top_left = 4
+		style.corner_radius_top_right = 4
+		style.corner_radius_bottom_right = 4
+		style.corner_radius_bottom_left = 4
+
+		var is_evo = ability.get("is_evolved") == true
+		style.border_color = Color(1.0, 0.85, 0.3, 1.0) if is_evo else Color(0.3, 0.7, 1.0, 0.8)
+		chip.add_theme_stylebox_override("panel", style)
+
+		var lbl = Label.new()
+		var evo_mark = "★" if is_evo else ""
+		lbl.text = "%d%s" % [ability.current_level, evo_mark]
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.add_theme_font_size_override("font_size", 11)
+		lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4) if is_evo else Color(0.8, 0.9, 1.0))
+		chip.add_child(lbl)
+		chip.tooltip_text = "%s (Ур. %d)" % [ability.ability_name, ability.current_level]
+		spells_container.add_child(chip)
 
 func add_artifact_icon(item: ItemDefinition) -> void:
 	if not artifacts_container:
@@ -159,7 +297,7 @@ func add_artifact_icon(item: ItemDefinition) -> void:
 	var icon_panel = PanelContainer.new()
 	icon_panel.custom_minimum_size = Vector2(30, 30)
 	var style = StyleBoxFlat.new()
-	style.bg_color = item.icon_color
+	style.bg_color = Color(item.icon_color.r * 0.25, item.icon_color.g * 0.25, item.icon_color.b * 0.25, 0.92)
 	style.corner_radius_top_left = 6
 	style.corner_radius_top_right = 6
 	style.corner_radius_bottom_right = 6
@@ -168,19 +306,45 @@ func add_artifact_icon(item: ItemDefinition) -> void:
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.border_color = Color(1.0, 1.0, 1.0, 0.6)
+	style.border_color = item.icon_color
 	icon_panel.add_theme_stylebox_override("panel", style)
 	icon_panel.tooltip_text = "%s: %s" % [item.name, item.description]
+
+	var glyph_label = Label.new()
+	glyph_label.text = _get_artifact_glyph(item.icon_symbol)
+	glyph_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	glyph_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	glyph_label.add_theme_font_size_override("font_size", 15)
+	glyph_label.add_theme_color_override("font_color", item.icon_color)
+	icon_panel.add_child(glyph_label)
+
 	artifacts_container.add_child(icon_panel)
+
+	# Pop-in scale bounce animation
+	icon_panel.scale = Vector2(1.35, 1.35)
+	var tween = create_tween()
+	tween.tween_property(icon_panel, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+func _get_artifact_glyph(symbol: String) -> String:
+	match symbol:
+		"hourglass": return "⏳"
+		"heart": return "❤"
+		"compass": return "🧭"
+		"ice": return "❄"
+		"feather": return "🪶"
+		"lightning": return "⚡"
+		"wing": return "🪽"
+		"book": return "📖"
+		_: return "✦"
 
 func show_chest_notification(reward_name: String) -> void:
 	if AudioManager.instance:
 		AudioManager.instance.play_chest()
 	if toast_label:
-		toast_label.text = "Сундук: получено [%s]" % reward_name
+		toast_label.text = "Получено: [%s]" % reward_name
 		var tween = create_tween()
 		tween.tween_property(toast_label, "modulate:a", 1.0, 0.2)
-		tween.tween_interval(2.0)
+		tween.tween_interval(2.2)
 		tween.tween_property(toast_label, "modulate:a", 0.0, 0.4)
 
 func register_kill(enemy: EnemyController = null) -> void:

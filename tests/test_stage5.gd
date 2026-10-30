@@ -64,9 +64,14 @@ func run_tests() -> void:
 
 	var arts_before = player.inventory.artifacts.size()
 	chest.open_chest(player)
+	var chest_panel = main_node.hud.chest_reward_panel
+	assert(chest_panel != null and chest_panel.is_panel_open, "Chest opened modal reward panel")
+	assert(chest_panel.current_options.size() > 0, "Chest panel has reward options")
+	var opt = chest_panel.current_options[0]
+	chest_panel._on_card_selected(opt)
 	var arts_after = player.inventory.artifacts.size()
 	assert(arts_after > arts_before, "Treasure chest granted a new artifact")
-	print("[PASS] Treasure chest and artifact reward verified")
+	print("[PASS] Treasure chest and 3-choice modal artifact reward verified")
 
 	# 4. Test Elite Enemy & Guaranteed Chest Drop
 	var elite = spawner.spawn_elite() as EliteEnemyController

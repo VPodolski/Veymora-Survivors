@@ -5,6 +5,7 @@ signal closed
 
 const MetaArchive = preload("res://scripts/game/meta_archive.gd")
 const SaveManager = preload("res://scripts/game/save_manager.gd")
+const InventoryState = preload("res://scripts/items/inventory_state.gd")
 
 @onready var tab_spells_btn: Button = $Panel/VBox/TabButtons/SpellsTab
 @onready var tab_synergies_btn: Button = $Panel/VBox/TabButtons/SynergiesTab
@@ -134,14 +135,17 @@ func _render_synergies_tab(archive: Dictionary) -> void:
 
 func _render_artifacts_tab(archive: Dictionary) -> void:
 	var discovered = archive.get("artifacts", [])
-	_add_section_header("АРТЕФАКТЫ И РЕЛИКВИИ (%d/%d)" % [discovered.size(), ARTIFACTS_DATA.size()])
+	var all_arts = InventoryState.ALL_ARTIFACTS
+	_add_section_header("АРТЕФАКТЫ И РЕЛИКВИИ (%d/%d)" % [discovered.size(), all_arts.size()])
 
-	for art in ARTIFACTS_DATA:
-		var is_known = discovered.has(art["id"])
+	for art_id in all_arts.keys():
+		var art = all_arts[art_id]
+		var is_known = discovered.has(art_id)
 		var title = art["name"] if is_known else "??? Запечатанный артефакт"
 		var desc = art["desc"] if is_known else "Побеждайте элитных врагов и находите сокровищницы Разлома."
-		var color = Color(0.4, 0.95, 0.7) if is_known else Color(0.5, 0.5, 0.5)
-		_add_card(title, desc, "АРТЕФАКТ", color, is_known)
+		var color = art["color"] if is_known else Color(0.5, 0.5, 0.5)
+		var badge = art.get("rarity", "АРТЕФАКТ") if is_known else "АРТЕФАКТ"
+		_add_card(title, desc, badge, color, is_known)
 
 func _render_atlas_tab(archive: Dictionary) -> void:
 	var completed = archive.get("completed_goals", [])

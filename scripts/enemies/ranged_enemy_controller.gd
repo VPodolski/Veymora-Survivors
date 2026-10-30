@@ -65,10 +65,14 @@ func start_casting() -> void:
 	is_casting = true
 	cast_timer = 0.40
 	shoot_timer = shoot_cooldown
+	if visual_node and visual_node.has_method("set_casting"):
+		visual_node.set_casting(true)
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	CombatEffects.spawn_impact_sparks(container, global_position, Color(0.8, 0.2, 0.9, 0.8), 3)
 
 func _fire_projectile() -> void:
+	if visual_node and visual_node.has_method("set_casting"):
+		visual_node.set_casting(false)
 	if not is_instance_valid(target_player) or not projectile_scene:
 		return
 	var dir = (target_player.global_position - global_position).normalized()
@@ -81,3 +85,4 @@ func _fire_projectile() -> void:
 	proj.projectile_color = Color(0.85, 0.2, 0.8, 1.0)
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	container.add_child(proj)
+

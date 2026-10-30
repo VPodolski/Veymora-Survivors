@@ -2,6 +2,7 @@ class_name LevelUpPanel
 extends Control
 
 signal upgrade_picked(option: RewardGenerator.UpgradeOption)
+signal panel_closed()
 
 @onready var cards_container: HBoxContainer = $CenterContainer/VBox/CardsContainer
 @onready var title_label: Label = $CenterContainer/VBox/TitleLabel
@@ -139,6 +140,9 @@ func _on_card_selected(opt: RewardGenerator.UpgradeOption) -> void:
 	else:
 		is_panel_open = false
 		visible = false
-		var tree = get_tree()
-		if tree:
-			tree.paused = false
+		panel_closed.emit()
+		var huds = get_tree().get_nodes_in_group("hud") if get_tree() else []
+		if huds.is_empty():
+			var tree = get_tree()
+			if tree:
+				tree.paused = false

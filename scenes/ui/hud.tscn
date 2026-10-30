@@ -1,8 +1,9 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/hud_controller.gd" id="1_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/level_up_panel.tscn" id="2_levelup"]
 [ext_resource type="PackedScene" path="res://scenes/ui/archive_dialog.tscn" id="3_archive"]
+[ext_resource type="PackedScene" path="res://scenes/ui/chest_reward_panel.tscn" id="4_chestreward"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_bg"]
 bg_color = Color(0.12, 0.12, 0.16, 0.8)
@@ -65,35 +66,52 @@ show_percentage = false
 anchors_preset = 10
 anchor_right = 1.0
 offset_top = 10.0
-offset_bottom = 64.0
+offset_bottom = 68.0
 grow_horizontal = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 20
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 18
 theme_override_constants/margin_bottom = 6
 
 [node name="HBox" type="HBoxContainer" parent="TopBar"]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 12
 alignment = 1
 
 [node name="HealthContainer" type="VBoxContainer" parent="TopBar/HBox"]
-custom_minimum_size = Vector2(240, 0)
+custom_minimum_size = Vector2(230, 0)
 layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="HPHeader" type="HBoxContainer" parent="TopBar/HBox/HealthContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HeartIcon" type="Label" parent="TopBar/HBox/HealthContainer/HPHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.3, 0.35, 1)
+theme_override_font_sizes/font_size = 14
+text = "❤"
+
+[node name="HPLabel" type="Label" parent="TopBar/HBox/HealthContainer/HPHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.92, 0.95, 1)
+theme_override_font_sizes/font_size = 13
+text = "HP: 100 / 100"
 
 [node name="HPBar" type="ProgressBar" parent="TopBar/HBox/HealthContainer"]
-custom_minimum_size = Vector2(240, 16)
+custom_minimum_size = Vector2(230, 15)
 layout_mode = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_hp_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
 value = 100.0
 show_percentage = false
 
-[node name="HPLabel" type="Label" parent="TopBar/HBox/HealthContainer"]
+[node name="SpellsContainer" type="HBoxContainer" parent="TopBar/HBox"]
+custom_minimum_size = Vector2(140, 32)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.92, 0.95, 1)
-theme_override_font_sizes/font_size = 13
-text = "HP: 100 / 100"
+theme_override_constants/separation = 6
+alignment = 1
 
 [node name="Spacer" type="Control" parent="TopBar/HBox"]
 layout_mode = 2
@@ -104,8 +122,8 @@ layout_mode = 2
 
 [node name="TimerLabel" type="Label" parent="TopBar/HBox/TimerContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.95, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 24
 text = "00:00"
 
 [node name="Spacer2" type="Control" parent="TopBar/HBox"]
@@ -119,12 +137,12 @@ theme_override_constants/separation = 6
 alignment = 2
 
 [node name="LevelContainer" type="CenterContainer" parent="TopBar/HBox"]
-custom_minimum_size = Vector2(80, 0)
+custom_minimum_size = Vector2(75, 0)
 layout_mode = 2
 
 [node name="LevelLabel" type="Label" parent="TopBar/HBox/LevelContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.3, 0.75, 1, 1)
+theme_override_colors/font_color = Color(0.3, 0.8, 1, 1)
 theme_override_font_sizes/font_size = 18
 text = "УР. 1"
 
@@ -135,9 +153,9 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -200.0
+offset_left = -220.0
 offset_top = -180.0
-offset_right = 200.0
+offset_right = 220.0
 offset_bottom = -150.0
 grow_horizontal = 2
 grow_vertical = 2
@@ -153,7 +171,7 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -60.0
+offset_top = -65.0
 offset_bottom = -15.0
 grow_horizontal = 2
 grow_vertical = 0
@@ -166,9 +184,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -300.0
-offset_top = -18.0
+offset_top = -20.0
 offset_right = 300.0
-offset_bottom = 18.0
+offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 4
@@ -290,7 +308,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="PauseMenu/Center"]
-custom_minimum_size = Vector2(360, 280)
+custom_minimum_size = Vector2(380, 320)
 layout_mode = 2
 
 [node name="VBox" type="VBoxContainer" parent="PauseMenu/Center/Panel"]
@@ -306,30 +324,52 @@ text = "ПАУЗА"
 horizontal_alignment = 1
 
 [node name="ResumeButton" type="Button" parent="PauseMenu/Center/Panel/VBox"]
-custom_minimum_size = Vector2(220, 40)
+custom_minimum_size = Vector2(240, 38)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Продолжить"
 
 [node name="PauseArchiveButton" type="Button" parent="PauseMenu/Center/Panel/VBox"]
-custom_minimum_size = Vector2(220, 38)
+custom_minimum_size = Vector2(240, 36)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "📖 Кодекс и Атлас"
 
+[node name="AudioSettings" type="VBoxContainer" parent="PauseMenu/Center/Panel/VBox"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 4
+
+[node name="VolHeader" type="Label" parent="PauseMenu/Center/Panel/VBox/AudioSettings"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+text = "Громкость звуков:"
+horizontal_alignment = 1
+
+[node name="VolumeSlider" type="HSlider" parent="PauseMenu/Center/Panel/VBox/AudioSettings"]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2
+max_value = 1.0
+step = 0.05
+value = 0.8
+
 [node name="PauseRestartButton" type="Button" parent="PauseMenu/Center/Panel/VBox"]
-custom_minimum_size = Vector2(220, 38)
+custom_minimum_size = Vector2(240, 36)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Начать заново"
 
 [node name="PauseMenuButton" type="Button" parent="PauseMenu/Center/Panel/VBox"]
-custom_minimum_size = Vector2(220, 38)
+custom_minimum_size = Vector2(240, 36)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "В главное меню"
 
 [node name="LevelUpPanel" parent="." instance=ExtResource("2_levelup")]
+
+[node name="ChestRewardPanel" parent="." instance=ExtResource("4_chestreward")]
+visible = false
 
 [node name="ArchiveDialog" parent="." instance=ExtResource("3_archive")]
 visible = false

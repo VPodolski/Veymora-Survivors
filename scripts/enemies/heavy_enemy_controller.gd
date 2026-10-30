@@ -8,3 +8,4 @@ func _ready() -> void:
 	stats.contact_damage = 22.0
 	super._ready()
 	tags = ["enemy", "heavy", "golem", "spatial"]
+

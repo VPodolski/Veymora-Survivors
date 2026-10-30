@@ -46,7 +46,6 @@ func cast_lightning(target: EnemyController) -> void:
 
 	# Primary strike
 	CombatEffects.spawn_lightning_arc(container, player_owner.global_position, pos, Color(0.4, 0.85, 1.0, 1.0))
-	CombatEffects.spawn_text_popup(container, pos, "МОЛНИЯ!", Color(0.45, 0.85, 1.0, 1.0))
 	target.take_damage(dmg)
 	target.apply_status(StatusEffects.STATUS_CHARGED, 4.0)
 

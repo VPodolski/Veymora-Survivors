@@ -12,7 +12,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if not is_opened:
-		glow_time += delta * 3.0
+		glow_time += delta * 3.5
 		queue_redraw()
 
 func _on_body_entered(body: Node2D) -> void:
@@ -26,55 +26,63 @@ func open_chest(player: PlayerController) -> void:
 	if is_opened:
 		return
 	is_opened = true
+	set_deferred("monitoring", false)
+	set_deferred("monitorable", false)
 
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
-	CombatEffects.spawn_shockwave(container, global_position, 120.0, Color(1.0, 0.85, 0.2, 0.95))
-	CombatEffects.spawn_text_popup(container, global_position, "СУНДУК СОКРОВИЩ!", Color(1.0, 0.9, 0.3, 1.0))
+	CombatEffects.spawn_shockwave(container, global_position, 110.0, Color(1.0, 0.85, 0.25, 0.95))
+	if AudioManager.instance:
+		AudioManager.instance.play_chest()
 
-	# Award artifact or bonus
-	var rewarded_item_name = ""
-	if player and player.inventory:
-		var unowned: Array[String] = []
-		for art_id in InventoryState.ALL_ARTIFACTS.keys():
-			if not player.inventory.has_artifact(art_id):
-				unowned.append(art_id)
-
-		if not unowned.is_empty():
-			unowned.shuffle()
-			var picked_id = unowned[0]
-			player.inventory.add_artifact(picked_id)
-			rewarded_item_name = InventoryState.ALL_ARTIFACTS[picked_id]["name"]
-		else:
-			# If all artifacts are collected: huge XP and heal
-			player.heal(50.0)
-			var exp_managers = get_tree().get_nodes_in_group("experience_manager")
-			if exp_managers.size() > 0:
-				exp_managers[0].add_experience(150)
-			rewarded_item_name = "+150 XP и Лечение"
-
-	# Notify HUD
+	# Request reward modal via HUDController
 	var huds = get_tree().get_nodes_in_group("hud")
-	if huds.size() > 0 and huds[0].has_method("show_chest_notification"):
-		huds[0].show_chest_notification(rewarded_item_name)
+	if huds.size() > 0 and huds[0].has_method("request_chest_reward"):
+		huds[0].request_chest_reward(player)
+	else:
+		# Fallback if HUD not found
+		_fallback_reward(player)
 
 	# Fade out chest
 	var tween = create_tween()
-	tween.tween_property(self, "scale", Vector2(1.4, 1.4), 0.15)
+	tween.tween_property(self, "scale", Vector2(1.3, 1.3), 0.15)
 	tween.parallel().tween_property(self, "modulate:a", 0.0, 0.2)
 	tween.tween_callback(queue_free)
+
+func _fallback_reward(player: PlayerController) -> void:
+	if not player or not player.inventory:
+		return
+	var unowned = player.inventory.get_unowned_artifacts()
+	if not unowned.is_empty() and not player.inventory.is_full():
+		player.inventory.add_artifact(unowned[0])
+	else:
+		player.heal(40.0)
 
 func _draw() -> void:
 	var pulse = 1.0 + sin(glow_time) * 0.12
 
-	# Golden aura
-	draw_circle(Vector2.ZERO, 20.0 * pulse, Color(1.0, 0.8, 0.2, 0.25))
+	# 1. Arcane beacon ground ring
+	draw_arc(Vector2(0, 8), 24.0 * pulse, 0, TAU, 32, Color(1.0, 0.85, 0.2, 0.35), 1.8)
+	draw_circle(Vector2(0, 8), 18.0 * pulse, Color(1.0, 0.8, 0.15, 0.12))
 
-	# Chest base
-	var base_rect = Rect2(-14, -10, 28, 20)
-	draw_rect(base_rect, Color(0.18, 0.12, 0.08, 1.0), true) # Dark wood
-	draw_rect(base_rect, Color(0.95, 0.75, 0.2, 1.0), false, 2.0) # Gold trim
+	# 2. Chest Base (Wood body)
+	var body_rect = Rect2(-15, -4, 30, 16)
+	draw_rect(body_rect, Color(0.18, 0.12, 0.08, 1.0), true) # Dark walnut
+	draw_rect(body_rect, Color(0.9, 0.7, 0.2, 1.0), false, 2.0) # Gold rim
 
-	# Chest lock / core
-	draw_circle(Vector2(0, 0), 4.5, Color(1.0, 0.85, 0.3, 1.0))
-	draw_circle(Vector2(0, 0), 2.0, Color.WHITE)
+	# 3. Chest Curved Lid
+	var lid_points = PackedVector2Array([
+		Vector2(-16, -4),
+		Vector2(-14, -13),
+		Vector2(14, -13),
+		Vector2(16, -4)
+	])
+	draw_colored_polygon(lid_points, Color(0.24, 0.15, 0.1, 1.0))
+	draw_polyline(lid_points, Color(1.0, 0.8, 0.25, 1.0), 2.0)
 
+	# 4. Vertical Gold Straps
+	draw_line(Vector2(-7, -13), Vector2(-7, 12), Color(1.0, 0.85, 0.3, 1.0), 2.0)
+	draw_line(Vector2(7, -13), Vector2(7, 12), Color(1.0, 0.85, 0.3, 1.0), 2.0)
+
+	# 5. Glowing Lock Keyhole / Arcane Seal
+	draw_circle(Vector2(0, 2), 4.5, Color(1.0, 0.85, 0.2, 1.0))
+	draw_circle(Vector2(0, 2), 2.0, Color.WHITE)

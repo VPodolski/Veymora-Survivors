@@ -132,13 +132,22 @@ func _draw() -> void:
 		draw_line(Vector2(-4, 0), Vector2(4, 0), Color.WHITE, 2.0)
 
 func _draw_enemy_projectile() -> void:
-	# Sharp crimson/void shadow dagger
-	draw_circle(Vector2.ZERO, 10.0, Color(0.9, 0.1, 0.3, 0.35))
-	var front = Vector2(11, 0)
-	var back = Vector2(-11, 0)
-	var top = Vector2(-3, -4)
-	var bot = Vector2(-3, 4)
-	var pts = PackedVector2Array([front, top, back, bot])
-	draw_colored_polygon(pts, Color(0.95, 0.15, 0.3, 1.0))
-	# Inner dark core
-	draw_line(Vector2(-7, 0), Vector2(7, 0), Color(1.0, 0.8, 0.9, 1.0), 2.2)
+	# Barbed crimson needle/dagger silhouette (distinct from diamonds and round gems)
+	var needle_pts = PackedVector2Array([
+		Vector2(14, 0),       # Needle sharp tip
+		Vector2(1, -4.5),     # Upper barb
+		Vector2(-2, -2.0),    # Narrow waist
+		Vector2(-12, -4.0),   # Upper directional fin
+		Vector2(-7, 0),       # Tail notch
+		Vector2(-12, 4.0),    # Lower directional fin
+		Vector2(-2, 2.0),     # Narrow waist
+		Vector2(1, 4.5)       # Lower barb
+	])
+	draw_colored_polygon(needle_pts, Color(0.92, 0.12, 0.32, 1.0))
+
+	# Bright razor-sharp spine
+	draw_line(Vector2(-6, 0), Vector2(13, 0), Color(1.0, 0.8, 0.9, 0.95), 1.8)
+
+	# Subtle trailing speed whisps along trajectory
+	draw_line(Vector2(-12, -2.5), Vector2(-18, -3.2), Color(0.8, 0.1, 0.3, 0.45), 1.2)
+	draw_line(Vector2(-12, 2.5), Vector2(-18, 3.2), Color(0.8, 0.1, 0.3, 0.45), 1.2)

@@ -59,3 +59,4 @@ func _draw() -> void:
 	var eye_pos = facing_direction * 3.5
 	draw_circle(eye_pos + Vector2(-1.5, -1), 1.5, Color(0.9, 0.3, 1.0, 1.0))
 	draw_circle(eye_pos + Vector2(1.5, -1), 1.5, Color(0.9, 0.3, 1.0, 1.0))
+
