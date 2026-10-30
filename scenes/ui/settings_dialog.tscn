@@ -1,0 +1,183 @@
+[gd_scene load_steps=2 format=3 uid="uid://settingsdialog03"]
+
+[ext_resource type="Script" path="res://scripts/ui/settings_dialog.gd" id="1_settings"]
+
+[node name="SettingsDialog" type="Control"]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_settings")
+
+[node name="DimOverlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.03, 0.06, 0.88)
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -240.0
+offset_right = 280.0
+offset_bottom = 240.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 20.0
+offset_right = -24.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="Header" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Panel/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.4, 0.75, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "⚙ НАСТРОЙКИ"
+
+[node name="CloseButton" type="Button" parent="Panel/VBox/Header"]
+custom_minimum_size = Vector2(36, 32)
+layout_mode = 2
+text = "✕"
+
+[node name="HSeparator" type="HSeparator" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="Content" type="VBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="MasterVolume" type="HBoxContainer" parent="Panel/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Panel/VBox/Content/MasterVolume"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+text = "Общая громкость:"
+
+[node name="Slider" type="HSlider" parent="Panel/VBox/Content/MasterVolume"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="ValueLabel" type="Label" parent="Panel/VBox/Content/MasterVolume"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "100%"
+horizontal_alignment = 2
+
+[node name="SfxVolume" type="HBoxContainer" parent="Panel/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Panel/VBox/Content/SfxVolume"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+text = "Эффекты (SFX):"
+
+[node name="Slider" type="HSlider" parent="Panel/VBox/Content/SfxVolume"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+value = 0.8
+
+[node name="ValueLabel" type="Label" parent="Panel/VBox/Content/SfxVolume"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "80%"
+horizontal_alignment = 2
+
+[node name="FxIntensity" type="HBoxContainer" parent="Panel/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Panel/VBox/Content/FxIntensity"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+text = "Визуальные эффекты:"
+
+[node name="FxButton" type="Button" parent="Panel/VBox/Content/FxIntensity"]
+custom_minimum_size = Vector2(210, 34)
+layout_mode = 2
+text = "Стандартные (Full)"
+
+[node name="ScreenShake" type="HBoxContainer" parent="Panel/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Panel/VBox/Content/ScreenShake"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+text = "Тряска экрана:"
+
+[node name="CheckBox" type="CheckBox" parent="Panel/VBox/Content/ScreenShake"]
+layout_mode = 2
+button_pressed = true
+text = "Включена"
+
+[node name="DamageNumbers" type="HBoxContainer" parent="Panel/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Panel/VBox/Content/DamageNumbers"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+text = "Числа урона:"
+
+[node name="CheckBox" type="CheckBox" parent="Panel/VBox/Content/DamageNumbers"]
+layout_mode = 2
+button_pressed = true
+text = "Показывать"
+
+[node name="VSync" type="HBoxContainer" parent="Panel/VBox/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Panel/VBox/Content/VSync"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+text = "Вертикальная синхр.:"
+
+[node name="CheckBox" type="CheckBox" parent="Panel/VBox/Content/VSync"]
+layout_mode = 2
+button_pressed = true
+text = "Включена (VSync)"
+
+[node name="BottomBar" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+alignment = 2
+
+[node name="ApplyButton" type="Button" parent="Panel/VBox/BottomBar"]
+custom_minimum_size = Vector2(140, 36)
+layout_mode = 2
+text = "Готово"

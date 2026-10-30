@@ -1,6 +1,8 @@
 class_name CombatEffects
 extends RefCounted
 
+const SaveManager = preload("res://scripts/game/save_manager.gd")
+
 # FX Intensity settings: "standard" or "reduced"
 static var fx_intensity: String = "standard"
 
@@ -205,6 +207,8 @@ static func spawn_text_popup(parent: Node, pos: Vector2, text: String, col: Colo
 
 static func spawn_damage_number(parent: Node, pos: Vector2, amount: float, col: Color = Color(1.0, 0.92, 0.5, 1.0)) -> void:
 	if not parent:
+		return
+	if not bool(SaveManager.get_setting("damage_numbers", true)):
 		return
 	var threshold = 25.0 if fx_intensity == "reduced" else 15.0
 	if active_damage_numbers >= MAX_DAMAGE_NUMBERS and amount < threshold:

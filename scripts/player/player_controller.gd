@@ -1,6 +1,8 @@
 class_name PlayerController
 extends CharacterBody2D
 
+const SaveManager = preload("res://scripts/game/save_manager.gd")
+
 signal health_changed(current_hp: float, max_hp: float)
 signal died
 
@@ -14,6 +16,7 @@ var phoenix_revives_remaining: int = 0
 var shake_intensity: float = 0.0
 var shake_duration: float = 0.0
 var active_rune_zones: int = 0
+var active_frost_zones: int = 0
 
 @onready var visual_node: Node2D = $Visual
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
@@ -53,7 +56,7 @@ func _physics_process(delta: float) -> void:
 
 	var input_vector = get_input_direction()
 	if input_vector != Vector2.ZERO:
-		velocity = input_vector * stats.move_speed
+		velocity = input_vector * (stats.move_speed * get_effective_speed_mult())
 		if visual_node and visual_node.has_method("update_facing"):
 			visual_node.update_facing(input_vector)
 	else:
@@ -84,6 +87,11 @@ func get_input_direction() -> Vector2:
 	return dir.normalized()
 
 func trigger_camera_shake(intensity: float = 6.0, duration: float = 0.2) -> void:
+	if not bool(SaveManager.get_setting("screen_shake", true)):
+		shake_duration = 0.0
+		if camera:
+			camera.offset = Vector2.ZERO
+		return
 	if CombatEffects.fx_intensity == "reduced":
 		intensity *= 0.35
 		duration *= 0.5
@@ -163,6 +171,7 @@ func die() -> void:
 		return
 	is_alive = false
 	reset_rune_zones()
+	reset_frost_zones()
 	velocity = Vector2.ZERO
 	if camera:
 		camera.offset = Vector2.ZERO
@@ -188,5 +197,18 @@ func reset_rune_zones() -> void:
 	active_rune_zones = 0
 	set_meta("in_rune_zone", false)
 
+func enter_frost_zone() -> void:
+	active_frost_zones += 1
+
+func exit_frost_zone() -> void:
+	active_frost_zones = max(0, active_frost_zones - 1)
+
+func reset_frost_zones() -> void:
+	active_frost_zones = 0
+
+func get_effective_speed_mult() -> float:
+	return 0.65 if active_frost_zones > 0 else 1.0
+
 func _exit_tree() -> void:
 	reset_rune_zones()
+	reset_frost_zones()

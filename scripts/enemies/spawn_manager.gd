@@ -3,6 +3,7 @@ extends Node2D
 
 signal boss_spawned(boss: BossController)
 signal enemy_killed(enemy: EnemyController)
+signal enemy_spawned(enemy: EnemyController)
 
 const SpawnConfigResource = preload("res://scripts/resources/spawn_config.gd")
 
@@ -149,6 +150,7 @@ func spawn_elite() -> EnemyController:
 	get_parent().add_child(elite)
 	elite.died.connect(_on_enemy_died)
 	active_enemies.append(elite)
+	enemy_spawned.emit(elite)
 
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	CombatEffects.spawn_text_popup(container, elite.global_position, "ЭЛИТНЫЙ ВРАГ!", Color(1.0, 0.8, 0.2, 1.0))
@@ -170,6 +172,7 @@ func spawn_boss() -> BossController:
 	get_parent().add_child(boss)
 	boss.died.connect(_on_enemy_died)
 	active_enemies.append(boss)
+	enemy_spawned.emit(boss)
 
 	boss_spawned.emit(boss)
 
@@ -226,7 +229,13 @@ func trigger_swarm_event(swarm_size: int) -> void:
 		spawn_enemy_at(clamp_to_arena(spawn_pos))
 
 func clamp_to_arena(pos: Vector2) -> Vector2:
-	return Vector2(clamp(pos.x, -1120.0, 1120.0), clamp(pos.y, -720.0, 720.0))
+	var half_w = 1120.0
+	var half_h = 720.0
+	var arenas = get_tree().get_nodes_in_group("arena")
+	if not arenas.is_empty() and "arena_size" in arenas[0]:
+		half_w = (arenas[0].arena_size.x * 0.5) - 80.0
+		half_h = (arenas[0].arena_size.y * 0.5) - 80.0
+	return Vector2(clamp(pos.x, -half_w, half_w), clamp(pos.y, -half_h, half_h))
 
 func spawn_enemy_at(pos: Vector2) -> EnemyController:
 	if active_enemies.size() >= max_enemies:
@@ -243,6 +252,7 @@ func spawn_enemy_at(pos: Vector2) -> EnemyController:
 	get_parent().add_child(enemy)
 	enemy.died.connect(_on_enemy_died)
 	active_enemies.append(enemy)
+	enemy_spawned.emit(enemy)
 	return enemy
 
 func _on_enemy_died(enemy: EnemyController) -> void:

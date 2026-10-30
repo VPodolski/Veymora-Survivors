@@ -135,7 +135,8 @@ func test_failed_add_artifact_no_notification(player: PlayerController, panel: C
 		"title": "Фолиант учёного"
 	}
 
-	var original_toast_text = hud.toast_label.text if hud.toast_label else ""
+	if hud.toast_label:
+		hud.toast_label.text = ""
 	panel.is_panel_open = true
 	panel._on_card_selected(fake_opt)
 

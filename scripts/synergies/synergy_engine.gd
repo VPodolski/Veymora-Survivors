@@ -2,6 +2,7 @@ class_name SynergyEngine
 extends Node
 
 signal reaction_triggered(reaction_name: String, position: Vector2)
+signal reaction_damage_dealt(reaction_name: String, damage: float)
 
 const MAX_REACTION_DEPTH = 2
 
@@ -71,6 +72,7 @@ func trigger_arcane_resonance(context: ReactionContext) -> void:
 				CombatEffects.spawn_lightning_arc(container, pos, enemy.global_position, Color(0.7, 0.45, 1.0, 0.8), 1.5)
 			var sub_context = ReactionContext.new(self, enemy, ["arcane_impulse"], enemy.global_position, 18.0, context.depth + 1, false)
 			enemy.take_damage(18.0)
+			reaction_damage_dealt.emit("resonance", 18.0)
 			if is_instance_valid(enemy) and not enemy.is_dead:
 				if enemy != target and not enemy.has_status(StatusEffects.STATUS_CHARGED):
 					enemy.apply_status(StatusEffects.STATUS_CHARGED, 3.0)
@@ -142,6 +144,7 @@ func trigger_lightning_chain(context: ReactionContext) -> void:
 
 		var sub_context = ReactionContext.new(self, enemy, ["lightning_impulse"], enemy.global_position, 14.0, context.depth + 1, false, excluded)
 		enemy.take_damage(14.0)
+		reaction_damage_dealt.emit("lightning_chain", 14.0)
 		if is_instance_valid(enemy) and not enemy.is_dead:
 			enemy.apply_status(StatusEffects.STATUS_CHARGED, 3.0)
 		chained_count += 1
@@ -165,6 +168,7 @@ func trigger_steam_rift(context: ReactionContext) -> void:
 	for enemy in nearby:
 		if is_instance_valid(enemy) and not enemy.is_dead:
 			enemy.take_damage(20.0)
+			reaction_damage_dealt.emit("steam_rift", 20.0)
 			if is_instance_valid(enemy) and not enemy.is_dead:
 				if enemy != target:
 					enemy.apply_status(StatusEffects.STATUS_SLOWED, 2.5)
@@ -189,6 +193,7 @@ func trigger_thermal_conflagration(context: ReactionContext) -> void:
 	for enemy in nearby:
 		if is_instance_valid(enemy) and not enemy.is_dead:
 			enemy.take_damage(38.0)
+			reaction_damage_dealt.emit("thermal_conflagration", 38.0)
 			if is_instance_valid(enemy) and not enemy.is_dead:
 				enemy.apply_status(StatusEffects.STATUS_BURNING, 3.5)
 
@@ -205,6 +210,7 @@ func trigger_unstable_explosion(pos: Vector2) -> void:
 	for enemy in enemies:
 		if is_instance_valid(enemy) and not enemy.is_dead:
 			enemy.take_damage(25.0)
+			reaction_damage_dealt.emit("unstable_explosion", 25.0)
 
 func trigger_soul_harvest(pos: Vector2, burst_dmg: float = 35.0) -> void:
 	var container = get_effects_container()
@@ -218,6 +224,7 @@ func trigger_soul_harvest(pos: Vector2, burst_dmg: float = 35.0) -> void:
 	for enemy in nearby:
 		if is_instance_valid(enemy) and not enemy.is_dead:
 			enemy.take_damage(burst_dmg)
+			reaction_damage_dealt.emit("soul_harvest", burst_dmg)
 
 func on_enemy_death(target: EnemyController) -> void:
 	if not is_instance_valid(target):

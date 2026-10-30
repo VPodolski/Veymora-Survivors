@@ -1,7 +1,7 @@
 class_name SaveManager
 extends RefCounted
 
-const CURRENT_VERSION = 1
+const CURRENT_VERSION = 2
 const SAVE_PATH = "user://save_data.json"
 const TMP_SAVE_PATH = "user://save_data.json.tmp"
 
@@ -15,6 +15,16 @@ static func get_default_data() -> Dictionary:
 		"fx_intensity": "standard",
 		"master_volume": 1.0,
 		"sfx_volume": 0.8,
+		"screen_shake": true,
+		"damage_numbers": true,
+		"vsync": true,
+		"unlocked_arenas": ["forgotten_forest", "frost_necropolis"],
+		"arena_stats": {
+			"forgotten_forest": {"runs": 0, "wins": 0, "best_time": 0.0, "kills": 0},
+			"frost_necropolis": {"runs": 0, "wins": 0, "best_time": 0.0, "kills": 0}
+		},
+		"run_history": [],
+		"tutorial_completed": false,
 		"discovered_spells": ["magic_bolt"],
 		"discovered_synergies": [],
 		"discovered_evolutions": [],
@@ -48,9 +58,9 @@ static func load_data() -> Dictionary:
 static func sanitize_data(raw: Dictionary) -> Dictionary:
 	var clean = get_default_data()
 
-	# Version handling & backwards compatibility
+	# Version handling & migration (v1 -> v2)
 	var v = raw.get("version", 1)
-	clean["version"] = int(v) if (v is int or v is float) else CURRENT_VERSION
+	clean["version"] = CURRENT_VERSION
 
 	# Total runs
 	var runs = raw.get("total_runs", null)
@@ -72,7 +82,7 @@ static func sanitize_data(raw: Dictionary) -> Dictionary:
 	if (kills is int or kills is float) and kills >= 0:
 		clean["total_kills"] = int(kills)
 
-	# Settings
+	# Audio & FX Settings
 	var fx = raw.get("fx_intensity", "standard")
 	clean["fx_intensity"] = str(fx) if fx in ["standard", "reduced"] else "standard"
 
@@ -83,6 +93,42 @@ static func sanitize_data(raw: Dictionary) -> Dictionary:
 	var s_vol = raw.get("sfx_volume", 0.8)
 	if s_vol is int or s_vol is float:
 		clean["sfx_volume"] = clampf(float(s_vol), 0.0, 1.0)
+
+	# Graphic Settings
+	clean["screen_shake"] = bool(raw.get("screen_shake", true))
+	clean["damage_numbers"] = bool(raw.get("damage_numbers", true))
+	clean["vsync"] = bool(raw.get("vsync", true))
+
+	# Tutorial flag
+	clean["tutorial_completed"] = bool(raw.get("tutorial_completed", false))
+
+	# Arenas
+	if raw.has("unlocked_arenas") and raw["unlocked_arenas"] is Array:
+		var arenas: Array = []
+		for a in raw["unlocked_arenas"]:
+			if a is String and not arenas.has(a):
+				arenas.append(a)
+		if not arenas.has("forgotten_forest"):
+			arenas.append("forgotten_forest")
+		clean["unlocked_arenas"] = arenas
+
+	# Arena Stats
+	if raw.has("arena_stats") and raw["arena_stats"] is Dictionary:
+		var a_stats = clean["arena_stats"]
+		for k in raw["arena_stats"].keys():
+			if raw["arena_stats"][k] is Dictionary:
+				a_stats[k] = raw["arena_stats"][k]
+		clean["arena_stats"] = a_stats
+
+	# Run History (limit to 10 latest)
+	if raw.has("run_history") and raw["run_history"] is Array:
+		var history: Array = []
+		for item in raw["run_history"]:
+			if item is Dictionary:
+				history.append(item)
+		if history.size() > 10:
+			history = history.slice(history.size() - 10)
+		clean["run_history"] = history
 
 	# Horizontal discoveries & meta unlocks
 	var array_keys = [
@@ -124,7 +170,7 @@ static func save_custom_data(data: Dictionary) -> bool:
 		return err == OK
 	return false
 
-static func record_run(time_survived: float, kills: int, defeated_boss: bool) -> Dictionary:
+static func record_run(time_survived: float, kills: int, defeated_boss: bool, run_summary: Dictionary = {}) -> Dictionary:
 	var data = load_data()
 	data["total_runs"] = int(data.get("total_runs", 0)) + 1
 	data["total_kills"] = int(data.get("total_kills", 0)) + max(0, kills)
@@ -136,8 +182,45 @@ static func record_run(time_survived: float, kills: int, defeated_boss: bool) ->
 	if time_survived > best:
 		data["best_survival_time"] = max(0.0, time_survived)
 
+	# Update per-arena stats
+	var arena_id = run_summary.get("arena_id", "forgotten_forest")
+	var a_stats = data.get("arena_stats", {})
+	if not a_stats.has(arena_id):
+		a_stats[arena_id] = {"runs": 0, "wins": 0, "best_time": 0.0, "kills": 0}
+
+	var cur_a = a_stats[arena_id]
+	cur_a["runs"] = int(cur_a.get("runs", 0)) + 1
+	cur_a["kills"] = int(cur_a.get("kills", 0)) + kills
+	if defeated_boss:
+		cur_a["wins"] = int(cur_a.get("wins", 0)) + 1
+	if time_survived > float(cur_a.get("best_time", 0.0)):
+		cur_a["best_time"] = time_survived
+	a_stats[arena_id] = cur_a
+	data["arena_stats"] = a_stats
+
+	# Record in run history
+	if not run_summary.is_empty():
+		var history: Array = data.get("run_history", [])
+		history.push_front(run_summary)
+		if history.size() > 10:
+			history = history.slice(0, 10)
+		data["run_history"] = history
+
 	save_custom_data(data)
 	return data
+
+static func is_arena_unlocked(arena_id: String) -> bool:
+	var data = load_data()
+	var unlocked = data.get("unlocked_arenas", ["forgotten_forest"])
+	return unlocked.has(arena_id)
+
+static func unlock_arena(arena_id: String) -> void:
+	var data = load_data()
+	var unlocked = data.get("unlocked_arenas", ["forgotten_forest"])
+	if not unlocked.has(arena_id):
+		unlocked.append(arena_id)
+		data["unlocked_arenas"] = unlocked
+		save_custom_data(data)
 
 static func get_setting(key: String, default_value: Variant = null) -> Variant:
 	var data = load_data()

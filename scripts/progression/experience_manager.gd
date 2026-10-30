@@ -3,6 +3,7 @@ extends Node
 
 signal experience_changed(current_xp: int, required_xp: int)
 signal level_up(new_level: int)
+signal experience_collected(amount: int)
 
 @export var current_level: int = 1
 @export var current_xp: int = 0
@@ -22,6 +23,7 @@ func add_experience(amount: int) -> void:
 	if amount <= 0:
 		return
 
+	experience_collected.emit(amount)
 	current_xp += amount
 
 	while current_xp >= required_xp:

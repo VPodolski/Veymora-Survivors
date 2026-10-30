@@ -1,0 +1,93 @@
+[gd_scene load_steps=3 format=3 uid="uid://cloadingscreen03"]
+
+[ext_resource type="Script" path="res://scripts/ui/loading_screen.gd" id="1_loading"]
+[ext_resource type="Script" path="res://scripts/ui/loading_rune_spinner.gd" id="2_spinner"]
+
+[node name="LoadingScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_loading")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.025, 0.035, 0.065, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(650, 0)
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="RuneCenter" type="Control" parent="Center/VBox"]
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+
+[node name="RuneSpinner" type="Node2D" parent="Center/VBox/RuneCenter"]
+position = Vector2(325, 45)
+script = ExtResource("2_spinner")
+
+[node name="ArenaTitleLabel" type="Label" parent="Center/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "НАЗВАНИЕ АРЕНЫ"
+horizontal_alignment = 1
+
+[node name="ArenaSubtitleLabel" type="Label" parent="Center/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 14
+text = "Сложность • Особенности"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="Center/VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="ProgressBar" type="ProgressBar" parent="Center/VBox"]
+custom_minimum_size = Vector2(400, 10)
+layout_mode = 2
+size_flags_horizontal = 4
+max_value = 100.0
+show_percentage = false
+
+[node name="Spacer2" type="Control" parent="Center/VBox"]
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+
+[node name="TipContainer" type="PanelContainer" parent="Center/VBox"]
+custom_minimum_size = Vector2(620, 70)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/VBox/TipContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 10
+
+[node name="TipLabel" type="Label" parent="Center/VBox/TipContainer/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
+theme_override_font_sizes/font_size = 13
+text = "Совет..."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2

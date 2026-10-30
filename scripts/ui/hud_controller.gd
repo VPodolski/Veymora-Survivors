@@ -5,6 +5,7 @@ const RunStats = preload("res://scripts/game/run_stats.gd")
 const ArchiveDialog = preload("res://scripts/ui/archive_dialog.gd")
 const AudioManager = preload("res://scripts/audio/audio_manager.gd")
 const ChestRewardPanel = preload("res://scripts/ui/chest_reward_panel.gd")
+const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
 
 signal restart_requested
 
@@ -107,6 +108,18 @@ func _ready() -> void:
 		level_up_panel.upgrade_picked.connect(_on_level_up_picked)
 		level_up_panel.panel_closed.connect(_on_level_up_closed)
 
+	if not bool(SaveManager.get_setting("tutorial_completed", false)):
+		call_deferred("_show_starter_tutorial")
+
+func _show_starter_tutorial() -> void:
+	SaveManager.set_setting("tutorial_completed", true)
+	if toast_label:
+		toast_label.text = "✦ Движение: [W, A, S, D] • Атака: заклинания применяются автоматически"
+		var tween = create_tween()
+		tween.tween_property(toast_label, "modulate:a", 1.0, 0.3)
+		tween.tween_interval(4.5)
+		tween.tween_property(toast_label, "modulate:a", 0.0, 0.6)
+
 func set_run_stats(stats: RunStats) -> void:
 	if stats:
 		run_stats = stats
@@ -153,7 +166,10 @@ func _on_pause_restart_pressed() -> void:
 
 func _go_to_menu() -> void:
 	get_tree().paused = false
-	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
+	if GameFlowController.instance:
+		GameFlowController.instance.go_to_main_menu()
+	else:
+		get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 func _on_volume_changed(val: float) -> void:
 	if AudioManager.instance:
@@ -418,23 +434,37 @@ func update_timer_display() -> void:
 
 func show_victory_screen() -> void:
 	is_game_active = false
-	var saved_data = SaveManager.record_run(elapsed_time, total_kills, true)
+	if run_stats:
+		run_stats.survival_time = elapsed_time
+		run_stats.total_kills = total_kills
+		run_stats.level_reached = current_level
+		run_stats.defeated_boss = true
+	var saved_data = SaveManager.record_run(elapsed_time, total_kills, true, run_stats.to_dictionary() if run_stats else {})
 	if summary_screen:
 		summary_screen.visible = true
 	if summary_title:
 		summary_title.text = "ПОБЕДА: РАЗЛОМ ЗАКРЫТ!"
 		summary_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25, 1.0))
 	populate_summary_stats(saved_data)
+	if GameFlowController.instance:
+		GameFlowController.instance.open_results_screen(run_stats)
 
 func show_death_screen() -> void:
 	is_game_active = false
-	var saved_data = SaveManager.record_run(elapsed_time, total_kills, false)
+	if run_stats:
+		run_stats.survival_time = elapsed_time
+		run_stats.total_kills = total_kills
+		run_stats.level_reached = current_level
+		run_stats.defeated_boss = false
+	var saved_data = SaveManager.record_run(elapsed_time, total_kills, false, run_stats.to_dictionary() if run_stats else {})
 	if summary_screen:
 		summary_screen.visible = true
 	if summary_title:
 		summary_title.text = "МАГ ПОГИБ"
 		summary_title.add_theme_color_override("font_color", Color(0.9, 0.2, 0.25, 1.0))
 	populate_summary_stats(saved_data)
+	if GameFlowController.instance:
+		GameFlowController.instance.open_results_screen(run_stats)
 
 func populate_summary_stats(saved_data: Dictionary) -> void:
 	var minutes = int(elapsed_time) / 60

@@ -2,8 +2,11 @@ class_name MainGame
 extends Node2D
 
 const RunStats = preload("res://scripts/game/run_stats.gd")
+const ArenaConfig = preload("res://scripts/arena/arena_config.gd")
+const SaveManager = preload("res://scripts/game/save_manager.gd")
 const MetaArchive = preload("res://scripts/game/meta_archive.gd")
 const AudioManager = preload("res://scripts/audio/audio_manager.gd")
+const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
 
 @onready var arena: Arena = $Arena
 @onready var player: PlayerController = $Player
@@ -20,6 +23,16 @@ func _ready() -> void:
 	ensure_audio_manager()
 	ensure_input_mappings()
 
+	var target_arena_id = "forgotten_forest"
+	if GameFlowController.instance:
+		target_arena_id = GameFlowController.instance.get_run_config().arena_id
+	var cfg = ArenaConfig.get_arena_config(target_arena_id)
+	run_stats.arena_id = target_arena_id
+	run_stats.arena_name = cfg.name
+
+	if arena:
+		arena.apply_arena_config(cfg)
+
 	if hud:
 		hud.set_run_stats(run_stats)
 		hud.restart_requested.connect(_on_restart_game)
@@ -29,21 +42,29 @@ func _ready() -> void:
 		player.died.connect(_on_player_died)
 		if player.inventory:
 			player.inventory.artifact_added.connect(hud.add_artifact_icon)
+			player.inventory.artifact_added.connect(func(_art): run_stats.artifacts_collected += 1)
 		hud.update_health(player.current_health, player.stats.max_health)
 		if player.ability_controller:
 			call_deferred("_sync_hud_spells")
 
 	if experience_manager and hud:
 		experience_manager.experience_changed.connect(hud.update_experience)
+		experience_manager.experience_collected.connect(func(amt): run_stats.record_xp(amt))
 		experience_manager.level_up.connect(_on_player_level_up)
 
 	if spawn_manager:
 		if hud:
 			spawn_manager.boss_spawned.connect(hud.setup_boss_bar)
 		spawn_manager.enemy_killed.connect(_on_enemy_killed)
+		spawn_manager.enemy_spawned.connect(_on_enemy_spawned)
+		for e in spawn_manager.active_enemies:
+			_on_enemy_spawned(e)
 
 	if synergy_engine:
 		synergy_engine.reaction_triggered.connect(_on_reaction_triggered)
+		synergy_engine.reaction_damage_dealt.connect(func(r_name, dmg):
+			run_stats.record_synergy_trigger(r_name, dmg)
+		)
 
 func ensure_audio_manager() -> void:
 	if not AudioManager.instance:
@@ -53,6 +74,11 @@ func ensure_audio_manager() -> void:
 
 func _process(delta: float) -> void:
 	if not get_tree().paused:
+		if hud:
+			run_stats.survival_time = hud.elapsed_time
+		else:
+			run_stats.survival_time += delta
+
 		condensation_timer += delta
 		if condensation_timer >= 2.0:
 			condensation_timer = 0.0
@@ -60,8 +86,15 @@ func _process(delta: float) -> void:
 
 		if run_stats.survival_time >= 300.0:
 			MetaArchive.check_and_complete_goal("survive_5_min")
+			# Unlock next arena (Frost Necropolis)
+			SaveManager.unlock_arena("frost_necropolis")
+
+func _on_enemy_spawned(enemy: EnemyController) -> void:
+	if is_instance_valid(enemy):
+		enemy.damage_taken.connect(func(dmg): run_stats.record_damage(dmg))
 
 func _on_reaction_triggered(reaction_name: String, _pos: Vector2) -> void:
+	run_stats.record_synergy_trigger(reaction_name, 0.0)
 	MetaArchive.record_discovery("synergies", reaction_name)
 	if reaction_name == "Чародейский резонанс" or reaction_name == "resonance":
 		MetaArchive.check_and_complete_goal("first_resonance")
@@ -81,6 +114,7 @@ func _on_enemy_killed(enemy: EnemyController) -> void:
 
 	if (enemy is BossController) or enemy.name.to_lower().contains("boss"):
 		MetaArchive.check_and_complete_goal("defeat_colossus")
+		SaveManager.unlock_arena("frost_necropolis")
 
 func _sync_hud_spells() -> void:
 	if hud and player and player.ability_controller:
@@ -99,8 +133,11 @@ func _on_player_died() -> void:
 		hud.show_death_screen()
 
 func _on_restart_game() -> void:
-	get_tree().paused = false
-	get_tree().reload_current_scene()
+	if GameFlowController.instance:
+		GameFlowController.instance.restart_run()
+	else:
+		get_tree().paused = false
+		get_tree().reload_current_scene()
 
 func ensure_input_mappings() -> void:
 	_add_action_if_missing("move_left", [KEY_A, KEY_LEFT])

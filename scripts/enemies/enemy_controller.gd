@@ -3,6 +3,7 @@ extends CharacterBody2D
 
 signal died(enemy: EnemyController)
 signal status_applied(status_name: String)
+signal damage_taken(amount: float)
 
 @export var stats: EnemyStats
 @export var xp_gem_scene: PackedScene = preload("res://scenes/pickups/xp_gem.tscn")
@@ -131,6 +132,7 @@ func take_damage(amount: float) -> void:
 		amount *= (1.0 + amp)
 
 	current_health = max(0.0, current_health - amount)
+	damage_taken.emit(amount)
 
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 
