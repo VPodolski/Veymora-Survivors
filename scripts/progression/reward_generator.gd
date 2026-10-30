@@ -63,6 +63,19 @@ static func generate_choices(player: PlayerController, count: int = 3) -> Array[
 			evo.level_badge = "ЛЕГЕНДАРНОЕ"
 			priority_choices.append(evo)
 
+	# 0.4 Lightning Strike + Lightning Rod -> Wrath of the Heavens
+	var lightning = ac.get_ability("lightning_strike") as LightningAbility
+	if lightning and lightning.current_level >= 5 and not lightning.is_evolved:
+		if inv and inv.has_artifact("lightning_rod"):
+			var evo = UpgradeOption.new()
+			evo.id = "evolve_lightning"
+			evo.type = "evolution"
+			evo.title = "Ярость Небес"
+			evo.description = "★ ЭВОЛЮЦИЯ! Штормовой каскад небесных молний (до 7 скачков, урон 45, интервал 1.4 сек)."
+			evo.category_badge = "★ ЭВОЛЮЦИЯ ★"
+			evo.level_badge = "ЛЕГЕНДАРНОЕ"
+			priority_choices.append(evo)
+
 	# 1. New abilities to unlock
 	for ability_id in ac.available_scenes.keys():
 		if not ac.has_ability(ability_id) and ac.active_abilities.size() < ac.max_abilities:
@@ -178,6 +191,8 @@ static func apply_upgrade(player: PlayerController, option: UpgradeOption) -> vo
 			var container = player.get_tree().current_scene if player.get_tree().current_scene else player.get_tree().root
 			MetaArchive.record_discovery("evolutions", option.id)
 			MetaArchive.check_and_complete_goal("discover_evolution")
+			if AudioManager.instance:
+				AudioManager.instance.play_evolution()
 			if option.id == "evolve_magic_bolt" and player.ability_controller:
 				var bolt = player.ability_controller.get_ability("magic_bolt") as MagicBoltAbility
 				if bolt:
@@ -195,7 +210,13 @@ static func apply_upgrade(player: PlayerController, option: UpgradeOption) -> vo
 				if fireball:
 					fireball.evolve()
 					CombatEffects.spawn_shockwave(container, player.global_position, 180.0, Color(1.0, 0.45, 0.1, 0.95))
-					CombatEffects.spawn_text_popup(container, player.global_position + Vector2(0, -35), "ЭВОЛЮЦИЯ: ИНФЕРНАЛЬНАЯ СВЕРХНОВАЯ!", Color(1.0, 0.55, 0.15, 1.0))
+					CombatEffects.spawn_text_popup(container, player.global_position + Vector2(0, -35), "ЭВОЛЮЦИЯ: ИНФЕРНАЛЬНАЯ СВЕРХНОВАЯ!", Color(1.0, 0.55, 0.15, 1.0), true)
+			elif option.id == "evolve_lightning" and player.ability_controller:
+				var lightning = player.ability_controller.get_ability("lightning_strike") as LightningAbility
+				if lightning:
+					lightning.evolve()
+					CombatEffects.spawn_shockwave(container, player.global_position, 190.0, Color(0.4, 0.9, 1.0, 0.95))
+					CombatEffects.spawn_text_popup(container, player.global_position + Vector2(0, -35), "ЭВОЛЮЦИЯ: ЯРОСТЬ НЕБЕС!", Color(0.5, 0.95, 1.0, 1.0), true)
 
 		"artifact":
 			if player.inventory:

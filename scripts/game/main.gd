@@ -16,6 +16,7 @@ var run_stats: RunStats = RunStats.new()
 var condensation_timer: float = 0.0
 
 func _ready() -> void:
+	CombatEffects.set_fx_intensity(SaveManager.get_setting("fx_intensity", "standard"))
 	ensure_audio_manager()
 	ensure_input_mappings()
 

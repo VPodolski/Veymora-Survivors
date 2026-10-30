@@ -54,3 +54,21 @@ func _draw() -> void:
 	draw_circle(eye_center, 4.0, Color(1.0, 0.2, 0.1, 1.0))
 	draw_circle(eye_center, 1.5, Color.WHITE)
 
+	# Status icons / dots (y=-30, elevated above health bar)
+	if not active_statuses.is_empty():
+		var status_offset_x = -float(active_statuses.size() - 1) * 5.0
+		for i in range(active_statuses.size()):
+			var s_name = active_statuses[i]
+			var col = StatusEffects.get_status_color(s_name)
+			var dot_pos = Vector2(status_offset_x + float(i) * 10.0, -30.0)
+			draw_circle(dot_pos, 2.8, col)
+			draw_circle(dot_pos, 1.2, Color.WHITE)
+
+	# Mini Health Bar (y=-22 when damaged)
+	if hp_ratio < 1.0:
+		var bar_w = 30.0
+		var bar_h = 4.0
+		var bar_pos = Vector2(-bar_w * 0.5, -22.0)
+		draw_rect(Rect2(bar_pos, Vector2(bar_w, bar_h)), Color(0.1, 0.1, 0.12, 0.85), true)
+		draw_rect(Rect2(bar_pos, Vector2(bar_w * hp_ratio, bar_h)), Color(0.85, 0.2, 0.25, 0.95), true)
+

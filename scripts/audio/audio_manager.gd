@@ -9,6 +9,7 @@ var sfx_level_up: AudioStreamWAV
 var sfx_synergy: AudioStreamWAV
 var sfx_boss_alert: AudioStreamWAV
 var sfx_chest: AudioStreamWAV
+var sfx_evolution: AudioStreamWAV
 
 var players: Array[AudioStreamPlayer] = []
 const MAX_PLAYERS = 8
@@ -83,8 +84,21 @@ func play_boss_alert() -> void:
 func play_chest() -> void:
 	_play_stream(sfx_chest, -4.0, false)
 
+func play_evolution() -> void:
+	_play_stream(sfx_evolution, -2.0, false)
+
 # Procedural Sound Waveform Generation (Web-friendly, 0 external files, 16-bit smooth PCM)
 func _generate_audio_streams() -> void:
+	# Majestic resonant chord for spell evolution (C5 + G5 + E6)
+	sfx_evolution = _create_wav(0.55, 22050, func(t, dur):
+		var attack = min(1.0, t / 0.02)
+		var decay = exp(-t * 5.0)
+		var env = attack * decay
+		var c5 = sin(t * TAU * 523.25)
+		var g5 = sin(t * TAU * 783.99) * 0.7
+		var e6 = sin(t * TAU * 1318.51) * 0.4
+		return (c5 + g5 + e6) * 0.45 * env
+	)
 	# Soft celestial chime for spell casts
 	sfx_cast = _create_wav(0.12, 22050, func(t, dur):
 		var attack = min(1.0, t / 0.012)

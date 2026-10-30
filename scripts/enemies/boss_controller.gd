@@ -80,8 +80,9 @@ func start_dash_attack() -> void:
 	dash_timer = 1.0
 
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+	CombatEffects.spawn_hazard_telegraph(container, global_position, dash_direction, 380.0, 50.0, dash_telegraph_timer)
 	CombatEffects.spawn_shockwave(container, global_position, 70.0, Color(0.9, 0.2, 0.4, 0.8))
-	CombatEffects.spawn_text_popup(container, global_position, "ЗАРЯД РАЗЛОМА...", Color(1.0, 0.3, 0.5, 1.0))
+	CombatEffects.spawn_text_popup(container, global_position, "ЗАРЯД РАЗЛОМА...", Color(1.0, 0.3, 0.5, 1.0), true)
 
 func execute_dash() -> void:
 	is_dashing = true
@@ -92,9 +93,10 @@ func execute_dash() -> void:
 
 func fire_shadow_ring() -> void:
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+	CombatEffects.spawn_ring(container, global_position, 55.0, 12.0, Color(0.95, 0.1, 0.35, 0.9), 0.18, 2.0)
 	CombatEffects.spawn_shockwave(container, global_position, 90.0, Color(0.9, 0.1, 0.3, 0.9))
 	var msg = "ШКВАЛ ТЕНЕЙ!" if is_enraged else "ТЕНЕВЫЕ КЛЫКИ!"
-	CombatEffects.spawn_text_popup(container, global_position, msg, Color(0.95, 0.2, 0.35, 1.0))
+	CombatEffects.spawn_text_popup(container, global_position, msg, Color(0.95, 0.2, 0.35, 1.0), true)
 
 	var count = 12 if is_enraged else 8
 	for i in range(count):

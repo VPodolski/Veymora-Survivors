@@ -39,6 +39,7 @@ signal restart_requested
 @onready var pause_restart_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseRestartButton")
 @onready var pause_menu_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseMenuButton")
 @onready var volume_slider: HSlider = get_node_or_null("PauseMenu/Center/Panel/VBox/AudioSettings/VolumeSlider")
+@onready var fx_intensity_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/FxIntensityButton")
 
 # Level Up, Chest Reward & Archive Modals
 @onready var level_up_panel: LevelUpPanel = $LevelUpPanel
@@ -91,6 +92,10 @@ func _ready() -> void:
 		if AudioManager.instance:
 			volume_slider.value = AudioManager.instance.master_volume
 		volume_slider.value_changed.connect(_on_volume_changed)
+
+	if fx_intensity_btn:
+		_update_fx_button_label()
+		fx_intensity_btn.pressed.connect(_on_fx_intensity_toggle)
 
 	if level_up_panel:
 		level_up_panel.upgrade_picked.connect(_on_level_up_picked)
@@ -147,6 +152,18 @@ func _go_to_menu() -> void:
 func _on_volume_changed(val: float) -> void:
 	if AudioManager.instance:
 		AudioManager.instance.set_master_volume(val)
+	SaveManager.set_setting("master_volume", val)
+
+func _update_fx_button_label() -> void:
+	if fx_intensity_btn:
+		var is_standard = CombatEffects.fx_intensity == "standard"
+		fx_intensity_btn.text = "Эффекты: Стандартные" if is_standard else "Эффекты: Сниженные"
+
+func _on_fx_intensity_toggle() -> void:
+	var next_mode = "reduced" if CombatEffects.fx_intensity == "standard" else "standard"
+	CombatEffects.set_fx_intensity(next_mode)
+	SaveManager.set_setting("fx_intensity", next_mode)
+	_update_fx_button_label()
 
 # Unified Modal Coordination: Level Up & Chest Rewards
 func request_chest_reward(player: PlayerController) -> void:

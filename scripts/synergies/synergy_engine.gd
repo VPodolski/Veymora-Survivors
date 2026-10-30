@@ -56,13 +56,23 @@ func trigger_arcane_resonance(context: ReactionContext) -> void:
 	record_reaction(target, "resonance")
 	reaction_triggered.emit("resonance", pos)
 
-	CombatEffects.spawn_shockwave(container, pos, 80.0, Color(0.65, 0.3, 1.0, 0.95))
-	CombatEffects.spawn_text_popup(container, pos, "РЕЗОНАНС!", Color(0.8, 0.45, 1.0, 1.0))
+	# 1. Contact flash
+	CombatEffects.spawn_hit_flash(container, pos, Color(0.8, 0.4, 1.0, 1.0), 16.0)
+	# 2. Expanding arcane ring
+	CombatEffects.spawn_ring(container, pos, 8.0, 85.0, Color(0.65, 0.35, 1.0, 0.95), 0.26, 2.5)
+	# 3. Soft inner shockwave
+	CombatEffects.spawn_shockwave(container, pos, 80.0, Color(0.5, 0.25, 0.9, 0.5), 0.24)
+	# 4. Highlight target
+	CombatEffects.spawn_target_highlight(target, Color(0.7, 0.4, 1.0, 0.95), 24.0)
+	# 5. Priority text popup
+	CombatEffects.spawn_text_popup(container, pos, "РЕЗОНАНС!", Color(0.85, 0.5, 1.0, 1.0), true)
 
-	# AoE burst damage to nearby enemies
+	# AoE burst damage to nearby enemies + connecting arcane impulse lines
 	var enemies = TargetSelector.find_enemies_in_radius(get_tree(), pos, 85.0)
 	for enemy in enemies:
 		if is_instance_valid(enemy) and not enemy.is_dead:
+			if enemy != target:
+				CombatEffects.spawn_lightning_arc(container, pos, enemy.global_position, Color(0.7, 0.45, 1.0, 0.8), 1.5)
 			var sub_context = ReactionContext.new(self, enemy, ["arcane", "resonance"], enemy.global_position, 18.0, context.depth + 1)
 			enemy.take_damage(18.0)
 			# Chain reaction chance on neighboring enemies
@@ -77,8 +87,14 @@ func trigger_frost_shatter(context: ReactionContext) -> void:
 	record_reaction(target, "frost_shatter")
 	reaction_triggered.emit("frost_shatter", pos)
 
-	CombatEffects.spawn_shockwave(container, pos, 65.0, Color(0.2, 0.85, 1.0, 0.9))
-	CombatEffects.spawn_text_popup(container, pos, "РАСКОЛ!", Color(0.3, 0.9, 1.0, 1.0))
+	# 1. Contact frost flash
+	CombatEffects.spawn_hit_flash(container, pos, Color(0.4, 0.95, 1.0, 1.0), 14.0)
+	# 2. Geometric crystalline shards explosion (visual)
+	CombatEffects.spawn_geometric_shards(container, pos, Color(0.3, 0.9, 1.0, 1.0), 6, 190.0)
+	# 3. Shockwave with sharp border
+	CombatEffects.spawn_shockwave(container, pos, 65.0, Color(0.2, 0.85, 1.0, 0.85), 0.22)
+	# 4. Priority text popup
+	CombatEffects.spawn_text_popup(container, pos, "РАСКОЛ!", Color(0.35, 0.95, 1.0, 1.0), true)
 
 	# 3 frost shards fly out
 	var base_angle = randf() * TAU
@@ -101,13 +117,21 @@ func trigger_lightning_chain(context: ReactionContext) -> void:
 
 	record_reaction(target, "lightning_chain")
 	reaction_triggered.emit("lightning_chain", pos)
-	CombatEffects.spawn_text_popup(container, pos, "РАЗРЯД!", Color(0.4, 0.8, 1.0, 1.0))
+	CombatEffects.spawn_hit_flash(container, pos, Color.WHITE, 12.0)
+	CombatEffects.spawn_text_popup(container, pos, "РАЗРЯД!", Color(0.45, 0.85, 1.0, 1.0), true)
 
 	var nearby = TargetSelector.find_enemies_in_radius(get_tree(), pos, 150.0)
 	var chained_count = 0
+	var cur_pos = pos
+	var current_width = 2.4
+
 	for enemy in nearby:
 		if enemy != target and is_instance_valid(enemy) and not enemy.is_dead:
-			CombatEffects.spawn_lightning_arc(container, pos, enemy.global_position, Color(0.4, 0.8, 1.0, 1.0))
+			CombatEffects.spawn_lightning_arc(container, cur_pos, enemy.global_position, Color(0.45, 0.85, 1.0, 0.95), current_width)
+			CombatEffects.spawn_hit_flash(container, enemy.global_position, Color(0.6, 0.9, 1.0), 9.0)
+			current_width = max(1.2, current_width * 0.75)
+			cur_pos = enemy.global_position
+
 			var sub_context = ReactionContext.new(self, enemy, ["lightning"], enemy.global_position, 14.0, context.depth + 1)
 			enemy.take_damage(14.0)
 			enemy.apply_status(StatusEffects.STATUS_CHARGED, 3.0)
@@ -124,8 +148,14 @@ func trigger_steam_rift(context: ReactionContext) -> void:
 	record_reaction(target, "steam_rift")
 	reaction_triggered.emit("steam_rift", pos)
 
-	CombatEffects.spawn_shockwave(container, pos, 90.0, Color(0.7, 0.88, 1.0, 0.85))
-	CombatEffects.spawn_text_popup(container, pos, "ПАРОВОЙ РАЗЛОМ!", Color(0.75, 0.9, 1.0, 1.0))
+	# 1. Thermal evaporation flash
+	CombatEffects.spawn_hit_flash(container, pos, Color(1.0, 0.95, 0.85, 1.0), 16.0)
+	# 2. Expanding steam ring (semi-transparent soft vapor, no harsh fire)
+	CombatEffects.spawn_ring(container, pos, 8.0, 90.0, Color(0.75, 0.9, 1.0, 0.65), 0.35, 3.5)
+	# 3. Soft vapor shockwave
+	CombatEffects.spawn_shockwave(container, pos, 85.0, Color(0.8, 0.92, 1.0, 0.4), 0.32)
+	# 4. Priority text popup
+	CombatEffects.spawn_text_popup(container, pos, "ПАРОВОЙ РАЗЛОМ!", Color(0.8, 0.92, 1.0, 1.0), true)
 
 	var nearby = TargetSelector.find_enemies_in_radius(get_tree(), pos, 90.0)
 	for enemy in nearby:
@@ -142,8 +172,15 @@ func trigger_thermal_conflagration(context: ReactionContext) -> void:
 	record_reaction(target, "thermal_conflagration")
 	reaction_triggered.emit("thermal_conflagration", pos)
 
-	CombatEffects.spawn_shockwave(container, pos, 100.0, Color(1.0, 0.35, 0.1, 0.95))
-	CombatEffects.spawn_text_popup(container, pos, "ПЕРЕГРУЗКА!", Color(1.0, 0.45, 0.1, 1.0))
+	# 1. Brilliant plasma flash
+	CombatEffects.spawn_hit_flash(container, pos, Color(1.0, 0.9, 0.4, 1.0), 22.0)
+	# 2. Double ring (inner fire amber, outer electric cyan)
+	CombatEffects.spawn_ring(container, pos, 6.0, 70.0, Color(1.0, 0.45, 0.1, 0.9), 0.28, 3.0)
+	CombatEffects.spawn_ring(container, pos, 12.0, 100.0, Color(0.3, 0.8, 1.0, 0.85), 0.32, 2.0)
+	# 3. Plasma sparks burst
+	CombatEffects.spawn_impact_sparks(container, pos, Color(1.0, 0.55, 0.1, 1.0), 8)
+	# 4. Priority text popup
+	CombatEffects.spawn_text_popup(container, pos, "ПЕРЕГРУЗКА!", Color(1.0, 0.5, 0.1, 1.0), true)
 
 	var nearby = TargetSelector.find_enemies_in_radius(get_tree(), pos, 95.0)
 	for enemy in nearby:
@@ -154,8 +191,15 @@ func trigger_thermal_conflagration(context: ReactionContext) -> void:
 func trigger_unstable_explosion(pos: Vector2) -> void:
 	var container = get_effects_container()
 	reaction_triggered.emit("unstable_explosion", pos)
-	CombatEffects.spawn_shockwave(container, pos, 90.0, Color(0.85, 0.25, 1.0, 0.95))
-	CombatEffects.spawn_text_popup(container, pos, "РАЗЛОМ!", Color(0.9, 0.35, 1.0, 1.0))
+
+	# 1. Contracting void ring (implosion before explosion)
+	CombatEffects.spawn_ring(container, pos, 35.0, 4.0, Color(0.7, 0.2, 1.0, 0.9), 0.12, 2.2)
+	# 2. Geometric rift fracture (purple/void tear)
+	CombatEffects.spawn_rift_fracture(container, pos, 42.0, Color(0.85, 0.25, 1.0, 0.95))
+	# 3. Expanding perimeter shockwave matching exact 90px damage radius
+	CombatEffects.spawn_shockwave(container, pos, 90.0, Color(0.85, 0.25, 1.0, 0.85), 0.26)
+	# 4. Priority text popup
+	CombatEffects.spawn_text_popup(container, pos, "РАЗЛОМ!", Color(0.9, 0.35, 1.0, 1.0), true)
 
 	var enemies = TargetSelector.find_enemies_in_radius(get_tree(), pos, 90.0)
 	for enemy in enemies:

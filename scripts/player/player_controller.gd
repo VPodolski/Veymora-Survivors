@@ -83,6 +83,9 @@ func get_input_direction() -> Vector2:
 	return dir.normalized()
 
 func trigger_camera_shake(intensity: float = 6.0, duration: float = 0.2) -> void:
+	if CombatEffects.fx_intensity == "reduced":
+		intensity *= 0.35
+		duration *= 0.5
 	shake_intensity = intensity
 	shake_duration = duration
 

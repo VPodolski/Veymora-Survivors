@@ -1,14 +1,35 @@
 class_name Arena
 extends Node2D
 
+const RuneZone = preload("res://scripts/arena/rune_zone.gd")
+
 @export var arena_size: Vector2 = Vector2(2400, 1600)
 @export var border_color: Color = Color(0.25, 0.45, 0.75, 0.8)
 @export var floor_color: Color = Color(0.06, 0.07, 0.1, 1.0)
 @export var grid_color: Color = Color(0.1, 0.13, 0.18, 0.4)
 
+var rune_zone_timer: float = 25.0
+
 func _ready() -> void:
 	setup_boundary_colliders()
 	queue_redraw()
+
+func _process(delta: float) -> void:
+	if get_tree().paused:
+		return
+	rune_zone_timer -= delta
+	if rune_zone_timer <= 0.0:
+		rune_zone_timer = 50.0
+		var existing = get_tree().get_nodes_in_group("rune_zones")
+		if existing.is_empty():
+			spawn_rune_zone()
+
+func spawn_rune_zone() -> void:
+	var rz = RuneZone.new()
+	var half_w = arena_size.x * 0.32
+	var half_h = arena_size.y * 0.32
+	rz.global_position = Vector2(randf_range(-half_w, half_w), randf_range(-half_h, half_h))
+	add_child(rz)
 
 func setup_boundary_colliders() -> void:
 	var walls_body = $Walls as StaticBody2D

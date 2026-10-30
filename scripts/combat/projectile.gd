@@ -47,6 +47,9 @@ func _physics_process(delta: float) -> void:
 		if not has_turned_back:
 			has_turned_back = true
 			hit_enemies.clear() # Allow hitting enemies again on the way back
+			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+			CombatEffects.spawn_hit_flash(container, global_position, Color(1.0, 0.85, 0.3), 14.0)
+			CombatEffects.spawn_ring(container, global_position, 4.0, 24.0, Color(1.0, 0.85, 0.3, 0.85), 0.18, 1.8)
 
 		if is_instance_valid(player_ref):
 			var to_player = (player_ref.global_position - global_position).normalized()
@@ -71,6 +74,10 @@ func _handle_player_projectile_hit(body: Node2D) -> void:
 		if not hit_enemies.has(body):
 			hit_enemies.append(body)
 			body.take_damage(damage)
+
+			if has_turned_back:
+				var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+				CombatEffects.spawn_impact_sparks(container, global_position, Color(1.0, 0.85, 0.3), 3)
 
 			# Trigger synergy reaction
 			var engines = get_tree().get_nodes_in_group("synergy_engine")
@@ -130,6 +137,12 @@ func _draw() -> void:
 		draw_colored_polygon(pts, projectile_color)
 		# Center bright core
 		draw_line(Vector2(-4, 0), Vector2(4, 0), Color.WHITE, 2.0)
+
+		if has_turned_back:
+			# Returning phase: golden spatial ring & trailing speed whisps
+			draw_arc(Vector2.ZERO, 9.0, 0, TAU, 16, Color(1.0, 0.85, 0.3, 0.8), 1.5)
+			draw_line(Vector2(-10, -3), Vector2(-18, -4), Color(1.0, 0.85, 0.3, 0.6), 1.2)
+			draw_line(Vector2(-10, 3), Vector2(-18, 4), Color(1.0, 0.85, 0.3, 0.6), 1.2)
 
 func _draw_enemy_projectile() -> void:
 	# Barbed crimson needle/dagger silhouette (distinct from diamonds and round gems)

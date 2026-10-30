@@ -29,6 +29,8 @@ func get_effective_cooldown() -> float:
 	var mult = 1.0
 	if player_owner and player_owner.has_meta("cooldown_mult"):
 		mult = player_owner.get_meta("cooldown_mult")
+	if player_owner and player_owner.get_meta("in_rune_zone", false):
+		mult *= 0.75
 	return max(0.2, base_cooldown * mult)
 
 func get_effective_damage() -> float:
@@ -37,6 +39,8 @@ func get_effective_damage() -> float:
 		mult = player_owner.get_meta("spell_power_mult")
 	if player_owner and player_owner.has_meta("obsidian_heart_bonus"):
 		mult += player_owner.get_meta("obsidian_heart_bonus")
+	if player_owner and player_owner.get_meta("in_rune_zone", false):
+		mult += 0.20
 	return base_damage * mult
 
 func upgrade() -> void:

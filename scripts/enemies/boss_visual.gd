@@ -54,3 +54,13 @@ func _draw() -> void:
 	draw_circle(eye_center, 4.5, Color(1.0, 0.85, 0.3, 1.0))
 	draw_circle(eye_center, 2.0, Color.WHITE)
 
+	# Status icons / dots (y=-44 above boss aura)
+	if not active_statuses.is_empty():
+		var status_offset_x = -float(active_statuses.size() - 1) * 6.0
+		for i in range(active_statuses.size()):
+			var s_name = active_statuses[i]
+			var col = StatusEffects.get_status_color(s_name)
+			var dot_pos = Vector2(status_offset_x + float(i) * 12.0, -44.0)
+			draw_circle(dot_pos, 3.5, col)
+			draw_circle(dot_pos, 1.5, Color.WHITE)
+

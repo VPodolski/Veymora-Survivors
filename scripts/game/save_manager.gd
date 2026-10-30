@@ -12,6 +12,9 @@ static func get_default_data() -> Dictionary:
 		"best_survival_time": 0.0,
 		"bosses_defeated": 0,
 		"total_kills": 0,
+		"fx_intensity": "standard",
+		"master_volume": 1.0,
+		"sfx_volume": 0.8,
 		"discovered_spells": ["magic_bolt"],
 		"discovered_synergies": [],
 		"discovered_evolutions": [],
@@ -69,6 +72,18 @@ static func sanitize_data(raw: Dictionary) -> Dictionary:
 	if (kills is int or kills is float) and kills >= 0:
 		clean["total_kills"] = int(kills)
 
+	# Settings
+	var fx = raw.get("fx_intensity", "standard")
+	clean["fx_intensity"] = str(fx) if fx in ["standard", "reduced"] else "standard"
+
+	var m_vol = raw.get("master_volume", 1.0)
+	if m_vol is int or m_vol is float:
+		clean["master_volume"] = clampf(float(m_vol), 0.0, 1.0)
+
+	var s_vol = raw.get("sfx_volume", 0.8)
+	if s_vol is int or s_vol is float:
+		clean["sfx_volume"] = clampf(float(s_vol), 0.0, 1.0)
+
 	# Horizontal discoveries & meta unlocks
 	var array_keys = [
 		"discovered_spells",
@@ -123,3 +138,12 @@ static func record_run(time_survived: float, kills: int, defeated_boss: bool) ->
 
 	save_custom_data(data)
 	return data
+
+static func get_setting(key: String, default_value: Variant = null) -> Variant:
+	var data = load_data()
+	return data.get(key, default_value)
+
+static func set_setting(key: String, value: Variant) -> void:
+	var data = load_data()
+	data[key] = value
+	save_custom_data(data)
