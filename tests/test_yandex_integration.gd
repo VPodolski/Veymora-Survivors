@@ -284,16 +284,57 @@ func test_second_chance_lifecycle() -> void:
 func test_gameplay_api_integration() -> void:
 	print("[TEST] 7. GameFlowController & Yandex GameplayAPI calls...")
 	var flow = GameFlowController.instance
+	var bridge = YandexGamesBridge.instance
+	var pm = PauseManager.instance
 	assert(flow != null, "GameFlowController instance exists")
+	assert(bridge != null, "YandexGamesBridge instance exists")
+	assert(pm != null, "PauseManager instance exists")
 
+	# Ensure lifecycle sync is active
+	bridge.setup_lifecycle_sync()
+
+	# 1. Launch game -> PLAYING, unpaused -> gameplay active
 	flow.launch_game_scene()
 	assert(flow.current_state == GameFlowController.STATE_PLAYING, "State is PLAYING")
-	if YandexGamesBridge.instance:
-		assert(YandexGamesBridge.instance.is_gameplay_active, "Gameplay is marked active in bridge")
+	assert(!pm.is_paused(), "PauseManager is unpaused")
+	assert(bridge.is_gameplay_active, "Gameplay must be active in game when unpaused")
 
-	flow.open_arena_select()
-	assert(flow.current_state == GameFlowController.STATE_ARENA_SELECT, "State is ARENA_SELECT")
-	if YandexGamesBridge.instance:
-		assert(!YandexGamesBridge.instance.is_gameplay_active, "Gameplay stopped on menu transition")
+	# 2. In game: user pauses -> gameplay must stop
+	pm.add_pause_reason(PauseManager.REASON_USER)
+	assert(pm.is_paused(), "PauseManager is paused")
+	assert(!bridge.is_gameplay_active, "Gameplay must be stopped on user pause")
+
+	# 3. In game: user unpauses -> gameplay must restart
+	pm.remove_pause_reason(PauseManager.REASON_USER)
+	assert(!pm.is_paused(), "PauseManager is unpaused")
+	assert(bridge.is_gameplay_active, "Gameplay must restart when unpaused in game")
+
+	# 4. In game: multi-reason external pause (blur + platform)
+	pm.add_pause_reason(PauseManager.REASON_BROWSER_FOCUS)
+	assert(!bridge.is_gameplay_active, "Gameplay stopped on browser blur")
+	pm.add_pause_reason(PauseManager.REASON_PLATFORM)
+	assert(!bridge.is_gameplay_active, "Gameplay remains stopped with platform pause")
+
+	# Remove only blur -> platform pause still active
+	pm.remove_pause_reason(PauseManager.REASON_BROWSER_FOCUS)
+	assert(!bridge.is_gameplay_active, "Gameplay remains stopped while platform pause active")
+
+	# Remove platform -> unpaused -> resumes
+	pm.remove_pause_reason(PauseManager.REASON_PLATFORM)
+	assert(bridge.is_gameplay_active, "Gameplay resumes when all pause reasons removed")
+
+	# 5. Transition to Results screen -> gameplay must stop
+	flow.open_results_screen(RunStats.new())
+	assert(flow.current_state == GameFlowController.STATE_RESULTS, "State is RESULTS")
+	assert(!bridge.is_gameplay_active, "Gameplay stopped on results screen")
+
+	# 6. Unpausing outside gameplay must NEVER activate gameplay
+	pm.clear_reasons(false)
+	assert(!bridge.is_gameplay_active, "Gameplay remains stopped in results screen even when unpaused")
+
+	# 7. Menu transition -> still inactive
+	flow.go_to_main_menu()
+	assert(flow.current_state == GameFlowController.STATE_MAIN_MENU, "State is MAIN_MENU")
+	assert(!bridge.is_gameplay_active, "Gameplay remains stopped in main menu")
 
 	print("[PASS] GameFlowController GameplayAPI integration verified.")

@@ -36,16 +36,16 @@ func get_run_config() -> RunConfig:
 	return current_run_config
 
 func open_arena_select() -> void:
-	_clear_pause_and_stop_gameplay()
 	current_state = STATE_ARENA_SELECT
 	state_changed.emit(current_state)
+	_clear_pause_and_stop_gameplay()
 	get_tree().change_scene_to_file("res://scenes/ui/arena_select.tscn")
 
 func start_run_with_config(config: RunConfig) -> void:
-	_clear_pause_and_stop_gameplay()
 	current_run_config = config
 	current_state = STATE_LOADING
 	state_changed.emit(current_state)
+	_clear_pause_and_stop_gameplay()
 	get_tree().change_scene_to_file("res://scenes/ui/loading_screen.tscn")
 
 func launch_game_scene() -> void:
@@ -56,25 +56,27 @@ func launch_game_scene() -> void:
 	current_state = STATE_PLAYING
 	state_changed.emit(current_state)
 	if YandexGamesBridge.instance:
-		YandexGamesBridge.instance.gameplay_start()
+		YandexGamesBridge.instance.reconcile_gameplay_state()
 	get_tree().change_scene_to_file("res://scenes/main/main.tscn")
 
 func open_results_screen(stats: RunStats) -> void:
-	_clear_pause_and_stop_gameplay()
 	last_run_stats = stats
 	current_state = STATE_RESULTS
 	state_changed.emit(current_state)
+	_clear_pause_and_stop_gameplay()
 	get_tree().change_scene_to_file("res://scenes/ui/results_screen.tscn")
 
 func restart_run() -> void:
+	current_state = STATE_LOADING
+	state_changed.emit(current_state)
 	_clear_pause_and_stop_gameplay()
 	var next_config = current_run_config.duplicate_config() if current_run_config else RunConfig.new()
 	start_run_with_config(next_config)
 
 func go_to_main_menu() -> void:
-	_clear_pause_and_stop_gameplay()
 	current_state = STATE_MAIN_MENU
 	state_changed.emit(current_state)
+	_clear_pause_and_stop_gameplay()
 	get_tree().change_scene_to_file("res://scenes/ui/main_menu.tscn")
 
 func _clear_pause_and_stop_gameplay() -> void:
@@ -83,4 +85,4 @@ func _clear_pause_and_stop_gameplay() -> void:
 	else:
 		get_tree().paused = false
 	if YandexGamesBridge.instance:
-		YandexGamesBridge.instance.gameplay_stop()
+		YandexGamesBridge.instance.reconcile_gameplay_state()

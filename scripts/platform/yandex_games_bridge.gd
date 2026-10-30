@@ -68,6 +68,8 @@ func _ready() -> void:
 	var sys_lang = OS.get_locale_language().to_lower()
 	player_language = "ru" if sys_lang in ["ru", "be", "uk", "kk", "ky", "uz"] else "en"
 
+	call_deferred("setup_lifecycle_sync")
+
 	if is_web:
 		_setup_web_callbacks()
 		call_deferred("_init_yandex_sdk")
@@ -272,6 +274,33 @@ func _check_and_send_loading_ready() -> void:
 		print("[YandexGamesBridge] LoadingAPI.ready() called in local mode.")
 
 # --- Gameplay API ---
+func setup_lifecycle_sync() -> void:
+	if PauseManager.instance and not PauseManager.instance.pause_state_changed.is_connected(_on_pause_state_changed):
+		PauseManager.instance.pause_state_changed.connect(_on_pause_state_changed)
+	if GameFlowController.instance and not GameFlowController.instance.state_changed.is_connected(_on_game_state_changed):
+		GameFlowController.instance.state_changed.connect(_on_game_state_changed)
+	reconcile_gameplay_state()
+
+func _on_pause_state_changed(_is_paused: bool, _reasons: Array) -> void:
+	reconcile_gameplay_state()
+
+func _on_game_state_changed(_new_state: String) -> void:
+	reconcile_gameplay_state()
+
+func reconcile_gameplay_state() -> void:
+	var in_game = false
+	if GameFlowController.instance:
+		in_game = (GameFlowController.instance.current_state == GameFlowController.STATE_PLAYING)
+
+	var is_paused = false
+	if PauseManager.instance:
+		is_paused = PauseManager.instance.is_paused()
+
+	if in_game and not is_paused:
+		gameplay_start()
+	else:
+		gameplay_stop()
+
 func gameplay_start() -> void:
 	if is_gameplay_active:
 		return
@@ -309,30 +338,32 @@ func gameplay_stop() -> void:
 # --- Platform & Browser Event Handlers ---
 func _on_js_platform_pause(_args: Array = []) -> void:
 	print("[YandexGamesBridge] Event: Platform Pause (game_api_pause)")
-	gameplay_stop()
 	if PauseManager.instance:
 		PauseManager.instance.add_pause_reason(PauseManager.REASON_PLATFORM)
+	else:
+		reconcile_gameplay_state()
 	pause_requested.emit(PauseManager.REASON_PLATFORM)
 
 func _on_js_platform_resume(_args: Array = []) -> void:
 	print("[YandexGamesBridge] Event: Platform Resume (game_api_resume)")
 	if PauseManager.instance:
 		PauseManager.instance.remove_pause_reason(PauseManager.REASON_PLATFORM)
-	if not PauseManager.instance or not PauseManager.instance.is_paused():
-		gameplay_start()
+	else:
+		reconcile_gameplay_state()
 	resume_requested.emit(PauseManager.REASON_PLATFORM)
 
 func _on_js_browser_blur(_args: Array = []) -> void:
-	gameplay_stop()
 	if PauseManager.instance:
 		PauseManager.instance.add_pause_reason(PauseManager.REASON_BROWSER_FOCUS)
+	else:
+		reconcile_gameplay_state()
 	pause_requested.emit(PauseManager.REASON_BROWSER_FOCUS)
 
 func _on_js_browser_focus(_args: Array = []) -> void:
 	if PauseManager.instance:
 		PauseManager.instance.remove_pause_reason(PauseManager.REASON_BROWSER_FOCUS)
-	if not PauseManager.instance or not PauseManager.instance.is_paused():
-		gameplay_start()
+	else:
+		reconcile_gameplay_state()
 	resume_requested.emit(PauseManager.REASON_BROWSER_FOCUS)
 
 # --- Interstitial Advertisement ---
@@ -344,9 +375,10 @@ func show_interstitial(callback: Callable = Callable()) -> void:
 		_finish_interstitial(false)
 		return
 
-	gameplay_stop()
 	if PauseManager.instance:
 		PauseManager.instance.add_pause_reason(PauseManager.REASON_ADVERTISEMENT)
+	else:
+		reconcile_gameplay_state()
 
 	var js = Engine.get_singleton("JavaScriptBridge")
 	if not js:
@@ -402,9 +434,10 @@ func show_rewarded(reward_callback: Callable, close_callback: Callable = Callabl
 		_finish_rewarded(false)
 		return
 
-	gameplay_stop()
 	if PauseManager.instance:
 		PauseManager.instance.add_pause_reason(PauseManager.REASON_ADVERTISEMENT)
+	else:
+		reconcile_gameplay_state()
 
 	var js = Engine.get_singleton("JavaScriptBridge")
 	if not js:
