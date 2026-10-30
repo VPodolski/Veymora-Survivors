@@ -48,7 +48,14 @@ func _init_players() -> void:
 func set_temporary_mute(muted: bool) -> void:
 	is_temporary_muted = muted
 	AudioServer.set_bus_mute(0, muted)
+	if muted:
+		stop_all_sfx()
 	update_playing_volumes()
+
+func stop_all_sfx() -> void:
+	for p in players:
+		if is_instance_valid(p) and p.playing:
+			p.stop()
 
 func set_master_volume(val: float) -> void:
 	master_volume = clampf(val, 0.0, 1.0)

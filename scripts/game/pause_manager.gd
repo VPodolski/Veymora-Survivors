@@ -67,8 +67,9 @@ func get_active_reasons() -> Array:
 	return active_reasons.keys()
 
 func _update_audio_mute() -> void:
-	# Mute if paused by external factors (browser blur, platform request, or ad)
-	var needs_mute = active_reasons.has(REASON_BROWSER_FOCUS) or \
+	# Mute if paused by user pause, browser blur, platform request, or ad
+	var needs_mute = active_reasons.has(REASON_USER) or \
+					 active_reasons.has(REASON_BROWSER_FOCUS) or \
 					 active_reasons.has(REASON_PLATFORM) or \
 					 active_reasons.has(REASON_ADVERTISEMENT)
 

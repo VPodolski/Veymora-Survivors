@@ -36,19 +36,24 @@ func test_pause_manager_multi_reasons_and_mute() -> void:
 	pm.add_pause_reason(PauseManager.REASON_USER)
 	assert(pm.is_paused(), "Paused after user reason")
 	assert(pm.has_pause_reason(PauseManager.REASON_USER), "Has user reason")
-	assert(!AudioServer.is_bus_mute(0), "User pause does not mute audio bus")
+	assert(AudioServer.is_bus_mute(0), "User pause mutes audio bus")
 
 	# Add browser focus pause (external)
 	pm.add_pause_reason(PauseManager.REASON_BROWSER_FOCUS)
 	assert(pm.has_pause_reason(PauseManager.REASON_BROWSER_FOCUS), "Has browser focus reason")
-	assert(AudioServer.is_bus_mute(0), "Browser blur mutes audio bus")
+	assert(AudioServer.is_bus_mute(0), "Browser blur keeps audio bus muted")
 
 	# External focus returns: remove BROWSER_FOCUS
 	pm.remove_pause_reason(PauseManager.REASON_BROWSER_FOCUS)
 	assert(!pm.has_pause_reason(PauseManager.REASON_BROWSER_FOCUS), "Browser focus reason removed")
 	assert(pm.has_pause_reason(PauseManager.REASON_USER), "User pause MUST remain active!")
 	assert(pm.is_paused(), "Game must still be paused because user paused it")
-	assert(!AudioServer.is_bus_mute(0), "Audio unmuted when blur reason removed")
+	assert(AudioServer.is_bus_mute(0), "Audio remains muted while user pause is still active")
+
+	# Remove user pause
+	pm.remove_pause_reason(PauseManager.REASON_USER)
+	assert(!pm.is_paused(), "Game unpaused after user pause removed")
+	assert(!AudioServer.is_bus_mute(0), "Audio unmuted when all mute reasons cleared")
 
 	# Add Ad pause
 	pm.add_pause_reason(PauseManager.REASON_ADVERTISEMENT)
@@ -56,11 +61,19 @@ func test_pause_manager_multi_reasons_and_mute() -> void:
 	pm.remove_pause_reason(PauseManager.REASON_ADVERTISEMENT)
 	assert(!AudioServer.is_bus_mute(0), "Audio unmuted after ad")
 
+	# Test REASON_MODAL alone does not mute (in-game level-up audio allowed)
+	pm.add_pause_reason(PauseManager.REASON_MODAL)
+	assert(pm.is_paused(), "Game paused for modal")
+	assert(!AudioServer.is_bus_mute(0), "Modal pause alone does not mute audio bus")
+	pm.remove_pause_reason(PauseManager.REASON_MODAL)
+
 	# Clear all reasons except user pause
+	pm.add_pause_reason(PauseManager.REASON_USER)
 	pm.add_pause_reason(PauseManager.REASON_MODAL)
 	pm.clear_reasons(true) # keep user pause
 	assert(pm.has_pause_reason(PauseManager.REASON_USER), "User pause retained")
 	assert(!pm.has_pause_reason(PauseManager.REASON_MODAL), "Modal reason cleared")
+	assert(AudioServer.is_bus_mute(0), "Audio remains muted because user pause is kept")
 
 	# Full clear
 	pm.clear_reasons(false)
