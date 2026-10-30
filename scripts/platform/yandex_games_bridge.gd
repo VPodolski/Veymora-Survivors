@@ -29,6 +29,9 @@ var player_name: String = "Исследователь"
 var player_unique_id: String = ""
 
 var has_notified_ready: bool = false
+var is_game_ready: bool = false
+var is_sdk_initialized: bool = false
+var has_sent_loading_ready: bool = false
 var is_gameplay_active: bool = false
 
 # Internal callbacks kept alive to prevent garbage collection in JavaScriptBridge
@@ -71,7 +74,9 @@ func _ready() -> void:
 	else:
 		is_local_mode = true
 		is_sdk_available = false
+		is_sdk_initialized = true
 		call_deferred("_emit_sdk_ready", true)
+		call_deferred("_check_and_send_loading_ready")
 
 func _setup_web_callbacks() -> void:
 	if not is_web:
@@ -120,42 +125,52 @@ func _setup_web_callbacks() -> void:
 
 func _init_yandex_sdk() -> void:
 	if not is_web:
+		is_sdk_initialized = true
 		_emit_sdk_ready(true)
+		_check_and_send_loading_ready()
 		return
 
 	var js = Engine.get_singleton("JavaScriptBridge")
 	if not js:
+		is_sdk_initialized = true
 		_emit_sdk_ready(true)
+		_check_and_send_loading_ready()
 		return
 
-	# JavaScript initialization snippet with 4.0s safety timeout
+	# JavaScript initialization snippet with overall 4.0s timeout & getPlayer 2.0s protection
 	var init_code = """
 	(function() {
 		var bridge = window.__godotYandexBridge;
+		var isFinished = false;
+
+		function finishInit(success, lang, devType, isAuth, name, uid) {
+			if (isFinished) return;
+			isFinished = true;
+			clearTimeout(overallTimeout);
+			if (bridge && bridge.onSdkInit) {
+				bridge.onSdkInit(success, lang, devType, isAuth, name, uid);
+			}
+		}
+
+		var overallTimeout = setTimeout(function() {
+			console.warn('[YandexGamesBridge] YaGames SDK overall initialization timed out (4000ms), fallback to local.');
+			finishInit(false, 'ru', 'desktop', false, 'Исследователь', '');
+		}, 4000);
+
 		if (typeof YaGames === 'undefined') {
 			console.log('[YandexGamesBridge] YaGames SDK script not found on window, switching to local mode.');
-			if (bridge && bridge.onSdkInit) bridge.onSdkInit(false, 'ru', 'desktop', false, '');
+			finishInit(false, 'ru', 'desktop', false, 'Исследователь', '');
 			return;
 		}
 
-		var hasTimedOut = false;
-		var timer = setTimeout(function() {
-			hasTimedOut = true;
-			console.warn('[YandexGamesBridge] YaGames.init() timed out after 4000ms, fallback to local.');
-			if (bridge && bridge.onSdkInit) bridge.onSdkInit(false, 'ru', 'desktop', false, '');
-		}, 4000);
-
 		YaGames.init().then(function(ysdk) {
-			if (hasTimedOut) return;
-			clearTimeout(timer);
+			if (isFinished) return;
 			window.ysdk = ysdk;
 			console.log('[YandexGamesBridge] YaGames SDK initialized successfully.');
 
-			// Read environment
 			var lang = (ysdk.environment && ysdk.environment.i18n && ysdk.environment.i18n.lang) ? ysdk.environment.i18n.lang : 'ru';
 			var devType = (ysdk.deviceInfo && ysdk.deviceInfo.type) ? ysdk.deviceInfo.type : 'desktop';
 
-			// Event listeners for window & platform
 			window.addEventListener('blur', function() { if (bridge && bridge.onBlur) bridge.onBlur(); });
 			window.addEventListener('focus', function() { if (bridge && bridge.onFocus) bridge.onFocus(); });
 			document.addEventListener('visibilitychange', function() {
@@ -171,22 +186,27 @@ func _init_yandex_sdk() -> void:
 				ysdk.onEvent('game_api_resume', function() { if (bridge && bridge.onResume) bridge.onResume(); });
 			}
 
-			// Check player authorization
-			ysdk.getPlayer().then(function(player) {
+			var playerPromise = (ysdk.getPlayer && typeof ysdk.getPlayer === 'function') ? ysdk.getPlayer() : Promise.reject(new Error('no getPlayer'));
+			var playerTimeout = new Promise(function(_, reject) {
+				setTimeout(function() { reject(new Error('getPlayer timeout')); }, 2000);
+			});
+
+			Promise.race([playerPromise, playerTimeout]).then(function(player) {
+				if (isFinished) return;
 				window.__yandexPlayer = player;
 				var isAuth = player.getMode() !== 'lite';
 				var name = player.getName() || 'Исследователь';
 				var uid = player.getUniqueID() || '';
-				if (bridge && bridge.onSdkInit) bridge.onSdkInit(true, lang, devType, isAuth, name, uid);
+				finishInit(true, lang, devType, isAuth, name, uid);
 			}).catch(function(err) {
+				if (isFinished) return;
 				console.warn('[YandexGamesBridge] Failed to get player, continuing as guest:', err);
-				if (bridge && bridge.onSdkInit) bridge.onSdkInit(true, lang, devType, false, 'Исследователь', '');
+				finishInit(true, lang, devType, false, 'Исследователь', '');
 			});
 		}).catch(function(err) {
-			if (hasTimedOut) return;
-			clearTimeout(timer);
+			if (isFinished) return;
 			console.error('[YandexGamesBridge] YaGames.init() failed:', err);
-			if (bridge && bridge.onSdkInit) bridge.onSdkInit(false, 'ru', 'desktop', false, '');
+			finishInit(false, 'ru', 'desktop', false, 'Исследователь', '');
 		});
 	})();
 	"""
@@ -194,6 +214,7 @@ func _init_yandex_sdk() -> void:
 
 func _on_js_sdk_init(args: Array) -> void:
 	var success = bool(args[0]) if args.size() > 0 else false
+	is_sdk_initialized = true
 	if success:
 		is_sdk_available = true
 		is_local_mode = false
@@ -215,16 +236,28 @@ func _on_js_sdk_init(args: Array) -> void:
 		is_local_mode = true
 
 	_emit_sdk_ready(is_local_mode)
+	_check_and_send_loading_ready()
 
 func _emit_sdk_ready(local_mode: bool) -> void:
 	sdk_ready.emit(local_mode)
 
 # --- Loading API ---
 func notify_game_ready() -> void:
-	if has_notified_ready:
+	if is_game_ready:
 		return
+	is_game_ready = true
 	has_notified_ready = true
+	_check_and_send_loading_ready()
 
+func _check_and_send_loading_ready() -> void:
+	if has_sent_loading_ready:
+		return
+	if not is_game_ready:
+		return
+	if not is_sdk_initialized:
+		return
+
+	has_sent_loading_ready = true
 	if is_web and is_sdk_available:
 		var js = Engine.get_singleton("JavaScriptBridge")
 		if js:

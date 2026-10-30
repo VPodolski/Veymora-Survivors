@@ -92,3 +92,4 @@ func _draw() -> void:
 	var col = active_stick_color if is_active else stick_color
 	draw_circle(stick_position, stick_radius, col)
 	draw_arc(stick_position, stick_radius, 0, TAU, 28, Color.WHITE, 1.8)
+

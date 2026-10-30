@@ -24,3 +24,4 @@ func _check_orientation() -> void:
 func _update_text() -> void:
 	if label and LocalizationManager.instance:
 		label.text = LocalizationManager.instance.get_text("rotate_device_warning", "Пожалуйста, поверните устройство горизонтально для комфортной игры.")
+

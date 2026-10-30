@@ -114,3 +114,4 @@
 12. `tests/test_v02_synergies_and_effects.gd` — 12 визуальных примитивов, лимиты FX, 8 синергий, 4 эволюции.
 13. `tests/test_v03_game_flow.gd` — 4 арены, SaveManager v2, RunStats, результаты, морозные зоны.
 14. `tests/test_yandex_integration.gd` — изоляция моста, LoadingAPI, GameplayAPI, PauseManager, Mute, Cloud Merge, RU/EN локализация, Virtual Joystick, Second Chance.
+

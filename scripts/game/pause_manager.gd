@@ -80,3 +80,4 @@ func _update_audio_mute() -> void:
 		audio_mgr.set_temporary_mute(needs_mute)
 	else:
 		AudioServer.set_bus_mute(0, needs_mute)
+

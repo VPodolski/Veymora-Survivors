@@ -131,3 +131,4 @@ flowchart TD
 - `scripts/ui/settings_dialog.gd` — выбор языка (Русский / English).
 - `scripts/audio/audio_manager.gd` — хуки приглушения звука через `PauseMgr`.
 - `build/web/index.html` — подключение SDK Яндекс Игр, адаптивные стили.
+
