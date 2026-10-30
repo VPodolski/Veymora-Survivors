@@ -79,11 +79,17 @@ func _handle_player_projectile_hit(body: Node2D) -> void:
 				var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 				CombatEffects.spawn_impact_sparks(container, global_position, Color(1.0, 0.85, 0.3), 3)
 
-			# Trigger synergy reaction
+			# Check if this is a secondary reaction projectile
 			var engines = get_tree().get_nodes_in_group("synergy_engine")
-			if engines.size() > 0:
-				var ctx = ReactionContext.new(self, body, tags, global_position, damage, 0)
-				engines[0].on_hit_landed(ctx)
+			if tags.has("reaction_frost_shatter"):
+				if engines.size() > 0:
+					var was_killed = (body.is_dead or body.current_health <= 0.0)
+					engines[0].reaction_damage_dealt.emit("frost_shatter", damage, was_killed, false)
+			else:
+				# Trigger synergy reaction
+				if engines.size() > 0:
+					var ctx = ReactionContext.new(self, body, tags, global_position, damage, 0)
+					engines[0].on_hit_landed(ctx)
 
 			hits_remaining -= 1
 			if hits_remaining <= 0 and not is_returning:

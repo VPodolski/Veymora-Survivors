@@ -9,6 +9,7 @@ const MainMenuBackground = preload("res://scripts/ui/main_menu_background.gd")
 const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
 const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
 const LocalizationManager = preload("res://scripts/game/localization_manager.gd")
+const SynergyRegistry = preload("res://scripts/synergies/synergy_registry.gd")
 
 const SYNERGY_NAMES = {
 	"resonance": "Чародейский резонанс",
@@ -97,6 +98,9 @@ func get_synergy_name(syn_id: String) -> String:
 		var val = loc.get_text(key, "")
 		if not val.is_empty():
 			return val
+	var defn = SynergyRegistry.get_definition(syn_id)
+	if defn:
+		return defn.default_name
 	return syn_id
 
 func _populate_metrics(data: RunStats) -> void:
@@ -169,16 +173,18 @@ func _populate_synergies(data: RunStats) -> void:
 	for syn_id in data.synergy_counts.keys():
 		var count = data.synergy_counts[syn_id]
 		var dmg = data.synergy_damage.get(syn_id, 0.0)
+		var targets = data.synergy_targets.get(syn_id, 0)
+		var kills = data.synergy_kills.get(syn_id, 0)
 		var display_name = get_synergy_name(syn_id)
 		var is_star = (syn_id == most_effective)
 
-		var card = _create_synergy_card(display_name, count, dmg, is_star)
+		var card = _create_synergy_card(display_name, count, dmg, targets, kills, is_star)
 		synergy_cards_container.add_child(card)
 
-func _create_synergy_card(title: String, count: int, dmg: float, is_star: bool) -> Control:
+func _create_synergy_card(title: String, count: int, dmg: float, targets: int, kills: int, is_star: bool) -> Control:
 	var loc = LocalizationManager.instance
 	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(175, 95)
+	panel.custom_minimum_size = Vector2(185, 110)
 
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 10)
@@ -188,7 +194,7 @@ func _create_synergy_card(title: String, count: int, dmg: float, is_star: bool) 
 	panel.add_child(margin)
 
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 3)
+	vbox.add_theme_constant_override("separation", 2)
 	margin.add_child(vbox)
 
 	var name_lbl = Label.new()
@@ -211,6 +217,14 @@ func _create_synergy_card(title: String, count: int, dmg: float, is_star: bool) 
 	dmg_lbl.add_theme_font_size_override("font_size", 11)
 	dmg_lbl.add_theme_color_override("font_color", Color(0.9, 0.65, 1.0))
 	vbox.add_child(dmg_lbl)
+
+	if targets > 0 or kills > 0:
+		var extra_lbl = Label.new()
+		var extra_fmt = loc.get_text("synergy_impact", "Целей: %d | Убийств: %d") if loc else "Целей: %d | Убийств: %d"
+		extra_lbl.text = extra_fmt % [targets, kills]
+		extra_lbl.add_theme_font_size_override("font_size", 10)
+		extra_lbl.add_theme_color_override("font_color", Color(0.6, 0.85, 0.75))
+		vbox.add_child(extra_lbl)
 
 	return panel
 

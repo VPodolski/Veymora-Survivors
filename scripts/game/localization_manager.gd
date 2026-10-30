@@ -116,6 +116,8 @@ const STRINGS = {
 		"synergy_empty": "В этом забеге магические реакции не были активированы.\nКомбинируйте школы магии для активации мощных стихийных резонансов!",
 		"synergy_activations": "Активаций: %d",
 		"synergy_dmg": "Урон: %d",
+		"synergy_impact": "Целей: %d | Убийств: %d",
+		"toast_synergy_unlocked": "✦ Открыта синергия: [%s]!",
 
 		# Second Chance
 		"second_chance_title": "ВТОРОЙ ШАНС",
@@ -144,6 +146,14 @@ const STRINGS = {
 		"syn_soul_harvest_desc": "Поглощение жизненной силы павших врагов",
 		"syn_returning_pierce_name": "Возвратный разлом",
 		"syn_returning_pierce_desc": "Снаряды пронзают врагов и возвращаются к магу",
+		"syn_spatial_collapse_name": "Пространственный коллапс",
+		"syn_spatial_collapse_desc": "Арканный удар по нестабильной цели стягивает врагов в сингулярность и взрывается",
+		"syn_cryogenic_shock_name": "Криогенный шок",
+		"syn_cryogenic_shock_desc": "Разряд молнии по замедленной цели раскалывает лед и испускает крио-дуги",
+		"syn_chain_of_doom_name": "Цепь погибели",
+		"syn_chain_of_doom_desc": "Гибель помеченного врага переносит клеймо смерти на ближайшую цель",
+		"syn_runic_conductor_name": "Рунический проводник",
+		"syn_runic_conductor_desc": "Молния во время нахождения в Рунической зоне высвобождает радиальный разряд",
 
 		# Codex / Archive
 		"codex_sec_spells": "БАЗОВЫЕ ЗАКЛИНАНИЯ (%d/%d)",
@@ -276,8 +286,10 @@ const STRINGS = {
 		"synergy_share": "✦ Synergy Damage Contribution: %d%%",
 		"synergy_star": "   |   Star Synergy: %s",
 		"synergy_empty": "No elemental synergies were triggered during this run.\nCombine schools of magic to unleash devastating reactions!",
-		"synergy_activations": "Triggers: %d",
+		"synergy_activations": "Activations: %d",
 		"synergy_dmg": "Damage: %d",
+		"synergy_impact": "Targets: %d | Kills: %d",
+		"toast_synergy_unlocked": "✦ Synergy Discovered: [%s]!",
 
 		# Second Chance
 		"second_chance_title": "SECOND CHANCE",
@@ -306,6 +318,14 @@ const STRINGS = {
 		"syn_soul_harvest_desc": "Harvesting vitality from fallen enemies",
 		"syn_returning_pierce_name": "Returning Rift",
 		"syn_returning_pierce_desc": "Projectiles pierce enemies and return back to the caster",
+		"syn_spatial_collapse_name": "Spatial Collapse",
+		"syn_spatial_collapse_desc": "Arcane strike on unstable target collapses foes into a singularity implosion",
+		"syn_cryogenic_shock_name": "Cryogenic Shock",
+		"syn_cryogenic_shock_desc": "Lightning strike on slowed target shatters ice into conductive cryo-arcs",
+		"syn_chain_of_doom_name": "Chain of Doom",
+		"syn_chain_of_doom_desc": "Death of marked target transfers death mark to nearest enemy",
+		"syn_runic_conductor_name": "Runic Conductor",
+		"syn_runic_conductor_desc": "Lightning while standing in Rune Zone triggers radial electrical discharge",
 
 		# Codex / Archive
 		"codex_sec_spells": "BASE SPELLS (%d/%d)",

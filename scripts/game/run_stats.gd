@@ -15,8 +15,13 @@ var damage_dealt: float = 0.0
 var experience_gained: float = 0.0
 var artifacts_collected: int = 0
 
-var synergy_counts: Dictionary = {} # synergy_id -> int count
+# Rich Synergy Tracking (v0.4)
+var synergy_counts: Dictionary = {} # synergy_id -> int activation count
 var synergy_damage: Dictionary = {} # synergy_id -> float total damage
+var synergy_targets: Dictionary = {} # synergy_id -> int total enemies struck
+var synergy_kills: Dictionary = {} # synergy_id -> int kills caused by synergy
+var synergy_max_targets: Dictionary = {} # synergy_id -> int peak targets in single reaction
+var synergy_dot_damage: Dictionary = {} # synergy_id -> float periodic DoT damage
 
 var _recorded_enemy_ids: Dictionary = {}
 
@@ -45,12 +50,30 @@ func record_xp(amount: float) -> void:
 	if amount > 0.0:
 		experience_gained += amount
 
-func record_synergy_trigger(synergy_id: String, dmg: float = 0.0) -> void:
+func record_synergy_activation(synergy_id: String, targets_count: int = 1) -> void:
 	if synergy_id.is_empty():
 		return
 	synergy_counts[synergy_id] = synergy_counts.get(synergy_id, 0) + 1
+	var actual_targets = max(1, targets_count)
+	synergy_targets[synergy_id] = synergy_targets.get(synergy_id, 0) + actual_targets
+	synergy_max_targets[synergy_id] = max(synergy_max_targets.get(synergy_id, 0), actual_targets)
+
+func record_synergy_damage(synergy_id: String, dmg: float, is_kill: bool = false, is_dot: bool = false) -> void:
+	if synergy_id.is_empty() or dmg <= 0.0:
+		return
+	synergy_damage[synergy_id] = synergy_damage.get(synergy_id, 0.0) + dmg
+	if is_dot:
+		synergy_dot_damage[synergy_id] = synergy_dot_damage.get(synergy_id, 0.0) + dmg
+	if is_kill:
+		synergy_kills[synergy_id] = synergy_kills.get(synergy_id, 0) + 1
+
+# Backward-compatible bridge method
+func record_synergy_trigger(synergy_id: String, dmg: float = 0.0) -> void:
+	if synergy_id.is_empty():
+		return
+	record_synergy_activation(synergy_id, 1)
 	if dmg > 0.0:
-		synergy_damage[synergy_id] = synergy_damage.get(synergy_id, 0.0) + dmg
+		record_synergy_damage(synergy_id, dmg)
 
 func get_most_effective_synergy() -> String:
 	var best_syn = ""
@@ -95,6 +118,9 @@ func to_dictionary() -> Dictionary:
 		"artifacts_collected": artifacts_collected,
 		"synergy_counts": synergy_counts.duplicate(),
 		"synergy_damage": synergy_damage.duplicate(),
+		"synergy_targets": synergy_targets.duplicate(),
+		"synergy_kills": synergy_kills.duplicate(),
+		"synergy_max_targets": synergy_max_targets.duplicate(),
 		"most_effective_synergy": get_most_effective_synergy(),
 		"synergy_ratio": get_synergy_damage_ratio(),
 		"timestamp": Time.get_unix_time_from_system()
@@ -114,5 +140,9 @@ func reset() -> void:
 	artifacts_collected = 0
 	synergy_counts.clear()
 	synergy_damage.clear()
+	synergy_targets.clear()
+	synergy_kills.clear()
+	synergy_max_targets.clear()
+	synergy_dot_damage.clear()
 	_recorded_enemy_ids.clear()
 	stats_updated.emit()

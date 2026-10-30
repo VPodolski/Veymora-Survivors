@@ -44,16 +44,27 @@ func _process(delta: float) -> void:
 
 func apply_storm_tick() -> void:
 	var overlapping = get_overlapping_bodies()
+	var targets: Array = []
+	for b in overlapping:
+		if b is EnemyController and not b.is_dead:
+			targets.append(b)
+
+	if targets.is_empty():
+		var nearby = TargetSelector.find_enemies_in_radius(get_tree(), global_position, radius)
+		for e in nearby:
+			if e is EnemyController and not e.is_dead:
+				targets.append(e)
+
 	var engines = get_tree().get_nodes_in_group("synergy_engine")
 
-	for body in overlapping:
-		if body is EnemyController and not body.is_dead:
-			body.take_damage(damage_per_tick)
-			body.apply_status(StatusEffects.STATUS_SLOWED, 2.5)
+	for body in targets:
+		body.take_damage(damage_per_tick)
+		body.apply_status(StatusEffects.STATUS_SLOWED, 2.5)
 
-			if engines.size() > 0:
-				var ctx = ReactionContext.new(self, body, ["ice", "area"], body.global_position, damage_per_tick, 0)
-				engines[0].on_hit_landed(ctx)
+		if engines.size() > 0:
+			# Ice Storm zone prepares targets with chill/slow, but does not self-trigger shatter
+			var ctx = ReactionContext.new(self, body, ["ice_zone", "chill", "area"], body.global_position, damage_per_tick, 0, false)
+			engines[0].on_hit_landed(ctx)
 
 func _draw() -> void:
 	# Frost zone ground circle

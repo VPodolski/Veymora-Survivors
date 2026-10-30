@@ -64,8 +64,11 @@ func _ready() -> void:
 
 	if synergy_engine:
 		synergy_engine.reaction_triggered.connect(_on_reaction_triggered)
-		synergy_engine.reaction_damage_dealt.connect(func(r_name, dmg):
-			run_stats.record_synergy_trigger(r_name, dmg)
+		synergy_engine.reaction_activated.connect(func(r_name, _pos, targets_count):
+			run_stats.record_synergy_activation(r_name, targets_count)
+		)
+		synergy_engine.reaction_damage_detailed.connect(func(r_name, dmg, is_kill, is_dot):
+			run_stats.record_synergy_damage(r_name, dmg, is_kill, is_dot)
 		)
 
 func ensure_audio_manager() -> void:
@@ -96,15 +99,17 @@ func _on_enemy_spawned(enemy: EnemyController) -> void:
 		enemy.damage_taken.connect(func(dmg): run_stats.record_damage(dmg))
 
 func _on_reaction_triggered(reaction_name: String, _pos: Vector2) -> void:
-	run_stats.record_synergy_trigger(reaction_name, 0.0)
 	MetaArchive.record_discovery("synergies", reaction_name)
 	if reaction_name == "Чародейский резонанс" or reaction_name == "resonance":
 		MetaArchive.check_and_complete_goal("first_resonance")
 	elif reaction_name == "Паровой разлом" or reaction_name == "steam_rift":
 		MetaArchive.check_and_complete_goal("first_steam_rift")
 
+	if hud and hud.has_method("notify_synergy"):
+		hud.notify_synergy(reaction_name)
+
 	if AudioManager.instance:
-		AudioManager.instance.play_synergy()
+		AudioManager.instance.play_synergy(reaction_name)
 
 func _on_enemy_killed(enemy: EnemyController) -> void:
 	run_stats.record_kill(enemy)

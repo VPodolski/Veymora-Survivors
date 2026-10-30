@@ -7,6 +7,7 @@ const MetaArchive = preload("res://scripts/game/meta_archive.gd")
 const SaveManager = preload("res://scripts/game/save_manager.gd")
 const InventoryState = preload("res://scripts/items/inventory_state.gd")
 const LocalizationManager = preload("res://scripts/game/localization_manager.gd")
+const SynergyRegistry = preload("res://scripts/synergies/synergy_registry.gd")
 
 @onready var tab_spells_btn: Button = $Panel/VBox/TabButtons/SpellsTab
 @onready var tab_synergies_btn: Button = $Panel/VBox/TabButtons/SynergiesTab
@@ -138,17 +139,19 @@ func _render_spells_tab(archive: Dictionary) -> void:
 func _render_synergies_tab(archive: Dictionary) -> void:
 	var loc = LocalizationManager.instance
 	var discovered = archive.get("synergies", [])
+	var all_synergies = SynergyRegistry.get_all()
 	var sec_syn_fmt = loc.get_text("codex_sec_synergies", "МАГИЧЕСКИЕ СИНЕРГИИ И РЕАКЦИИ (%d/%d)") if loc else "МАГИЧЕСКИЕ СИНЕРГИИ И РЕАКЦИИ (%d/%d)"
-	_add_section_header(sec_syn_fmt % [discovered.size(), SYNERGIES_DATA.size()])
+	_add_section_header(sec_syn_fmt % [discovered.size(), all_synergies.size()])
 
-	for syn in SYNERGIES_DATA:
-		var is_known = discovered.has(syn["id"]) or discovered.has(syn["name"])
+	for syn in all_synergies:
+		var is_known = discovered.has(syn.id) or discovered.has(syn.default_name)
 		var unk_name = loc.get_text("codex_unknown_syn", "??? Скрытая комбинация стихий") if loc else "??? Скрытая комбинация стихий"
 		var unk_desc = loc.get_text("codex_unknown_syn_desc", "Комбинируйте эффекты разных стихий в бою, чтобы раскрыть резонанс.") if loc else "Комбинируйте эффекты разных стихий в бою, чтобы раскрыть резонанс."
-		var title = syn["name"] if is_known else unk_name
+		var title = loc.get_text(syn.name_key, syn.default_name) if is_known else unk_name
 		var formula_fmt = loc.get_text("codex_formula_prefix", "Формула: %s\n%s") if loc else "Формула: %s\n%s"
-		var desc = (formula_fmt % [syn["formula"], syn["desc"]]) if is_known else unk_desc
-		var color = Color(0.85, 0.45, 1.0) if is_known else Color(0.5, 0.5, 0.5)
+		var desc_text = loc.get_text(syn.desc_key, syn.default_desc) if loc else syn.default_desc
+		var desc = (formula_fmt % [syn.formula, desc_text]) if is_known else unk_desc
+		var color = syn.visual_color if is_known else Color(0.5, 0.5, 0.5)
 		var syn_badge = loc.get_text("codex_badge_syn", "СИНЕРГИЯ") if loc else "СИНЕРГИЯ"
 		_add_card(title, desc, syn_badge, color, is_known)
 

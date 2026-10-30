@@ -240,6 +240,84 @@ static func spawn_death_burst(parent: Node, pos: Vector2) -> void:
 	burst.global_position = pos
 	parent.add_child(burst)
 
+# --- Synergy Composite Visual Presets (v0.4) ---
+static func spawn_resonance_visuals(parent: Node, pos: Vector2, radius: float, targets: Array = []) -> void:
+	if not parent:
+		return
+	spawn_hit_flash(parent, pos, Color(0.85, 0.45, 1.0, 1.0), 16.0)
+	spawn_ring(parent, pos, 8.0, radius, Color(0.65, 0.35, 1.0, 0.95), 0.26, 2.5)
+	spawn_shockwave(parent, pos, radius, Color(0.5, 0.25, 0.9, 0.5), 0.24)
+	for t in targets:
+		if is_instance_valid(t):
+			spawn_lightning_arc(parent, pos, t.global_position, Color(0.75, 0.45, 1.0, 0.85), 1.6)
+	spawn_text_popup(parent, pos, "РЕЗОНАНС!", Color(0.85, 0.5, 1.0, 1.0), true)
+
+static func spawn_frost_shatter_visuals(parent: Node, pos: Vector2, shard_count: int = 3, speed: float = 190.0) -> void:
+	if not parent:
+		return
+	spawn_hit_flash(parent, pos, Color(0.4, 0.95, 1.0, 1.0), 14.0)
+	spawn_geometric_shards(parent, pos, Color(0.3, 0.9, 1.0, 1.0), shard_count, speed)
+	spawn_shockwave(parent, pos, 65.0, Color(0.2, 0.85, 1.0, 0.85), 0.22)
+	spawn_text_popup(parent, pos, "РАСКОЛ!", Color(0.35, 0.95, 1.0, 1.0), true)
+
+static func spawn_lightning_chain_visuals(parent: Node, pos: Vector2, chained_positions: Array = []) -> void:
+	if not parent:
+		return
+	spawn_hit_flash(parent, pos, Color.WHITE, 14.0)
+	spawn_ring(parent, pos, 6.0, 75.0, Color(0.4, 0.85, 1.0, 0.9), 0.22, 2.0)
+	var cur_pos = pos
+	var cur_width = 2.4
+	for to_pos in chained_positions:
+		spawn_lightning_arc(parent, cur_pos, to_pos, Color(0.45, 0.85, 1.0, 0.95), cur_width)
+		spawn_hit_flash(parent, to_pos, Color(0.6, 0.9, 1.0), 10.0)
+		cur_width = max(1.2, cur_width * 0.75)
+		cur_pos = to_pos
+	spawn_text_popup(parent, pos, "РАЗРЯД!", Color(0.45, 0.85, 1.0, 1.0), true)
+
+static func spawn_steam_rift_visuals(parent: Node, pos: Vector2, radius: float = 90.0) -> void:
+	if not parent:
+		return
+	spawn_hit_flash(parent, pos, Color(1.0, 0.95, 0.85, 1.0), 16.0)
+	spawn_ring(parent, pos, 8.0, radius, Color(0.75, 0.9, 1.0, 0.65), 0.35, 3.5)
+	spawn_shockwave(parent, pos, radius, Color(0.8, 0.92, 1.0, 0.4), 0.32)
+	spawn_text_popup(parent, pos, "ПАРОВОЙ РАЗЛОМ!", Color(0.8, 0.92, 1.0, 1.0), true)
+
+static func spawn_thermal_conflagration_visuals(parent: Node, pos: Vector2, radius: float = 95.0, is_empowered: bool = false) -> void:
+	if not parent:
+		return
+	spawn_hit_flash(parent, pos, Color(1.0, 0.9, 0.4, 1.0), 24.0)
+	spawn_ring(parent, pos, 6.0, 70.0, Color(1.0, 0.45, 0.1, 0.9), 0.28, 3.2)
+	spawn_ring(parent, pos, 12.0, radius, Color(0.3, 0.8, 1.0, 0.85), 0.32, 2.2)
+	var sparks_count = 12 if is_empowered else 8
+	spawn_impact_sparks(parent, pos, Color(1.0, 0.55, 0.1, 1.0), sparks_count)
+	if is_empowered:
+		spawn_shockwave(parent, pos, radius * 1.25, Color(1.0, 0.3, 0.1, 0.6), 0.3)
+	spawn_text_popup(parent, pos, "ПЕРЕГРУЗКА!", Color(1.0, 0.5, 0.1, 1.0), true)
+
+static func spawn_soul_harvest_visuals(parent: Node, pos: Vector2, radius: float = 90.0) -> void:
+	if not parent:
+		return
+	spawn_ring(parent, pos, 45.0, 8.0, Color(0.95, 0.15, 0.3, 0.95), 0.18, 3.0)
+	spawn_rift_fracture(parent, pos, 42.0, Color(0.95, 0.1, 0.25, 0.95))
+	spawn_shockwave(parent, pos, radius, Color(0.95, 0.1, 0.25, 0.85), 0.26)
+	spawn_text_popup(parent, pos, "ЖАТВА ДУШ!", Color(1.0, 0.3, 0.4, 1.0), true)
+
+static func spawn_unstable_explosion_visuals(parent: Node, pos: Vector2, radius: float = 90.0) -> void:
+	if not parent:
+		return
+	spawn_ring(parent, pos, 35.0, 4.0, Color(0.7, 0.2, 1.0, 0.9), 0.12, 2.2)
+	spawn_rift_fracture(parent, pos, 42.0, Color(0.85, 0.25, 1.0, 0.95))
+	spawn_shockwave(parent, pos, radius, Color(0.85, 0.25, 1.0, 0.85), 0.26)
+	spawn_text_popup(parent, pos, "РАЗЛОМ!", Color(0.9, 0.35, 1.0, 1.0), true)
+
+static func spawn_spatial_collapse_visuals(parent: Node, pos: Vector2, radius: float = 110.0) -> void:
+	if not parent:
+		return
+	spawn_ring(parent, pos, radius, 8.0, Color(0.7, 0.2, 0.95, 0.9), 0.25, 2.5)
+	spawn_hit_flash(parent, pos, Color(0.9, 0.4, 1.0, 1.0), 22.0)
+	spawn_shockwave(parent, pos, radius * 0.75, Color(0.8, 0.1, 1.0, 0.8), 0.2)
+	spawn_text_popup(parent, pos, "КОЛЛАПС!", Color(0.85, 0.3, 1.0, 1.0), true)
+
 
 # ==============================================================================
 # SUBCLASSES — Visual Primitive Implementations

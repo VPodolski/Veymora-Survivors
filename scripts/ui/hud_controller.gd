@@ -69,6 +69,7 @@ var run_stats: RunStats = RunStats.new()
 
 var has_used_second_chance: bool = false
 var bound_player: PlayerController = null
+var active_synergies_this_run: Dictionary = {}
 
 var pending_chest_players: Array[PlayerController] = []
 var pending_level_up_players: Array[Dictionary] = []
@@ -483,6 +484,21 @@ func show_chest_notification(reward_name: String) -> void:
 		tween.tween_property(toast_label, "modulate:a", 1.0, 0.2)
 		tween.tween_interval(2.2)
 		tween.tween_property(toast_label, "modulate:a", 0.0, 0.4)
+
+func notify_synergy(synergy_name: String) -> void:
+	if not active_synergies_this_run.has(synergy_name):
+		active_synergies_this_run[synergy_name] = true
+		if toast_label:
+			var loc = LocalizationManager.instance
+			var syn_key = "syn_" + synergy_name + "_name"
+			var syn_name = loc.get_text(syn_key, synergy_name) if loc else synergy_name
+			var toast_fmt = loc.get_text("toast_synergy_unlocked", "✦ Открыта синергия: [%s]!") if loc else "✦ Открыта синергия: [%s]!"
+			toast_label.text = toast_fmt % syn_name
+			toast_label.add_theme_color_override("font_color", Color(0.85, 0.5, 1.0, 1.0))
+			var tween = create_tween()
+			tween.tween_property(toast_label, "modulate:a", 1.0, 0.2)
+			tween.tween_interval(2.5)
+			tween.tween_property(toast_label, "modulate:a", 0.0, 0.4)
 
 func register_kill(enemy: EnemyController = null) -> void:
 	if enemy and run_stats:

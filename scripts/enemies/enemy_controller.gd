@@ -84,8 +84,14 @@ func update_statuses(delta: float) -> void:
 		if burning_tick_timer <= 0.0:
 			burning_tick_timer = 0.5
 			take_damage(4.0)
+			var was_killed = (is_dead or current_health <= 0.0)
 			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 			CombatEffects.spawn_impact_sparks(container, global_position, Color(1.0, 0.5, 0.1, 0.9), 2)
+			var burning_source = get_meta("burning_source", "")
+			if not burning_source.is_empty():
+				var engines = get_tree().get_nodes_in_group("synergy_engine")
+				if engines.size() > 0:
+					engines[0].reaction_damage_dealt.emit(burning_source, 4.0, was_killed, true)
 
 	if visual_node and visual_node.has_method("set_statuses"):
 		visual_node.set_statuses(active_statuses.keys())

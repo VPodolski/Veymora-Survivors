@@ -45,6 +45,7 @@ func cast_lightning(target: EnemyController) -> void:
 	var dmg = get_effective_damage()
 	var pos = target.global_position
 	var chained_targets: Array = [target]
+	var was_charged_before = target.has_status(StatusEffects.STATUS_CHARGED)
 
 	# Primary strike visuals & damage
 	var arc_col = Color(0.8, 0.95, 1.0, 1.0) if is_evolved else Color(0.4, 0.85, 1.0, 1.0)
@@ -53,16 +54,7 @@ func cast_lightning(target: EnemyController) -> void:
 	CombatEffects.spawn_hit_flash(container, pos, arc_col, 16.0 if is_evolved else 12.0)
 	target.take_damage(dmg)
 
-	# Trigger synergy on primary target (before setting base charge to ensure accurate condition)
-	var engines = get_tree().get_nodes_in_group("synergy_engine")
-	if engines.size() > 0:
-		var ctx = ReactionContext.new(self, target, tags, pos, dmg, 0, true, chained_targets)
-		engines[0].on_hit_landed(ctx)
-	else:
-		if is_instance_valid(target) and not target.is_dead:
-			target.apply_status(StatusEffects.STATUS_CHARGED, 4.0)
-
-	# Calculate max jumps including Lightning Rod artifact bonus
+	# 1. Establish and execute base chain targets first
 	var extra_jumps = 1 if (player_owner and player_owner.get_meta("has_lightning_rod", false)) else 0
 	var max_jumps = (7 if is_evolved else min(5, 1 + current_level)) + extra_jumps
 	var current_pos = pos
@@ -81,6 +73,16 @@ func cast_lightning(target: EnemyController) -> void:
 			if is_instance_valid(next_enemy) and not next_enemy.is_dead:
 				next_enemy.apply_status(StatusEffects.STATUS_CHARGED, 3.5)
 			current_pos = next_enemy.global_position
+
+	# 2. Trigger synergy AFTER base chain targets are established
+	# All base chain targets are passed in excluded_targets, preventing any double-damage
+	var engines = get_tree().get_nodes_in_group("synergy_engine")
+	if engines.size() > 0:
+		var ctx = ReactionContext.new(self, target, tags, pos, dmg, 0, true, chained_targets)
+		engines[0].on_hit_landed(ctx)
+	else:
+		if not was_charged_before and is_instance_valid(target) and not target.is_dead:
+			target.apply_status(StatusEffects.STATUS_CHARGED, 4.0)
 
 func apply_level_modifiers() -> void:
 	base_damage += 5.0
