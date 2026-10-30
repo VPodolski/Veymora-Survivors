@@ -245,17 +245,28 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
-	# Priority 1: User's saved setting
-	var saved_lang = SaveManager.get_setting("language", "")
-	if saved_lang is String and not saved_lang.is_empty():
-		current_language = saved_lang
-	else:
-		current_language = "ru"
+	# Priority 1: Explicit user-selected setting
+	var user_choice = SaveManager.get_setting("user_selected_language", "")
+	if user_choice is String and not user_choice.is_empty() and user_choice in ["ru", "en"]:
+		current_language = user_choice
+		return
 
-func set_language(lang: String) -> void:
+	# Priority 2: Saved language setting in save file
+	var saved_lang = SaveManager.get_setting("language", "")
+	if saved_lang is String and not saved_lang.is_empty() and saved_lang in ["ru", "en"]:
+		current_language = saved_lang
+		return
+
+	# Priority 3: System language (CIS -> ru, else en)
+	var sys_lang = OS.get_locale_language().to_lower()
+	current_language = "ru" if sys_lang in ["ru", "be", "uk", "kk", "ky", "uz"] else "en"
+
+func set_language(lang: String, is_user_action: bool = true) -> void:
 	var clean = "ru" if lang.to_lower().begins_with("ru") else "en"
 	current_language = clean
 	SaveManager.set_setting("language", clean)
+	if is_user_action:
+		SaveManager.set_setting("user_selected_language", clean)
 	language_changed.emit(clean)
 
 func get_text(key: String, fallback: String = "") -> String:

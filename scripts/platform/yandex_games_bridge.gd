@@ -221,8 +221,9 @@ func _on_js_sdk_init(args: Array) -> void:
 		if args.size() > 1 and args[1] != null:
 			var l = str(args[1]).to_lower()
 			player_language = "ru" if l in ["ru", "be", "uk", "kk", "ky", "uz"] else "en"
-			if LocalizationManager.instance and str(SaveManager.get_setting("language", "")).is_empty():
-				LocalizationManager.instance.set_language(player_language)
+			var has_user_choice = not str(SaveManager.get_setting("user_selected_language", "")).is_empty()
+			if LocalizationManager.instance and not has_user_choice:
+				LocalizationManager.instance.set_language(player_language, false)
 		if args.size() > 2 and args[2] != null:
 			device_type = str(args[2])
 		if args.size() > 3:

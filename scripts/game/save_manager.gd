@@ -18,6 +18,8 @@ static func get_default_data() -> Dictionary:
 		"screen_shake": true,
 		"damage_numbers": true,
 		"vsync": true,
+		"language": "ru",
+		"user_selected_language": "",
 		"unlocked_arenas": ["forgotten_forest", "frost_necropolis"],
 		"arena_stats": {
 			"forgotten_forest": {"runs": 0, "wins": 0, "best_time": 0.0, "kills": 0},
@@ -98,6 +100,12 @@ static func sanitize_data(raw: Dictionary) -> Dictionary:
 	clean["screen_shake"] = bool(raw.get("screen_shake", true))
 	clean["damage_numbers"] = bool(raw.get("damage_numbers", true))
 	clean["vsync"] = bool(raw.get("vsync", true))
+
+	# Language Settings
+	var lang = raw.get("language", "ru")
+	clean["language"] = str(lang).to_lower() if str(lang).to_lower() in ["ru", "en"] else "ru"
+	var user_sel_lang = raw.get("user_selected_language", "")
+	clean["user_selected_language"] = str(user_sel_lang).to_lower() if str(user_sel_lang).to_lower() in ["ru", "en"] else ""
 
 	# Tutorial flag
 	clean["tutorial_completed"] = bool(raw.get("tutorial_completed", false))
@@ -245,6 +253,18 @@ static func merge_with_cloud(cloud_raw: Dictionary, base_local_data: Dictionary 
 	merged["damage_numbers"] = local_data.get("damage_numbers", cloud_data.get("damage_numbers", true))
 	merged["vsync"] = local_data.get("vsync", cloud_data.get("vsync", true))
 	merged["tutorial_completed"] = local_data.get("tutorial_completed", false) or cloud_data.get("tutorial_completed", false)
+
+	# Language setting: prioritize explicit local user choice, else cloud
+	var user_sel = local_data.get("user_selected_language", "")
+	if not user_sel.is_empty():
+		merged["user_selected_language"] = user_sel
+		merged["language"] = user_sel
+	elif not str(cloud_data.get("user_selected_language", "")).is_empty():
+		merged["user_selected_language"] = cloud_data["user_selected_language"]
+		merged["language"] = cloud_data["user_selected_language"]
+	else:
+		merged["language"] = local_data.get("language", cloud_data.get("language", "ru"))
+		merged["user_selected_language"] = ""
 
 	# Union of unlocked arenas
 	var arenas: Array = []
