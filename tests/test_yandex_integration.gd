@@ -20,6 +20,7 @@ func run_all_tests() -> void:
 	test_virtual_joystick_mechanics()
 	test_second_chance_lifecycle()
 	test_gameplay_api_integration()
+	test_mock_platform_edge_cases()
 
 	print("\n--- ALL YANDEX GAMES INTEGRATION TESTS PASSED SUCCESSFULLY! ---")
 	quit(0)
@@ -415,3 +416,65 @@ func test_gameplay_api_integration() -> void:
 	assert(!bridge.is_gameplay_active, "Gameplay remains stopped in main menu")
 
 	print("[PASS] GameFlowController GameplayAPI integration verified.")
+
+func test_mock_platform_edge_cases() -> void:
+	print("[TEST] 8. Mock platform edge cases (Race conditions, Timeouts, Auth, Language persistence)...")
+
+	# A. Race Condition 1: Game ready before SDK initialization
+	var mb1 = YandexGamesBridge.new()
+	root.add_child(mb1)
+	mb1.is_game_ready = false
+	mb1.is_sdk_initialized = false
+	mb1.has_sent_loading_ready = false
+
+	mb1.notify_game_ready()
+	assert(mb1.is_game_ready, "Game is marked ready")
+	assert(!mb1.has_sent_loading_ready, "LoadingAPI.ready() must NOT be sent before SDK is initialized")
+
+	mb1._on_js_sdk_init([true, "ru", "desktop", true, "TestPlayer", "uid_001"])
+	assert(mb1.is_sdk_initialized, "SDK is marked initialized")
+	assert(mb1.has_sent_loading_ready, "LoadingAPI.ready() sent strictly once both game and SDK are ready")
+	mb1.queue_free()
+
+	# B. Race Condition 2: SDK initialization before Game ready
+	var mb2 = YandexGamesBridge.new()
+	root.add_child(mb2)
+	mb2.is_game_ready = false
+	mb2.is_sdk_initialized = false
+	mb2.has_sent_loading_ready = false
+
+	mb2._on_js_sdk_init([true, "ru", "desktop", false, "Guest", ""])
+	assert(mb2.is_sdk_initialized, "SDK is marked initialized")
+	assert(!mb2.has_sent_loading_ready, "LoadingAPI.ready() must NOT be sent before Game is ready")
+
+	mb2.notify_game_ready()
+	assert(mb2.is_game_ready, "Game is marked ready")
+	assert(mb2.has_sent_loading_ready, "LoadingAPI.ready() sent strictly once both conditions met")
+	mb2.queue_free()
+
+	# C. Player Timeout / Guest Mode Fallback
+	var mb3 = YandexGamesBridge.new()
+	root.add_child(mb3)
+	mb3._on_js_sdk_init([true, "ru", "desktop", false, "Исследователь", ""])
+	assert(mb3.is_sdk_available, "SDK available even in guest mode")
+	assert(!mb3.is_authorized, "Player marked as guest (not authorized)")
+	assert(mb3.player_name == "Исследователь", "Default guest name preserved")
+	mb3.queue_free()
+
+	# D. Language Persistence: User choice is NEVER overwritten by SDK auto-detection
+	var loc = LocalizationManager.instance
+	if loc:
+		# 1. User explicitly sets Russian
+		loc.set_language("ru", true)
+		assert(SaveManager.get_setting("user_selected_language") == "ru", "User selection saved as ru")
+
+		# 2. SDK initializes with English (e.g. browser language is EN)
+		var mb_lang = YandexGamesBridge.new()
+		root.add_child(mb_lang)
+		mb_lang._on_js_sdk_init([true, "en", "desktop", false, "Guest", ""])
+
+		# 3. Game must remain in Russian!
+		assert(loc.current_language == "ru", "Explicit user choice ru must NOT be overwritten by SDK auto-detect en!")
+		mb_lang.queue_free()
+
+	print("[PASS] Mock platform edge cases verified successfully.")
