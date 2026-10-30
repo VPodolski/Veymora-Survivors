@@ -198,13 +198,13 @@ static func apply_upgrade(player: PlayerController, option: UpgradeOption) -> vo
 				if bolt:
 					bolt.evolve()
 					CombatEffects.spawn_shockwave(container, player.global_position, 160.0, Color(1.0, 0.85, 0.3, 0.95))
-					CombatEffects.spawn_text_popup(container, player.global_position + Vector2(0, -35), "ЭВОЛЮЦИЯ: ВОЗВРАЩАЮЩИЙСЯ РАЗЛОМ!", Color(1.0, 0.9, 0.3, 1.0))
+					CombatEffects.spawn_text_popup(container, player.global_position + Vector2(0, -35), "ЭВОЛЮЦИЯ: ВОЗВРАЩАЮЩИЙСЯ РАЗЛОМ!", Color(1.0, 0.9, 0.3, 1.0), true)
 			elif option.id == "evolve_ice_storm" and player.ability_controller:
 				var storm = player.ability_controller.get_ability("ice_storm") as IceStormAbility
 				if storm:
 					storm.evolve()
 					CombatEffects.spawn_shockwave(container, player.global_position, 180.0, Color(0.3, 0.9, 1.0, 0.95))
-					CombatEffects.spawn_text_popup(container, player.global_position + Vector2(0, -35), "ЭВОЛЮЦИЯ: АБСОЛЮТНЫЙ БУРАН!", Color(0.4, 0.95, 1.0, 1.0))
+					CombatEffects.spawn_text_popup(container, player.global_position + Vector2(0, -35), "ЭВОЛЮЦИЯ: АБСОЛЮТНЫЙ БУРАН!", Color(0.4, 0.95, 1.0, 1.0), true)
 			elif option.id == "evolve_fireball" and player.ability_controller:
 				var fireball = player.ability_controller.get_ability("fireball") as FireballAbility
 				if fireball:

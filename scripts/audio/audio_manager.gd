@@ -1,6 +1,8 @@
 class_name AudioManager
 extends Node
 
+const SaveManager = preload("res://scripts/game/save_manager.gd")
+
 static var instance: AudioManager = null
 
 var sfx_cast: AudioStreamWAV
@@ -26,6 +28,8 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	master_volume = clampf(float(SaveManager.get_setting("master_volume", 1.0)), 0.0, 1.0)
+	sfx_volume = clampf(float(SaveManager.get_setting("sfx_volume", 0.8)), 0.0, 1.0)
 	_init_players()
 	_generate_audio_streams()
 
@@ -42,9 +46,17 @@ func _init_players() -> void:
 
 func set_master_volume(val: float) -> void:
 	master_volume = clampf(val, 0.0, 1.0)
+	update_playing_volumes()
 
 func set_sfx_volume(val: float) -> void:
 	sfx_volume = clampf(val, 0.0, 1.0)
+	update_playing_volumes()
+
+func update_playing_volumes() -> void:
+	var effective_gain = master_volume * sfx_volume
+	for p in players:
+		if is_instance_valid(p) and p.playing:
+			p.volume_db = -6.0 + linear_to_db(effective_gain)
 
 func _play_stream(stream: AudioStreamWAV, base_volume_db: float = -6.0, randomize_pitch: bool = true) -> void:
 	if not stream or players.is_empty():

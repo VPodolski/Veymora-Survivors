@@ -13,6 +13,7 @@ var phoenix_revives_remaining: int = 0
 
 var shake_intensity: float = 0.0
 var shake_duration: float = 0.0
+var active_rune_zones: int = 0
 
 @onready var visual_node: Node2D = $Visual
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
@@ -161,6 +162,7 @@ func die() -> void:
 	if not is_alive:
 		return
 	is_alive = false
+	reset_rune_zones()
 	velocity = Vector2.ZERO
 	if camera:
 		camera.offset = Vector2.ZERO
@@ -170,3 +172,21 @@ func die() -> void:
 		var tween = create_tween()
 		tween.tween_property(visual_node, "modulate", Color(0.2, 0.1, 0.1, 0.4), 0.5)
 	died.emit()
+
+func enter_rune_zone() -> void:
+	active_rune_zones += 1
+	set_meta("in_rune_zone", true)
+
+func exit_rune_zone() -> void:
+	active_rune_zones = max(0, active_rune_zones - 1)
+	set_meta("in_rune_zone", active_rune_zones > 0)
+
+func is_in_rune_zone() -> bool:
+	return active_rune_zones > 0
+
+func reset_rune_zones() -> void:
+	active_rune_zones = 0
+	set_meta("in_rune_zone", false)
+
+func _exit_tree() -> void:
+	reset_rune_zones()

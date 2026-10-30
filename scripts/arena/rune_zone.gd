@@ -6,6 +6,7 @@ extends Area2D
 
 var elapsed: float = 0.0
 var is_player_inside: bool = false
+var applied_to_player: bool = false
 var player_ref: PlayerController = null
 var pulse_time: float = 0.0
 
@@ -32,10 +33,6 @@ func _process(delta: float) -> void:
 	elapsed += delta
 	pulse_time += delta * 2.8
 
-	if is_player_inside and is_instance_valid(player_ref) and player_ref.is_alive:
-		# Apply temporary hotspot boost
-		player_ref.set_meta("in_rune_zone", true)
-
 	if elapsed >= duration:
 		_expire()
 		return
@@ -43,25 +40,30 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _on_body_entered(body: Node2D) -> void:
-	if body is PlayerController and body.is_alive:
+	if body is PlayerController and body.is_alive and not applied_to_player:
+		applied_to_player = true
 		is_player_inside = true
 		player_ref = body
-		player_ref.set_meta("in_rune_zone", true)
+		player_ref.enter_rune_zone()
 		var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 		CombatEffects.spawn_hit_flash(container, player_ref.global_position, Color(0.4, 0.9, 1.0), 18.0)
 
 func _on_body_exited(body: Node2D) -> void:
-	if body is PlayerController:
+	if body == player_ref and applied_to_player:
+		applied_to_player = false
 		is_player_inside = false
 		if is_instance_valid(player_ref):
-			player_ref.set_meta("in_rune_zone", false)
+			player_ref.exit_rune_zone()
 		player_ref = null
 
 func _expire() -> void:
 	set_deferred("monitoring", false)
 	set_deferred("monitorable", false)
-	if is_instance_valid(player_ref):
-		player_ref.set_meta("in_rune_zone", false)
+	if applied_to_player and is_instance_valid(player_ref):
+		applied_to_player = false
+		is_player_inside = false
+		player_ref.exit_rune_zone()
+		player_ref = null
 
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	CombatEffects.spawn_shockwave(container, global_position, radius, Color(0.3, 0.7, 1.0, 0.6), 0.3)
@@ -69,6 +71,13 @@ func _expire() -> void:
 	var tween = create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, 0.3)
 	tween.tween_callback(queue_free)
+
+func _exit_tree() -> void:
+	if applied_to_player and is_instance_valid(player_ref):
+		applied_to_player = false
+		is_player_inside = false
+		player_ref.exit_rune_zone()
+		player_ref = null
 
 func _draw() -> void:
 	var remaining_ratio = clamp(1.0 - (elapsed / duration), 0.0, 1.0)

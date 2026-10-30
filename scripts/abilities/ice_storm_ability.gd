@@ -68,6 +68,7 @@ func apply_level_modifiers() -> void:
 func evolve() -> void:
 	is_evolved = true
 	ability_name = "Абсолютный буран"
+	description = "★ ЭВОЛЮЦИЯ! Радиус бури 230px, урон 32/тик, перманентное замораживание и ледяной шквал."
 	base_damage = 32.0
 	zone_radius = 230.0
 	storm_duration = 6.0

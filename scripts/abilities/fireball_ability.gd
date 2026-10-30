@@ -69,5 +69,6 @@ func apply_level_modifiers() -> void:
 func evolve() -> void:
 	is_evolved = true
 	ability_name = "Инфернальная сверхновая"
+	description = "★ ЭВОЛЮЦИЯ! Гигантская пробивающая сфера с уроном 50, испускающая волны огненных взрывов."
 	base_damage = 50.0
 	base_cooldown = 1.8

@@ -5,19 +5,27 @@ extends RefCounted
 static var fx_intensity: String = "standard"
 
 # Centralized Effect Concurrency Limits
+# Categories:
+# - Critical: Hazard telegraphs, boss warnings (never suppressed by decorative cap)
+# - Gameplay: Status marks, projectile trails, lightning chains
+# - Decorative: Hit flashes, rings, shockwaves, geometric shards, fractures, impact sparks
+# - UI: Damage numbers, text popups
 static var active_decorative_effects: int = 0
 static var active_damage_numbers: int = 0
 static var active_text_popups: int = 0
+static var active_priority_popups: int = 0
 static var active_chains: int = 0
 
 const MAX_DECORATIVE_STANDARD = 36
 const MAX_DECORATIVE_REDUCED = 16
 const MAX_DAMAGE_NUMBERS = 24
 const MAX_TEXT_POPUPS = 5
+const MAX_PRIORITY_POPUPS = 3
 const MAX_CHAINS = 12
 
 # Cooldown per target for decorative hit flashes (avoids blinding whiteout in dense horde)
 static var target_flash_timestamps: Dictionary = {}
+static var recent_text_popups: Dictionary = {}
 
 static func set_fx_intensity(mode: String) -> void:
 	if mode in ["standard", "reduced"]:
@@ -31,6 +39,15 @@ static func get_particle_multiplier() -> float:
 
 static func can_spawn_decorative() -> bool:
 	return active_decorative_effects < get_max_decorative()
+
+static func reset() -> void:
+	active_decorative_effects = 0
+	active_damage_numbers = 0
+	active_text_popups = 0
+	active_priority_popups = 0
+	active_chains = 0
+	target_flash_timestamps.clear()
+	recent_text_popups.clear()
 
 # --- 1. Hit Flash Primitive ---
 static func spawn_hit_flash(parent: Node, pos: Vector2, col: Color = Color.WHITE, max_radius: float = 14.0) -> void:
@@ -110,7 +127,7 @@ static func spawn_status_mark(parent: Node, pos: Vector2, col: Color, mark_glyph
 
 # --- 8. Magic Rift Fracture Primitive ---
 static func spawn_rift_fracture(parent: Node, pos: Vector2, radius: float = 40.0, col: Color = Color(0.85, 0.3, 1.0, 0.95)) -> void:
-	if not parent:
+	if not parent or not can_spawn_decorative():
 		return
 	active_decorative_effects += 1
 	var rift = RiftFractureEffect.new(radius, col)
@@ -120,10 +137,12 @@ static func spawn_rift_fracture(parent: Node, pos: Vector2, radius: float = 40.0
 
 # --- 9. AoE Indicator Primitive ---
 static func spawn_aoe_indicator(parent: Node, pos: Vector2, radius: float, col: Color, duration: float = 0.5) -> Node2D:
-	if not parent:
+	if not parent or not can_spawn_decorative():
 		return null
+	active_decorative_effects += 1
 	var aoe = AoEIndicatorEffect.new(radius, col, duration)
 	aoe.global_position = pos
+	aoe.tree_exited.connect(func(): active_decorative_effects = max(0, active_decorative_effects - 1))
 	parent.add_child(aoe)
 	return aoe
 
@@ -136,7 +155,7 @@ static func spawn_target_highlight(target: Node2D, col: Color = Color(1.0, 0.85,
 	hl.tree_exited.connect(func(): active_decorative_effects = max(0, active_decorative_effects - 1))
 	target.add_child(hl)
 
-# --- 11. Hazard Telegraph Primitive (High Priority, ignores decorative cap) ---
+# --- 11. Hazard Telegraph Primitive (Critical Category: High Priority, ignores decorative cap) ---
 static func spawn_hazard_telegraph(parent: Node, pos: Vector2, dir: Vector2, length: float, width: float, duration: float = 0.6) -> Node2D:
 	if not parent:
 		return null
@@ -147,23 +166,42 @@ static func spawn_hazard_telegraph(parent: Node, pos: Vector2, dir: Vector2, len
 
 # --- 12. Reward Pickup Pulse Primitive ---
 static func spawn_reward_pickup(parent: Node, pos: Vector2, col: Color = Color(1.0, 0.85, 0.25, 1.0)) -> void:
-	if not parent:
+	if not parent or not can_spawn_decorative():
 		return
+	active_decorative_effects += 1
 	var pickup = RewardPickupEffect.new(col)
 	pickup.global_position = pos
+	pickup.tree_exited.connect(func(): active_decorative_effects = max(0, active_decorative_effects - 1))
 	parent.add_child(pickup)
 
-# --- Floating Text & Damage Numbers ---
+# --- Floating Text & Damage Numbers (UI Category) ---
 static func spawn_text_popup(parent: Node, pos: Vector2, text: String, col: Color, is_priority: bool = false) -> void:
 	if not parent:
 		return
-	if not is_priority and active_text_popups >= MAX_TEXT_POPUPS:
+
+	var now = Time.get_ticks_msec()
+	# Suppress duplicate identical notifications within 350ms to prevent visual clutter
+	if recent_text_popups.has(text) and (now - recent_text_popups[text]) < 350:
 		return
-	active_text_popups += 1
-	var popup = FloatingTextEffect.new(text, col)
-	popup.tree_exited.connect(func(): active_text_popups = max(0, active_text_popups - 1))
-	popup.global_position = pos
-	parent.add_child(popup)
+
+	if is_priority:
+		if active_priority_popups >= MAX_PRIORITY_POPUPS:
+			return
+		active_priority_popups += 1
+		recent_text_popups[text] = now
+		var popup = FloatingTextEffect.new(text, col)
+		popup.tree_exited.connect(func(): active_priority_popups = max(0, active_priority_popups - 1))
+		popup.global_position = pos
+		parent.add_child(popup)
+	else:
+		if active_text_popups >= MAX_TEXT_POPUPS:
+			return
+		active_text_popups += 1
+		recent_text_popups[text] = now
+		var popup = FloatingTextEffect.new(text, col)
+		popup.tree_exited.connect(func(): active_text_popups = max(0, active_text_popups - 1))
+		popup.global_position = pos
+		parent.add_child(popup)
 
 static func spawn_damage_number(parent: Node, pos: Vector2, amount: float, col: Color = Color(1.0, 0.92, 0.5, 1.0)) -> void:
 	if not parent:

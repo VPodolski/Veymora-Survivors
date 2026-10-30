@@ -344,10 +344,24 @@ theme_override_constants/separation = 4
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_font_sizes/font_size = 12
-text = "Громкость звуков:"
+text = "Общая громкость:"
 horizontal_alignment = 1
 
 [node name="VolumeSlider" type="HSlider" parent="PauseMenu/Center/Panel/VBox/AudioSettings"]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="SfxVolHeader" type="Label" parent="PauseMenu/Center/Panel/VBox/AudioSettings"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+text = "Громкость эффектов (SFX):"
+horizontal_alignment = 1
+
+[node name="SfxVolumeSlider" type="HSlider" parent="PauseMenu/Center/Panel/VBox/AudioSettings"]
 custom_minimum_size = Vector2(220, 18)
 layout_mode = 2
 max_value = 1.0

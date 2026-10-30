@@ -39,6 +39,7 @@ signal restart_requested
 @onready var pause_restart_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseRestartButton")
 @onready var pause_menu_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/PauseMenuButton")
 @onready var volume_slider: HSlider = get_node_or_null("PauseMenu/Center/Panel/VBox/AudioSettings/VolumeSlider")
+@onready var sfx_volume_slider: HSlider = get_node_or_null("PauseMenu/Center/Panel/VBox/AudioSettings/SfxVolumeSlider")
 @onready var fx_intensity_btn: Button = get_node_or_null("PauseMenu/Center/Panel/VBox/FxIntensityButton")
 
 # Level Up, Chest Reward & Archive Modals
@@ -92,6 +93,11 @@ func _ready() -> void:
 		if AudioManager.instance:
 			volume_slider.value = AudioManager.instance.master_volume
 		volume_slider.value_changed.connect(_on_volume_changed)
+
+	if sfx_volume_slider:
+		if AudioManager.instance:
+			sfx_volume_slider.value = AudioManager.instance.sfx_volume
+		sfx_volume_slider.value_changed.connect(_on_sfx_volume_changed)
 
 	if fx_intensity_btn:
 		_update_fx_button_label()
@@ -153,6 +159,11 @@ func _on_volume_changed(val: float) -> void:
 	if AudioManager.instance:
 		AudioManager.instance.set_master_volume(val)
 	SaveManager.set_setting("master_volume", val)
+
+func _on_sfx_volume_changed(val: float) -> void:
+	if AudioManager.instance:
+		AudioManager.instance.set_sfx_volume(val)
+	SaveManager.set_setting("sfx_volume", val)
 
 func _update_fx_button_label() -> void:
 	if fx_intensity_btn:
