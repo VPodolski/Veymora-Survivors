@@ -35,13 +35,30 @@ var has_sent_loading_ready: bool = false
 var is_gameplay_active: bool = false
 
 # Internal callbacks kept alive to prevent garbage collection in JavaScriptBridge
+enum AdSessionState {
+	IDLE,
+	PENDING,
+	OPENED,
+	REWARDED,
+	CLOSED,
+	FAILED
+}
+
+var _current_interstitial_session_id: int = 0
+var _current_interstitial_state: int = AdSessionState.IDLE
+
+var _current_rewarded_session_id: int = 0
+var _current_rewarded_state: int = AdSessionState.IDLE
+
 var _cb_sdk_init: JavaScriptObject
 var _cb_pause: JavaScriptObject
 var _cb_resume: JavaScriptObject
 var _cb_blur: JavaScriptObject
 var _cb_focus: JavaScriptObject
+var _cb_interstitial_open: JavaScriptObject
 var _cb_interstitial_close: JavaScriptObject
 var _cb_interstitial_error: JavaScriptObject
+var _cb_rewarded_open: JavaScriptObject
 var _cb_rewarded_reward: JavaScriptObject
 var _cb_rewarded_close: JavaScriptObject
 var _cb_rewarded_error: JavaScriptObject
@@ -92,8 +109,10 @@ func _setup_web_callbacks() -> void:
 	_cb_resume = js.create_callback(_on_js_platform_resume)
 	_cb_blur = js.create_callback(_on_js_browser_blur)
 	_cb_focus = js.create_callback(_on_js_browser_focus)
+	_cb_interstitial_open = js.create_callback(_on_js_interstitial_open)
 	_cb_interstitial_close = js.create_callback(_on_js_interstitial_close)
 	_cb_interstitial_error = js.create_callback(_on_js_interstitial_error)
+	_cb_rewarded_open = js.create_callback(_on_js_rewarded_open)
 	_cb_rewarded_reward = js.create_callback(_on_js_rewarded_reward)
 	_cb_rewarded_close = js.create_callback(_on_js_rewarded_close)
 	_cb_rewarded_error = js.create_callback(_on_js_rewarded_error)
@@ -112,8 +131,10 @@ func _setup_web_callbacks() -> void:
 			"onResume": _cb_resume,
 			"onBlur": _cb_blur,
 			"onFocus": _cb_focus,
+			"onInterstitialOpen": _cb_interstitial_open,
 			"onInterstitialClose": _cb_interstitial_close,
 			"onInterstitialError": _cb_interstitial_error,
+			"onRewardedOpen": _cb_rewarded_open,
 			"onRewardedReward": _cb_rewarded_reward,
 			"onRewardedClose": _cb_rewarded_close,
 			"onRewardedError": _cb_rewarded_error,
@@ -368,10 +389,14 @@ func _on_js_browser_focus(_args: Array = []) -> void:
 
 # --- Interstitial Advertisement ---
 func show_interstitial(callback: Callable = Callable()) -> void:
+	_current_interstitial_session_id += 1
+	var session_id = _current_interstitial_session_id
+	_current_interstitial_state = AdSessionState.PENDING
 	_pending_interstitial_callable = callback
 
 	if not is_web or not is_sdk_available:
 		# Local fallback: immediate return
+		_current_interstitial_state = AdSessionState.CLOSED
 		_finish_interstitial(false)
 		return
 
@@ -382,55 +407,87 @@ func show_interstitial(callback: Callable = Callable()) -> void:
 
 	var js = Engine.get_singleton("JavaScriptBridge")
 	if not js:
+		_current_interstitial_state = AdSessionState.FAILED
 		_finish_interstitial(false)
 		return
 
 	var code = """
 	(function() {
 		var bridge = window.__godotYandexBridge;
+		var sid = %d;
 		if (!window.ysdk || !window.ysdk.adv) {
-			if (bridge && bridge.onInterstitialClose) bridge.onInterstitialClose(false);
+			if (bridge && bridge.onInterstitialClose) bridge.onInterstitialClose(sid, false);
 			return;
 		}
 		window.ysdk.adv.showFullscreenAdv({
 			callbacks: {
-				onOpen: function() { console.log('[YandexGamesBridge] Interstitial opened'); },
+				onOpen: function() {
+					console.log('[YandexGamesBridge] Interstitial opened, sid:', sid);
+					if (bridge && bridge.onInterstitialOpen) bridge.onInterstitialOpen(sid);
+				},
 				onClose: function(wasShown) {
-					console.log('[YandexGamesBridge] Interstitial closed, wasShown:', wasShown);
-					if (bridge && bridge.onInterstitialClose) bridge.onInterstitialClose(wasShown !== false);
+					console.log('[YandexGamesBridge] Interstitial closed, sid:', sid, 'wasShown:', wasShown);
+					if (bridge && bridge.onInterstitialClose) bridge.onInterstitialClose(sid, wasShown !== false);
 				},
 				onError: function(err) {
-					console.warn('[YandexGamesBridge] Interstitial error:', err);
-					if (bridge && bridge.onInterstitialError) bridge.onInterstitialError();
+					console.warn('[YandexGamesBridge] Interstitial error, sid:', sid, err);
+					if (bridge && bridge.onInterstitialError) bridge.onInterstitialError(sid, String(err));
 				}
 			}
 		});
 	})();
-	"""
+	""" % session_id
 	js.eval(code)
 
+func _on_js_interstitial_open(args: Array = []) -> void:
+	var sid = int(args[0]) if args.size() > 0 else _current_interstitial_session_id
+	if sid != _current_interstitial_session_id or _current_interstitial_state != AdSessionState.PENDING:
+		return
+	_current_interstitial_state = AdSessionState.OPENED
+
 func _on_js_interstitial_close(args: Array = []) -> void:
-	var was_shown = bool(args[0]) if args.size() > 0 else true
+	var sid = int(args[0]) if args.size() > 0 else _current_interstitial_session_id
+	var was_shown = bool(args[1]) if args.size() > 1 else (bool(args[0]) if args.size() == 1 else true)
+	if sid != _current_interstitial_session_id:
+		return
+	if _current_interstitial_state == AdSessionState.CLOSED or _current_interstitial_state == AdSessionState.FAILED:
+		return
+	_current_interstitial_state = AdSessionState.CLOSED
 	_finish_interstitial(was_shown)
 
-func _on_js_interstitial_error(_args: Array = []) -> void:
+func _on_js_interstitial_error(args: Array = []) -> void:
+	var sid = int(args[0]) if args.size() > 0 else _current_interstitial_session_id
+	if sid != _current_interstitial_session_id:
+		return
+	if _current_interstitial_state == AdSessionState.CLOSED or _current_interstitial_state == AdSessionState.FAILED:
+		return
+	_current_interstitial_state = AdSessionState.FAILED
 	_finish_interstitial(false)
 
 func _finish_interstitial(was_shown: bool) -> void:
+	var cb = _pending_interstitial_callable
+	_pending_interstitial_callable = Callable()
+
 	if PauseManager.instance:
 		PauseManager.instance.remove_pause_reason(PauseManager.REASON_ADVERTISEMENT)
-	if _pending_interstitial_callable.is_valid():
-		_pending_interstitial_callable.call(was_shown)
-		_pending_interstitial_callable = Callable()
+	else:
+		reconcile_gameplay_state()
+
+	if cb.is_valid():
+		cb.call(was_shown)
 	interstitial_completed.emit(was_shown)
 
 # --- Rewarded Advertisement ---
 func show_rewarded(reward_callback: Callable, close_callback: Callable = Callable()) -> void:
+	_current_rewarded_session_id += 1
+	var session_id = _current_rewarded_session_id
+	_current_rewarded_state = AdSessionState.PENDING
 	_pending_reward_callable = reward_callback
 	_pending_reward_close_callable = close_callback
 
 	if not is_web or not is_sdk_available:
 		# In local mode, cannot show ad; do not grant free reward
+		_current_rewarded_state = AdSessionState.CLOSED
 		_finish_rewarded(false)
 		return
 
@@ -441,59 +498,98 @@ func show_rewarded(reward_callback: Callable, close_callback: Callable = Callabl
 
 	var js = Engine.get_singleton("JavaScriptBridge")
 	if not js:
+		_current_rewarded_state = AdSessionState.FAILED
 		_finish_rewarded(false)
 		return
 
 	var code = """
 	(function() {
 		var bridge = window.__godotYandexBridge;
+		var sid = %d;
 		var rewardGranted = false;
 		if (!window.ysdk || !window.ysdk.adv) {
-			if (bridge && bridge.onRewardedClose) bridge.onRewardedClose(false);
+			if (bridge && bridge.onRewardedClose) bridge.onRewardedClose(sid, false);
 			return;
 		}
 		window.ysdk.adv.showRewardedVideo({
 			callbacks: {
-				onOpen: function() { console.log('[YandexGamesBridge] Rewarded video opened'); },
+				onOpen: function() {
+					console.log('[YandexGamesBridge] Rewarded video opened, sid:', sid);
+					if (bridge && bridge.onRewardedOpen) bridge.onRewardedOpen(sid);
+				},
 				onRewarded: function() {
-					console.log('[YandexGamesBridge] onRewarded callback confirmed by SDK!');
+					console.log('[YandexGamesBridge] onRewarded callback confirmed by SDK, sid:', sid);
 					rewardGranted = true;
-					if (bridge && bridge.onRewardedReward) bridge.onRewardedReward();
+					if (bridge && bridge.onRewardedReward) bridge.onRewardedReward(sid);
 				},
 				onClose: function() {
-					console.log('[YandexGamesBridge] Rewarded video closed. Granted:', rewardGranted);
-					if (bridge && bridge.onRewardedClose) bridge.onRewardedClose(rewardGranted);
+					console.log('[YandexGamesBridge] Rewarded video closed, sid:', sid, 'Granted:', rewardGranted);
+					if (bridge && bridge.onRewardedClose) bridge.onRewardedClose(sid, rewardGranted);
 				},
 				onError: function(err) {
-					console.warn('[YandexGamesBridge] Rewarded video error:', err);
-					if (bridge && bridge.onRewardedError) bridge.onRewardedError();
+					console.warn('[YandexGamesBridge] Rewarded video error, sid:', sid, err);
+					if (bridge && bridge.onRewardedError) bridge.onRewardedError(sid, String(err));
 				}
 			}
 		});
 	})();
-	"""
+	""" % session_id
 	js.eval(code)
 
-func _on_js_rewarded_reward(_args: Array = []) -> void:
+func _on_js_rewarded_open(args: Array = []) -> void:
+	var sid = int(args[0]) if args.size() > 0 else _current_rewarded_session_id
+	if sid != _current_rewarded_session_id or _current_rewarded_state != AdSessionState.PENDING:
+		return
+	_current_rewarded_state = AdSessionState.OPENED
+
+func _on_js_rewarded_reward(args: Array = []) -> void:
+	var sid = int(args[0]) if args.size() > 0 else _current_rewarded_session_id
+	if sid != _current_rewarded_session_id:
+		print("[YandexGamesBridge] Rejected mismatched rewarded reward sid:", sid, "vs current:", _current_rewarded_session_id)
+		return
+	if _current_rewarded_state != AdSessionState.PENDING and _current_rewarded_state != AdSessionState.OPENED:
+		print("[YandexGamesBridge] Rejected late rewarded reward in state:", _current_rewarded_state)
+		return
+
+	_current_rewarded_state = AdSessionState.REWARDED
 	if _pending_reward_callable.is_valid():
 		var cb = _pending_reward_callable
 		_pending_reward_callable = Callable()
 		cb.call()
 
 func _on_js_rewarded_close(args: Array = []) -> void:
-	var granted = bool(args[0]) if args.size() > 0 else false
-	_finish_rewarded(granted)
+	var sid = int(args[0]) if args.size() > 0 else _current_rewarded_session_id
+	var granted = bool(args[1]) if args.size() > 1 else (bool(args[0]) if args.size() == 1 else false)
+	if sid != _current_rewarded_session_id:
+		return
+	if _current_rewarded_state == AdSessionState.CLOSED or _current_rewarded_state == AdSessionState.FAILED:
+		return
 
-func _on_js_rewarded_error(_args: Array = []) -> void:
+	var is_verified = (_current_rewarded_state == AdSessionState.REWARDED) and granted
+	_current_rewarded_state = AdSessionState.CLOSED
+	_finish_rewarded(is_verified)
+
+func _on_js_rewarded_error(args: Array = []) -> void:
+	var sid = int(args[0]) if args.size() > 0 else _current_rewarded_session_id
+	if sid != _current_rewarded_session_id:
+		return
+	if _current_rewarded_state == AdSessionState.CLOSED or _current_rewarded_state == AdSessionState.FAILED:
+		return
+	_current_rewarded_state = AdSessionState.FAILED
 	_finish_rewarded(false)
 
 func _finish_rewarded(granted: bool) -> void:
+	var close_cb = _pending_reward_close_callable
+	_pending_reward_callable = Callable()
+	_pending_reward_close_callable = Callable()
+
 	if PauseManager.instance:
 		PauseManager.instance.remove_pause_reason(PauseManager.REASON_ADVERTISEMENT)
-	if _pending_reward_close_callable.is_valid():
-		var cb = _pending_reward_close_callable
-		_pending_reward_close_callable = Callable()
-		cb.call(granted)
+	else:
+		reconcile_gameplay_state()
+
+	if close_cb.is_valid():
+		close_cb.call(granted)
 	rewarded_completed.emit(granted)
 
 # --- Cloud Saves & Player Data ---

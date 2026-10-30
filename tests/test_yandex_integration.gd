@@ -121,6 +121,38 @@ func test_yandex_bridge_lifecycle_and_fallback() -> void:
 	assert(!callback_state["reward"], "Reward strictly NOT granted in unmocked fallback")
 	assert(callback_state["closed"], "Close callback invoked cleanly")
 
+	# Ad Session Protection & Late Callback Rejection
+	var session_reward_called = {"val": false}
+	var session_close_called = {"val": false, "granted": false}
+	bridge._current_rewarded_session_id = 42
+	bridge._current_rewarded_state = bridge.AdSessionState.PENDING
+	bridge._pending_reward_callable = func(): session_reward_called["val"] = true
+	bridge._pending_reward_close_callable = func(g): session_close_called["val"] = true; session_close_called["granted"] = g
+
+	# Late callback from previous session (id 41) must be rejected
+	bridge._on_js_rewarded_reward([41])
+	assert(!session_reward_called["val"], "Late reward from previous session 41 must be rejected")
+
+	# Legitimate session 42 open
+	bridge._on_js_rewarded_open([42])
+	assert(bridge._current_rewarded_state == bridge.AdSessionState.OPENED, "State transitions to OPENED")
+
+	# Legitimate session 42 reward
+	bridge._on_js_rewarded_reward([42])
+	assert(session_reward_called["val"], "Reward callback invoked on legitimate onRewarded")
+	assert(bridge._current_rewarded_state == bridge.AdSessionState.REWARDED, "State transitions to REWARDED")
+
+	# Legitimate session 42 close with grant confirmed
+	bridge._on_js_rewarded_close([42, true])
+	assert(session_close_called["val"], "Close callback invoked")
+	assert(session_close_called["granted"], "Reward successfully granted on verified session")
+	assert(bridge._current_rewarded_state == bridge.AdSessionState.CLOSED, "State transitions to CLOSED")
+
+	# Rogue late reward after session closed must be rejected
+	session_reward_called["val"] = false
+	bridge._on_js_rewarded_reward([42])
+	assert(!session_reward_called["val"], "Rogue late reward after session close rejected")
+
 	bridge.queue_free()
 	print("[PASS] YandexGamesBridge lifecycle and fallback verified.")
 

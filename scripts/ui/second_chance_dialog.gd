@@ -53,17 +53,23 @@ func open_dialog() -> void:
 func close_dialog() -> void:
 	is_open = false
 	visible = false
+	if watch_btn:
+		watch_btn.disabled = false
+	if decline_btn:
+		decline_btn.disabled = false
 	if PauseManager.instance:
 		PauseManager.instance.remove_pause_reason(PauseManager.REASON_MODAL)
 
 func _on_watch_pressed() -> void:
-	watch_btn.disabled = true
-	decline_btn.disabled = true
+	if watch_btn:
+		watch_btn.disabled = true
+	if decline_btn:
+		decline_btn.disabled = true
 
 	var bridge = YandexGamesBridge.instance
 	if bridge:
 		bridge.show_rewarded(
-			func(): # Reward callback (ONLY on onRewarded)
+			func(): # Reward callback (ONLY on verified onRewarded)
 				close_dialog()
 				revived.emit(),
 			func(granted): # Close callback
