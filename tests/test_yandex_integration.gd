@@ -218,6 +218,28 @@ func test_save_manager_cloud_merge() -> void:
 	assert(fallback_merge.get("unlocked_arenas").size() == 2, "Empty cloud never overwrites local unlocks")
 	assert(fallback_merge.get("best_survival_time") == 420.0, "Empty cloud retains local records")
 
+	# 6. Test debounced cloud sync
+	var test_bridge = YandexGamesBridge.new()
+	root.add_child(test_bridge)
+	assert(!test_bridge._is_cloud_save_scheduled, "No cloud save scheduled initially")
+	test_bridge.schedule_cloud_save()
+	assert(test_bridge._is_cloud_save_scheduled, "Cloud save scheduled")
+	assert(test_bridge._save_debounce_timer > 0.0, "Debounce timer running")
+	test_bridge.flush_cloud_save()
+	assert(!test_bridge._is_cloud_save_scheduled, "Cloud save dispatched and cleared")
+
+	# 7. Test user authorization triggering cloud merge
+	var auth_called = {"val": false, "name": ""}
+	test_bridge.auth_state_changed.connect(func(is_auth, p_name):
+		auth_called["val"] = is_auth
+		auth_called["name"] = p_name
+	)
+	test_bridge.authorize_player()
+	assert(auth_called["val"], "Authorization succeeded and signal emitted")
+	assert(!auth_called["name"].is_empty(), "Player name populated")
+
+	test_bridge.queue_free()
+
 	print("[PASS] SaveManager cloud merge union and conflict resolution verified.")
 
 func test_localization_manager() -> void:

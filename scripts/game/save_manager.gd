@@ -161,7 +161,7 @@ static func sanitize_data(raw: Dictionary) -> Dictionary:
 
 	return clean
 
-static func save_custom_data(data: Dictionary) -> bool:
+static func save_custom_data(data: Dictionary, sync_to_cloud: bool = true) -> bool:
 	var sanitized = sanitize_data(data)
 	var tmp_file = FileAccess.open(TMP_SAVE_PATH, FileAccess.WRITE)
 	if not tmp_file:
@@ -171,12 +171,21 @@ static func save_custom_data(data: Dictionary) -> bool:
 	tmp_file.close()
 
 	var dir = DirAccess.open("user://")
+	var success = false
 	if dir:
 		if FileAccess.file_exists(SAVE_PATH):
 			dir.remove(SAVE_PATH.replace("user://", ""))
 		var err = dir.rename(TMP_SAVE_PATH.replace("user://", ""), SAVE_PATH.replace("user://", ""))
-		return err == OK
-	return false
+		success = (err == OK)
+
+	if success and sync_to_cloud:
+		var bridge = Engine.get_main_loop().root.get_node_or_null("YandexBridge") if Engine.get_main_loop() else null
+		if not bridge and YandexGamesBridge.instance:
+			bridge = YandexGamesBridge.instance
+		if bridge and bridge.has_method("schedule_cloud_save"):
+			bridge.schedule_cloud_save()
+
+	return success
 
 static func record_run(time_survived: float, kills: int, defeated_boss: bool, run_summary: Dictionary = {}) -> Dictionary:
 	var data = load_data()
@@ -327,7 +336,7 @@ static func merge_with_cloud(cloud_raw: Dictionary, base_local_data: Dictionary 
 	merged["run_history"] = history
 
 	if base_local_data.is_empty():
-		save_custom_data(merged)
+		save_custom_data(merged, false)
 	return merged
 
 static func get_setting(key: String, default_value: Variant = null) -> Variant:

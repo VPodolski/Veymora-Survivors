@@ -15,6 +15,32 @@ script = ExtResource("1_menu")
 [node name="Background" type="Node2D" parent="."]
 script = ExtResource("2_bg")
 
+[node name="TopRightBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -280.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 54.0
+grow_horizontal = 0
+theme_override_constants/separation = 12
+alignment = 2
+
+[node name="AccountLabel" type="Label" parent="TopRightBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.78, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "Гость"
+vertical_alignment = 1
+
+[node name="AuthButton" type="Button" parent="TopRightBar"]
+custom_minimum_size = Vector2(90, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "👤 Войти"
+
 [node name="Center" type="CenterContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15

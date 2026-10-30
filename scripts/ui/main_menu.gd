@@ -21,6 +21,8 @@ const LocalizationManager = preload("res://scripts/game/localization_manager.gd"
 @onready var controls_heading: Label = $ControlsPanel/Margin/VBox/Heading
 @onready var controls_body: Label = $ControlsPanel/Margin/VBox/Body
 @onready var close_controls_btn: Button = $ControlsPanel/Margin/VBox/CloseControlsBtn
+@onready var account_label: Label = get_node_or_null("TopRightBar/AccountLabel")
+@onready var auth_btn: Button = get_node_or_null("TopRightBar/AuthButton")
 
 var archive_dialog: ArchiveDialog = null
 var settings_dialog: SettingsDialog = null
@@ -36,6 +38,8 @@ func _ready() -> void:
 		controls_btn.pressed.connect(_on_controls_pressed)
 	if close_controls_btn:
 		close_controls_btn.pressed.connect(func(): controls_panel.visible = false)
+	if auth_btn:
+		auth_btn.pressed.connect(_on_auth_pressed)
 
 	if controls_panel:
 		controls_panel.visible = false
@@ -43,8 +47,39 @@ func _ready() -> void:
 	if LocalizationManager.instance:
 		LocalizationManager.instance.language_changed.connect(func(_l): _update_localized_texts())
 
+	if YandexGamesBridge.instance:
+		YandexGamesBridge.instance.auth_state_changed.connect(_on_auth_state_changed)
+		YandexGamesBridge.instance.cloud_sync_completed.connect(_on_cloud_sync_completed)
+		_update_auth_display(YandexGamesBridge.instance.is_authorized, YandexGamesBridge.instance.player_name)
+	else:
+		_update_auth_display(false, "")
+
 	_update_localized_texts()
 	call_deferred("_notify_game_ready")
+
+func _on_auth_pressed() -> void:
+	if YandexGamesBridge.instance:
+		YandexGamesBridge.instance.authorize_player()
+
+func _on_auth_state_changed(is_auth: bool, p_name: String) -> void:
+	_update_auth_display(is_auth, p_name)
+
+func _on_cloud_sync_completed(_data: Dictionary) -> void:
+	_update_stats_display()
+
+func _update_auth_display(is_auth: bool, p_name: String) -> void:
+	var loc = LocalizationManager.instance
+	if not account_label or not auth_btn:
+		return
+	if is_auth:
+		var display_name = p_name if not p_name.is_empty() else "Маг Вейморы"
+		var fmt = loc.get_text("auth_logged_in", "👤 %s") if loc else "👤 %s"
+		account_label.text = fmt % display_name
+		auth_btn.visible = false
+	else:
+		account_label.text = loc.get_text("auth_guest", "Гость") if loc else "Гость"
+		auth_btn.text = loc.get_text("auth_login_btn", "👤 Войти") if loc else "👤 Войти"
+		auth_btn.visible = true
 
 func _notify_game_ready() -> void:
 	if YandexGamesBridge.instance:
@@ -74,6 +109,11 @@ func _update_localized_texts() -> void:
 		controls_body.text = loc.get_text("controls_body", "• Движение: [W, A, S, D]...")
 	if close_controls_btn:
 		close_controls_btn.text = loc.get_text("btn_understood", "Понятно")
+
+	if YandexGamesBridge.instance:
+		_update_auth_display(YandexGamesBridge.instance.is_authorized, YandexGamesBridge.instance.player_name)
+	else:
+		_update_auth_display(false, "")
 
 	_update_stats_display()
 

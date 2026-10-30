@@ -8,6 +8,7 @@ signal interstitial_completed(was_shown: bool)
 signal rewarded_completed(reward_granted: bool)
 signal cloud_data_loaded(data: Dictionary)
 signal cloud_data_saved(success: bool)
+signal cloud_sync_completed(data: Dictionary)
 signal auth_state_changed(is_authorized: bool, player_name: String)
 signal leaderboard_score_submitted(success: bool)
 signal leaderboard_entries_received(entries: Array)
@@ -73,6 +74,10 @@ var _pending_reward_callable: Callable = Callable()
 var _pending_reward_close_callable: Callable = Callable()
 var _pending_interstitial_callable: Callable = Callable()
 
+var _save_debounce_timer: float = 0.0
+var _is_cloud_save_scheduled: bool = false
+const CLOUD_SAVE_DEBOUNCE_INTERVAL: float = 1.5
+
 func _enter_tree() -> void:
 	if instance == null:
 		instance = self
@@ -96,6 +101,13 @@ func _ready() -> void:
 		is_sdk_initialized = true
 		call_deferred("_emit_sdk_ready", true)
 		call_deferred("_check_and_send_loading_ready")
+
+func _process(delta: float) -> void:
+	if _is_cloud_save_scheduled:
+		_save_debounce_timer -= delta
+		if _save_debounce_timer <= 0.0:
+			_is_cloud_save_scheduled = false
+			flush_cloud_save()
 
 func _setup_web_callbacks() -> void:
 	if not is_web:
@@ -255,6 +267,7 @@ func _on_js_sdk_init(args: Array) -> void:
 			player_name = str(args[4])
 		if args.size() > 5 and args[5] != null:
 			player_unique_id = str(args[5])
+		load_cloud_data()
 	else:
 		is_sdk_available = false
 		is_local_mode = true
@@ -593,15 +606,27 @@ func _finish_rewarded(granted: bool) -> void:
 	rewarded_completed.emit(granted)
 
 # --- Cloud Saves & Player Data ---
+func schedule_cloud_save() -> void:
+	_is_cloud_save_scheduled = true
+	_save_debounce_timer = CLOUD_SAVE_DEBOUNCE_INTERVAL
+
+func flush_cloud_save() -> void:
+	_is_cloud_save_scheduled = false
+	var current_data = SaveManager.load_data()
+	save_cloud_data(current_data)
+
 func load_cloud_data() -> void:
 	if not is_web or not is_sdk_available:
 		var local = SaveManager.load_data()
 		cloud_data_loaded.emit(local)
+		cloud_sync_completed.emit(local)
 		return
 
 	var js = Engine.get_singleton("JavaScriptBridge")
 	if not js:
-		cloud_data_loaded.emit(SaveManager.load_data())
+		var local = SaveManager.load_data()
+		cloud_data_loaded.emit(local)
+		cloud_sync_completed.emit(local)
 		return
 
 	var code = """
@@ -634,10 +659,11 @@ func _on_js_cloud_data_loaded(args: Array = []) -> void:
 	# Safe merge with local storage
 	var merged = SaveManager.merge_with_cloud(cloud_dict)
 	cloud_data_loaded.emit(merged)
+	cloud_sync_completed.emit(merged)
 
 func save_cloud_data(data: Dictionary) -> void:
 	if not is_web or not is_sdk_available:
-		var ok = SaveManager.save_custom_data(data)
+		var ok = SaveManager.save_custom_data(data, false)
 		cloud_data_saved.emit(ok)
 		return
 
@@ -678,7 +704,13 @@ func _on_js_cloud_data_saved(args: Array = []) -> void:
 # --- Authorization ---
 func authorize_player() -> void:
 	if not is_web or not is_sdk_available:
+		# Local fallback: simulate authorization for offline/editor testing
+		is_authorized = true
+		player_name = "Маг Вейморы"
+		auth_state_changed.emit(true, player_name)
+		load_cloud_data()
 		return
+
 	var js = Engine.get_singleton("JavaScriptBridge")
 	if not js:
 		return
@@ -727,6 +759,7 @@ func submit_score(score: int, extra_data: String = "") -> void:
 		leaderboard_score_submitted.emit(false)
 		return
 
+	var safe_extra_json = JSON.stringify(extra_data)
 	var code = """
 	(function() {
 		var bridge = window.__godotYandexBridge;
@@ -735,7 +768,7 @@ func submit_score(score: int, extra_data: String = "") -> void:
 			return;
 		}
 		window.ysdk.getLeaderboards().then(function(lb) {
-			return lb.setLeaderboardScore('rift_explorers', %d, '%s');
+			return lb.setLeaderboardScore('rift_explorers', %d, %s);
 		}).then(function() {
 			console.log('[YandexGamesBridge] Score %d submitted to leaderboard');
 			if (bridge && bridge.onLeaderboardSet) bridge.onLeaderboardSet(true);
@@ -744,7 +777,7 @@ func submit_score(score: int, extra_data: String = "") -> void:
 			if (bridge && bridge.onLeaderboardSet) bridge.onLeaderboardSet(false);
 		});
 	})();
-	""" % [score, extra_data, score]
+	""" % [score, safe_extra_json, score]
 	js.eval(code)
 
 func _on_js_leaderboard_set(args: Array = []) -> void:
