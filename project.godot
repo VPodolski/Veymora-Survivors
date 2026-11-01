@@ -17,10 +17,25 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+GP="*res://addons/gamepush/game_push.gd"
+PlatformMgr="*res://scripts/platform/platform_manager.gd"
 GameFlow="*res://scripts/game/game_flow_controller.gd"
 PauseMgr="*res://scripts/game/pause_manager.gd"
 LocMgr="*res://scripts/game/localization_manager.gd"
 YandexBridge="*res://scripts/platform/yandex_games_bridge.gd"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gamepush/plugin.cfg")
+
+[game_push]
+
+config/project_id="0"
+config/token=""
+config/is_preloader_show=false
+config/ready_delay=0.0
+config/is_archive=true
+config/archive_name="veymora_survivors_pikabu.zip"
 
 [display]
 

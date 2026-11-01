@@ -8,6 +8,7 @@ const ChestRewardPanel = preload("res://scripts/ui/chest_reward_panel.gd")
 const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
 const PauseManager = preload("res://scripts/game/pause_manager.gd")
 const LocalizationManager = preload("res://scripts/game/localization_manager.gd")
+const PlatformManager = preload("res://scripts/platform/platform_manager.gd")
 const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
 const SecondChanceDialog = preload("res://scripts/ui/second_chance_dialog.gd")
 const VirtualJoystick = preload("res://scripts/ui/virtual_joystick.gd")
@@ -107,7 +108,7 @@ func _ready() -> void:
 		pause_menu_btn.pressed.connect(_go_to_menu)
 
 	var is_touch = DisplayServer.is_touchscreen_available()
-	var is_mob = OS.has_feature("mobile") or (YandexGamesBridge.instance and YandexGamesBridge.instance.is_mobile())
+	var is_mob = OS.has_feature("mobile") or (PlatformManager.instance and PlatformManager.instance.is_mobile()) or (YandexGamesBridge.instance and YandexGamesBridge.instance.is_mobile())
 	var show_touch_controls = is_mob or is_touch
 
 	if mobile_pause_btn:

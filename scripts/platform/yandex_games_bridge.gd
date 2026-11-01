@@ -1,17 +1,5 @@
 class_name YandexGamesBridge
-extends Node
-
-signal sdk_ready(is_local: bool)
-signal pause_requested(reason: String)
-signal resume_requested(reason: String)
-signal interstitial_completed(was_shown: bool)
-signal rewarded_completed(reward_granted: bool)
-signal cloud_data_loaded(data: Dictionary)
-signal cloud_data_saved(success: bool)
-signal cloud_sync_completed(data: Dictionary)
-signal auth_state_changed(is_authorized: bool, player_name: String)
-signal leaderboard_score_submitted(success: bool)
-signal leaderboard_entries_received(entries: Array)
+extends "res://scripts/platform/base_platform_bridge.gd"
 
 const PauseManager = preload("res://scripts/game/pause_manager.gd")
 const SaveManager = preload("res://scripts/game/save_manager.gd")
@@ -19,21 +7,8 @@ const LocalizationManager = preload("res://scripts/game/localization_manager.gd"
 
 static var instance: YandexGamesBridge = null
 
-var is_web: bool = false
-var is_sdk_available: bool = false
-var is_local_mode: bool = true
-
-var player_language: String = "ru"
-var device_type: String = "desktop"
-var is_authorized: bool = false
-var player_name: String = "Исследователь"
-var player_unique_id: String = ""
-
-var has_notified_ready: bool = false
-var is_game_ready: bool = false
-var is_sdk_initialized: bool = false
-var has_sent_loading_ready: bool = false
-var is_gameplay_active: bool = false
+func get_platform_name() -> String:
+	return "yandex"
 
 # Internal callbacks kept alive to prevent garbage collection in JavaScriptBridge
 enum AdSessionState {
@@ -159,7 +134,9 @@ func _setup_web_callbacks() -> void:
 		}
 
 func _init_yandex_sdk() -> void:
-	if not is_web:
+	if not is_web or OS.has_feature("gamepush") or OS.has_feature("pikabu"):
+		is_local_mode = true
+		is_sdk_available = false
 		is_sdk_initialized = true
 		_emit_sdk_ready(true)
 		_check_and_send_loading_ready()

@@ -7,6 +7,7 @@ const ArchiveDialog = preload("res://scripts/ui/archive_dialog.gd")
 const ArchiveDialogScene = preload("res://scenes/ui/archive_dialog.tscn")
 const MainMenuBackground = preload("res://scripts/ui/main_menu_background.gd")
 const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
+const PlatformManager = preload("res://scripts/platform/platform_manager.gd")
 const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
 const LocalizationManager = preload("res://scripts/game/localization_manager.gd")
 const SynergyRegistry = preload("res://scripts/synergies/synergy_registry.gd")
@@ -31,9 +32,13 @@ const SYNERGY_NAMES = {
 @onready var arena_btn: Button = $Center/VBox/Actions/ArenaButton
 @onready var menu_btn: Button = $Center/VBox/Actions/MenuButton
 @onready var codex_btn: Button = $Center/VBox/Actions/CodexButton
+@onready var reward_bonus_btn: Button = get_node_or_null("Center/VBox/RewardBonusContainer/RewardBonusButton")
 
 var stats: RunStats = null
 var archive_dialog: ArchiveDialog = null
+var is_reward_claimed: bool = false
+var final_score: int = 0
+var score_value_label: Label = null
 
 func _ready() -> void:
 	if retry_btn:
@@ -44,6 +49,8 @@ func _ready() -> void:
 		menu_btn.pressed.connect(_on_menu_pressed)
 	if codex_btn:
 		codex_btn.pressed.connect(_on_codex_pressed)
+	if reward_bonus_btn:
+		reward_bonus_btn.pressed.connect(_on_reward_bonus_pressed)
 
 	if GameFlowController.instance and GameFlowController.instance.last_run_stats:
 		stats = GameFlowController.instance.last_run_stats
@@ -80,10 +87,16 @@ func display_stats(run_data: RunStats) -> void:
 	if codex_btn:
 		codex_btn.text = loc.get_text("btn_codex", "Кодекс и Атлас") if loc else "Кодекс и Атлас"
 
-	# Submit run score to Yandex Games leaderboard
-	var final_score = int(run_data.survival_time * 10.0 + run_data.total_kills * 5.0)
-	if YandexGamesBridge.instance:
+	# Submit run score to leaderboard
+	final_score = int(run_data.survival_time * 10.0 + run_data.total_kills * 5.0)
+	if PlatformManager.instance:
+		PlatformManager.instance.submit_score(final_score)
+	elif YandexGamesBridge.instance:
 		YandexGamesBridge.instance.submit_score(final_score)
+
+	if reward_bonus_btn:
+		reward_bonus_btn.text = loc.get_text("btn_reward_bonus", "✦ ПОЛУЧИТЬ БОНУС К ОЧКАМ (+25%) ЗА ПРОСМОТР") if loc else "✦ ПОЛУЧИТЬ БОНУС К ОЧКАМ (+25%) ЗА ПРОСМОТР"
+		reward_bonus_btn.disabled = is_reward_claimed
 
 	# Metrics Grid
 	_populate_metrics(run_data)
@@ -126,7 +139,7 @@ func _populate_metrics(data: RunStats) -> void:
 		{"label": loc.get_text("metric_bosses", "Повержено боссов:") if loc else "Повержено боссов:", "value": "%d" % data.boss_kills, "color": Color(1.0, 0.3, 0.5)},
 		{"label": loc.get_text("metric_damage", "Общий нанесённый урон:") if loc else "Общий нанесённый урон:", "value": "%d" % int(data.damage_dealt), "color": Color(0.95, 0.7, 1.0)},
 		{"label": loc.get_text("metric_xp", "Собрано маны (XP):") if loc else "Собрано маны (XP):", "value": "%d XP" % int(data.experience_gained), "color": Color(0.4, 1.0, 0.7)},
-		{"label": loc.get_text("metric_artifacts", "Артефакты в сумке:") if loc else "Артефакты в сумке:", "value": "%d" % data.artifacts_collected, "color": Color(0.5, 0.85, 1.0)}
+		{"label": loc.get_text("metric_score", "Итоговые очки:") if loc else "Итоговые очки:", "value": "%d" % final_score, "color": Color(1.0, 0.85, 0.3), "is_score": true}
 	]
 
 	for item in metrics:
@@ -141,6 +154,8 @@ func _populate_metrics(data: RunStats) -> void:
 		val.add_theme_font_size_override("font_size", 14)
 		val.add_theme_color_override("font_color", item["color"])
 		stats_grid.add_child(val)
+		if item.get("is_score", false):
+			score_value_label = val
 
 func _populate_synergies(data: RunStats) -> void:
 	if not synergy_headline_label or not synergy_cards_container:
@@ -228,6 +243,41 @@ func _create_synergy_card(title: String, count: int, dmg: float, targets: int, k
 
 	return panel
 
+func _on_reward_bonus_pressed() -> void:
+	if is_reward_claimed or not reward_bonus_btn:
+		return
+	reward_bonus_btn.disabled = true
+	var loc = LocalizationManager.instance
+
+	var on_reward = func():
+		is_reward_claimed = true
+		final_score = int(final_score * 1.25)
+		if score_value_label:
+			score_value_label.text = "%d (+25%% ✦)" % final_score
+			score_value_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.2))
+		if reward_bonus_btn:
+			reward_bonus_btn.text = loc.get_text("btn_reward_bonus_claimed", "✓ БОНУС ПОЛУЧЕН (+25%)") if loc else "✓ БОНУС ПОЛУЧЕН (+25%)"
+			reward_bonus_btn.disabled = true
+		# Re-submit boosted score
+		if PlatformManager.instance:
+			PlatformManager.instance.submit_score(final_score)
+		elif YandexGamesBridge.instance:
+			YandexGamesBridge.instance.submit_score(final_score)
+
+	var on_close = func(granted: bool):
+		if not granted and not is_reward_claimed:
+			if reward_bonus_btn:
+				reward_bonus_btn.disabled = false
+				reward_bonus_btn.text = loc.get_text("btn_reward_bonus", "✦ ПОЛУЧИТЬ БОНУС К ОЧКАМ (+25%) ЗА ПРОСМОТР") if loc else "✦ ПОЛУЧИТЬ БОНУС К ОЧКАМ (+25%) ЗА ПРОСМОТР"
+
+	if PlatformManager.instance:
+		PlatformManager.instance.show_rewarded(on_reward, on_close)
+	elif YandexGamesBridge.instance:
+		YandexGamesBridge.instance.show_rewarded(on_reward, on_close)
+	else:
+		on_reward.call()
+		on_close.call(true)
+
 var _is_navigating: bool = false
 
 func _navigate_with_ad(action: Callable) -> void:
@@ -244,9 +294,10 @@ func _navigate_with_ad(action: Callable) -> void:
 	if codex_btn:
 		codex_btn.disabled = true
 
-	var bridge = YandexGamesBridge.instance
-	if bridge and bridge.has_method("can_show_interstitial") and bridge.can_show_interstitial():
-		bridge.show_interstitial(func(_was_shown): action.call())
+	if PlatformManager.instance and PlatformManager.instance.can_show_interstitial():
+		PlatformManager.instance.show_interstitial(func(_was_shown): action.call())
+	elif YandexGamesBridge.instance and YandexGamesBridge.instance.has_method("can_show_interstitial") and YandexGamesBridge.instance.can_show_interstitial():
+		YandexGamesBridge.instance.show_interstitial(func(_was_shown): action.call())
 	else:
 		action.call()
 

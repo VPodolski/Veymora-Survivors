@@ -93,8 +93,19 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
 [node name="Spacer" type="Control" parent="Center/VBox"]
-custom_minimum_size = Vector2(0, 6)
+custom_minimum_size = Vector2(0, 4)
 layout_mode = 2
+
+[node name="RewardBonusContainer" type="HBoxContainer" parent="Center/VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="RewardBonusButton" type="Button" parent="Center/VBox/RewardBonusContainer"]
+custom_minimum_size = Vector2(460, 40)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 14
+text = "✦ ПОЛУЧИТЬ БОНУС К ОЧКАМ (+25%) ЗА ПРОСМОТР"
 
 [node name="Actions" type="HBoxContainer" parent="Center/VBox"]
 layout_mode = 2

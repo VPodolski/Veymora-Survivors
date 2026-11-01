@@ -7,6 +7,7 @@ const ArchiveDialogScene = preload("res://scenes/ui/archive_dialog.tscn")
 const SettingsDialogScene = preload("res://scenes/ui/settings_dialog.tscn")
 const SettingsDialog = preload("res://scripts/ui/settings_dialog.gd")
 const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
+const PlatformManager = preload("res://scripts/platform/platform_manager.gd")
 const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
 const LocalizationManager = preload("res://scripts/game/localization_manager.gd")
 
@@ -47,7 +48,11 @@ func _ready() -> void:
 	if LocalizationManager.instance:
 		LocalizationManager.instance.language_changed.connect(func(_l): _update_localized_texts())
 
-	if YandexGamesBridge.instance:
+	if PlatformManager.instance:
+		PlatformManager.instance.auth_state_changed.connect(_on_auth_state_changed)
+		PlatformManager.instance.cloud_sync_completed.connect(_on_cloud_sync_completed)
+		_update_auth_display(PlatformManager.instance.is_authorized(), PlatformManager.instance.get_player_name())
+	elif YandexGamesBridge.instance:
 		YandexGamesBridge.instance.auth_state_changed.connect(_on_auth_state_changed)
 		YandexGamesBridge.instance.cloud_sync_completed.connect(_on_cloud_sync_completed)
 		_update_auth_display(YandexGamesBridge.instance.is_authorized, YandexGamesBridge.instance.player_name)
@@ -58,7 +63,9 @@ func _ready() -> void:
 	call_deferred("_notify_game_ready")
 
 func _on_auth_pressed() -> void:
-	if YandexGamesBridge.instance:
+	if PlatformManager.instance:
+		PlatformManager.instance.authorize_player()
+	elif YandexGamesBridge.instance:
 		YandexGamesBridge.instance.authorize_player()
 
 func _on_auth_state_changed(is_auth: bool, p_name: String) -> void:
@@ -82,7 +89,9 @@ func _update_auth_display(is_auth: bool, p_name: String) -> void:
 		auth_btn.visible = true
 
 func _notify_game_ready() -> void:
-	if YandexGamesBridge.instance:
+	if PlatformManager.instance:
+		PlatformManager.instance.notify_game_ready()
+	elif YandexGamesBridge.instance:
 		YandexGamesBridge.instance.notify_game_ready()
 
 func _update_localized_texts() -> void:
@@ -110,7 +119,9 @@ func _update_localized_texts() -> void:
 	if close_controls_btn:
 		close_controls_btn.text = loc.get_text("btn_understood", "Понятно")
 
-	if YandexGamesBridge.instance:
+	if PlatformManager.instance:
+		_update_auth_display(PlatformManager.instance.is_authorized(), PlatformManager.instance.get_player_name())
+	elif YandexGamesBridge.instance:
 		_update_auth_display(YandexGamesBridge.instance.is_authorized, YandexGamesBridge.instance.player_name)
 	else:
 		_update_auth_display(false, "")

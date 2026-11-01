@@ -4,6 +4,7 @@ extends Control
 signal revived
 signal declined
 
+const PlatformManager = preload("res://scripts/platform/platform_manager.gd")
 const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
 const LocalizationManager = preload("res://scripts/game/localization_manager.gd")
 const PauseManager = preload("res://scripts/game/pause_manager.gd")
@@ -66,13 +67,23 @@ func _on_watch_pressed() -> void:
 	if decline_btn:
 		decline_btn.disabled = true
 
-	var bridge = YandexGamesBridge.instance
-	if bridge:
-		bridge.show_rewarded(
-			func(): # Reward callback (ONLY on verified onRewarded)
+	var platform = PlatformManager.instance
+	if platform:
+		platform.show_rewarded(
+			func():
 				close_dialog()
 				revived.emit(),
-			func(granted): # Close callback
+			func(granted):
+				if not granted:
+					close_dialog()
+					declined.emit()
+		)
+	elif YandexGamesBridge.instance:
+		YandexGamesBridge.instance.show_rewarded(
+			func():
+				close_dialog()
+				revived.emit(),
+			func(granted):
 				if not granted:
 					close_dialog()
 					declined.emit()

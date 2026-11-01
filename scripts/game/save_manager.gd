@@ -179,11 +179,17 @@ static func save_custom_data(data: Dictionary, sync_to_cloud: bool = true) -> bo
 		success = (err == OK)
 
 	if success and sync_to_cloud:
-		var bridge = Engine.get_main_loop().root.get_node_or_null("YandexBridge") if Engine.get_main_loop() else null
-		if not bridge and YandexGamesBridge.instance:
-			bridge = YandexGamesBridge.instance
-		if bridge and bridge.has_method("schedule_cloud_save"):
-			bridge.schedule_cloud_save()
+		var platform_mgr = Engine.get_main_loop().root.get_node_or_null("PlatformMgr") if Engine.get_main_loop() else null
+		if not platform_mgr and PlatformManager.instance:
+			platform_mgr = PlatformManager.instance
+		if platform_mgr and platform_mgr.has_method("schedule_cloud_save"):
+			platform_mgr.schedule_cloud_save()
+		else:
+			var bridge = Engine.get_main_loop().root.get_node_or_null("YandexBridge") if Engine.get_main_loop() else null
+			if not bridge and YandexGamesBridge.instance:
+				bridge = YandexGamesBridge.instance
+			if bridge and bridge.has_method("schedule_cloud_save"):
+				bridge.schedule_cloud_save()
 
 	return success
 

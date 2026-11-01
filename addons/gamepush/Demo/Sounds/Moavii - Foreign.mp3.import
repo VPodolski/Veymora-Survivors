@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://gql44q8uo1h1"
+path="res://.godot/imported/Moavii - Foreign.mp3-dd7026c613aa592b768267f791840667.mp3str"
+
+[deps]
+
+source_file="res://addons/gamepush/Demo/Sounds/Moavii - Foreign.mp3"
+dest_files=["res://.godot/imported/Moavii - Foreign.mp3-dd7026c613aa592b768267f791840667.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

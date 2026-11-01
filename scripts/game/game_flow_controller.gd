@@ -4,6 +4,7 @@ extends Node
 const RunConfig = preload("res://scripts/game/run_config.gd")
 const RunStats = preload("res://scripts/game/run_stats.gd")
 const PauseManager = preload("res://scripts/game/pause_manager.gd")
+const PlatformManager = preload("res://scripts/platform/platform_manager.gd")
 const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
 
 signal state_changed(new_state: String)
@@ -55,7 +56,9 @@ func launch_game_scene() -> void:
 		get_tree().paused = false
 	current_state = STATE_PLAYING
 	state_changed.emit(current_state)
-	if YandexGamesBridge.instance:
+	if PlatformManager.instance:
+		PlatformManager.instance.reconcile_gameplay_state()
+	elif YandexGamesBridge.instance:
 		YandexGamesBridge.instance.reconcile_gameplay_state()
 	get_tree().change_scene_to_file("res://scenes/main/main.tscn")
 
@@ -84,5 +87,7 @@ func _clear_pause_and_stop_gameplay() -> void:
 		PauseManager.instance.clear_reasons(false)
 	else:
 		get_tree().paused = false
-	if YandexGamesBridge.instance:
+	if PlatformManager.instance:
+		PlatformManager.instance.reconcile_gameplay_state()
+	elif YandexGamesBridge.instance:
 		YandexGamesBridge.instance.reconcile_gameplay_state()
