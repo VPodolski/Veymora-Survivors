@@ -14,6 +14,9 @@ var defeated_boss: bool = false
 var damage_dealt: float = 0.0
 var experience_gained: float = 0.0
 var artifacts_collected: int = 0
+var barrier_absorbed_damage: float = 0.0
+var total_healing_done: float = 0.0
+var spell_damage: Dictionary = {} # spell_id -> float total damage
 
 # Rich Synergy Tracking (v0.4)
 var synergy_counts: Dictionary = {} # synergy_id -> int activation count
@@ -45,6 +48,19 @@ func record_kill(enemy: EnemyController) -> void:
 func record_damage(amount: float) -> void:
 	if amount > 0.0:
 		damage_dealt += amount
+
+func record_spell_hit(spell_id: String, amount: float) -> void:
+	record_damage(amount)
+	if not spell_id.is_empty() and amount > 0.0:
+		spell_damage[spell_id] = spell_damage.get(spell_id, 0.0) + amount
+
+func record_damage_absorbed(amount: float) -> void:
+	if amount > 0.0:
+		barrier_absorbed_damage += amount
+
+func record_healing(amount: float) -> void:
+	if amount > 0.0:
+		total_healing_done += amount
 
 func record_xp(amount: float) -> void:
 	if amount > 0.0:
@@ -116,6 +132,9 @@ func to_dictionary() -> Dictionary:
 		"damage_dealt": damage_dealt,
 		"experience_gained": experience_gained,
 		"artifacts_collected": artifacts_collected,
+		"barrier_absorbed_damage": barrier_absorbed_damage,
+		"total_healing_done": total_healing_done,
+		"spell_damage": spell_damage.duplicate(),
 		"synergy_counts": synergy_counts.duplicate(),
 		"synergy_damage": synergy_damage.duplicate(),
 		"synergy_targets": synergy_targets.duplicate(),
@@ -138,6 +157,9 @@ func reset() -> void:
 	damage_dealt = 0.0
 	experience_gained = 0.0
 	artifacts_collected = 0
+	barrier_absorbed_damage = 0.0
+	total_healing_done = 0.0
+	spell_damage.clear()
 	synergy_counts.clear()
 	synergy_damage.clear()
 	synergy_targets.clear()

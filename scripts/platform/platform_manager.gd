@@ -184,3 +184,4 @@ func fetch_leaderboard(max_entries: int = 10, include_user: bool = true) -> void
 func authorize_player() -> void:
 	if active_bridge:
 		active_bridge.authorize_player()
+

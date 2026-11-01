@@ -11,7 +11,7 @@ var player_owner: PlayerController = null
 static var ALL_ARTIFACTS: Dictionary = {
 	"hourglass": {
 		"name": "Песочные часы",
-		"desc": "-15% к перезарядке заклинаний. Снаряды пробивают врагов и летят назад. Катализатор эволюции Магической стрелы.",
+		"desc": "-15% к перезарядке заклинаний. Временное эхо: 25% шанс повторного дублирующего каста. Катализатор эволюции Магической стрелы.",
 		"color": Color(0.3, 0.9, 1.0, 1.0),
 		"tags": ["utility", "cooldown", "catalyst"],
 		"icon_symbol": "hourglass",
@@ -51,7 +51,7 @@ static var ALL_ARTIFACTS: Dictionary = {
 	},
 	"lightning_rod": {
 		"name": "Громоотвод",
-		"desc": "Все заклинания выпускают +1 снаряд, а цепные разряды совершают +1 дополнительный скачок.",
+		"desc": "Все заклинания выпускают +1 снаряд, а цепные разряды совершают +2 дополнительных скачка на +30% дистанции.",
 		"color": Color(0.45, 0.9, 1.0, 1.0),
 		"tags": ["offensive", "lightning", "projectiles"],
 		"icon_symbol": "lightning",
@@ -72,6 +72,22 @@ static var ALL_ARTIFACTS: Dictionary = {
 		"tags": ["utility", "experience"],
 		"icon_symbol": "book",
 		"rarity": "ОБЫЧНОЕ"
+	},
+	"life_crystal": {
+		"name": "Кристалл жизни",
+		"desc": "+35 к максимальному здоровью мага и +30% к эффективности любого исцеления и регенерации.",
+		"color": Color(0.2, 0.95, 0.45, 1.0),
+		"tags": ["defense", "healing", "vitality"],
+		"icon_symbol": "crystal",
+		"rarity": "РЕДКОЕ"
+	},
+	"warding_rune": {
+		"name": "Рунический щиток",
+		"desc": "+40% к прочности Магического барьера и -2.0 секунды к времени его перезарядки.",
+		"color": Color(0.35, 0.75, 1.0, 1.0),
+		"tags": ["defense", "barrier", "protection"],
+		"icon_symbol": "shield",
+		"rarity": "РЕДКОЕ"
 	}
 }
 
@@ -131,6 +147,8 @@ func apply_artifact_effect(id: String) -> void:
 	match id:
 		"hourglass":
 			player_owner.set_meta("has_hourglass", true)
+			player_owner.set_meta("has_time_echo", true)
+			player_owner.reduce_cooldown(0.15)
 		"obsidian_heart":
 			player_owner.set_meta("has_obsidian_heart", true)
 		"rift_compass":
@@ -146,3 +164,12 @@ func apply_artifact_effect(id: String) -> void:
 			player_owner.set_meta("has_amulet_of_haste", true)
 		"scholars_tome":
 			player_owner.set_meta("has_scholars_tome", true)
+		"life_crystal":
+			player_owner.set_meta("has_life_crystal", true)
+			player_owner.increase_max_health(35.0)
+		"warding_rune":
+			player_owner.set_meta("has_warding_rune", true)
+			if player_owner.ability_controller and player_owner.ability_controller.has_ability("magic_barrier"):
+				var b = player_owner.ability_controller.get_ability("magic_barrier")
+				if b and "current_shield" in b:
+					b.current_shield = b.get_effective_max_shield()

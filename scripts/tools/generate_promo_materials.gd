@@ -247,3 +247,4 @@ func _draw_line(img: Image, p1: Vector2, p2: Vector2, color: Color, thickness: f
 		var t = float(i) / float(steps)
 		var pt = p1.lerp(p2, t)
 		_draw_circle_aa(img, pt, thickness * 0.5, color, thickness)
+

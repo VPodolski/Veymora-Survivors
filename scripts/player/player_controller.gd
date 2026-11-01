@@ -2,6 +2,8 @@ class_name PlayerController
 extends CharacterBody2D
 
 const SaveManager = preload("res://scripts/game/save_manager.gd")
+const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
+const DamageContext = preload("res://scripts/combat/damage_context.gd")
 
 signal health_changed(current_hp: float, max_hp: float)
 signal died
@@ -103,36 +105,14 @@ func trigger_camera_shake(intensity: float = 6.0, duration: float = 0.2) -> void
 	shake_intensity = intensity
 	shake_duration = duration
 
+func take_damage_context(ctx: DamageContext) -> Dictionary:
+	return DamageResolver.apply_damage(ctx)
+
 func take_damage(amount: float) -> void:
 	if not is_alive or invulnerable_timer > 0.0:
 		return
-
-	current_health = max(0.0, current_health - amount)
-	invulnerable_timer = stats.invulnerability_duration
-
-	trigger_camera_shake(7.0, 0.22)
-
-	if visual_node and visual_node.has_method("trigger_hit_flash"):
-		visual_node.trigger_hit_flash()
-
-	# Obsidian heart defensive pulse
-	if has_meta("has_obsidian_heart"):
-		trigger_obsidian_pulse()
-
-	health_changed.emit(current_health, stats.max_health)
-
-	if current_health <= 0.0:
-		if phoenix_revives_remaining > 0:
-			phoenix_revives_remaining -= 1
-			current_health = stats.max_health * 0.5
-			invulnerable_timer = 2.0
-			trigger_camera_shake(12.0, 0.35)
-			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
-			CombatEffects.spawn_shockwave(container, global_position, 220.0, Color(1.0, 0.45, 0.1, 0.95))
-			CombatEffects.spawn_text_popup(container, global_position, "ВОЗРОЖДЕНИЕ ФЕНИКСА!", Color(1.0, 0.7, 0.2, 1.0))
-			health_changed.emit(current_health, stats.max_health)
-			return
-		die()
+	var ctx = DamageContext.new(null, self, amount, ["enemy_damage"], "enemy", global_position)
+	DamageResolver.apply_damage(ctx)
 
 func trigger_obsidian_pulse() -> void:
 	trigger_camera_shake(10.0, 0.28)

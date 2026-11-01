@@ -142,6 +142,19 @@ func _populate_metrics(data: RunStats) -> void:
 		{"label": loc.get_text("metric_score", "Итоговые очки:") if loc else "Итоговые очки:", "value": "%d" % final_score, "color": Color(1.0, 0.85, 0.3), "is_score": true}
 	]
 
+	if data.barrier_absorbed_damage > 0.0:
+		metrics.append({
+			"label": loc.get_text("metric_barrier_absorbed", "Поглощено барьером:") if loc else "Поглощено барьером:",
+			"value": "%d HP" % int(data.barrier_absorbed_damage),
+			"color": Color(0.3, 0.85, 1.0)
+		})
+	if data.total_healing_done > 0.0:
+		metrics.append({
+			"label": loc.get_text("metric_healing_done", "Восстановлено здоровья:") if loc else "Восстановлено здоровья:",
+			"value": "%d HP" % int(data.total_healing_done),
+			"color": Color(0.3, 0.95, 0.5)
+		})
+
 	for item in metrics:
 		var lbl = Label.new()
 		lbl.text = item["label"]

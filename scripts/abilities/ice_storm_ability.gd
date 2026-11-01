@@ -1,20 +1,26 @@
 class_name IceStormAbility
 extends AbilityBase
 
-@export var zone_radius: float = 120.0
-@export var storm_duration: float = 3.5
+@export var zone_radius: float = 110.0
+@export var storm_duration: float = 3.0
+@export var slow_ratio: float = 0.40
+@export var max_active_zones: int = 2
 
 var is_evolved: bool = false
+var active_zones: Array[IceStormZone] = []
 
 func _init() -> void:
 	ability_id = "ice_storm"
 	ability_name = "Ледяной шторм"
-	description = "Призывает морозную бурю, непрерывно наносящую урон и замедляющую врагов в области."
+	description = "Призывает морозную бурю, непрерывно наносящую урон и замедляющую врагов в области (макс. 2 зоны)."
 	category = "area"
 	current_level = 1
 	max_level = 5
-	base_cooldown = 3.2
-	base_damage = 8.0 # Per tick
+	base_cooldown = 3.5
+	base_damage = 5.0 # Per tick
+	zone_radius = 110.0
+	storm_duration = 3.0
+	slow_ratio = 0.40
 
 func _physics_process(delta: float) -> void:
 	if cooldown_timer > 0.0:
@@ -39,31 +45,55 @@ func try_cast() -> bool:
 	else:
 		return false
 
+	# Clean up invalid zones
+	var valid_zones: Array[IceStormZone] = []
+	for z in active_zones:
+		if is_instance_valid(z) and not z.is_queued_for_deletion():
+			valid_zones.append(z)
+	active_zones = valid_zones
+
+	# Enforce cap of 2 active zones
+	while active_zones.size() >= max_active_zones:
+		var oldest = active_zones.pop_front()
+		if is_instance_valid(oldest) and oldest.has_method("fade_out"):
+			oldest.fade_out()
+
 	var zone = IceStormZone.new()
 	zone.global_position = spawn_pos
 	zone.radius = zone_radius
 	zone.damage_per_tick = get_effective_damage()
 	zone.duration = storm_duration
+	zone.slow_ratio = slow_ratio
 
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	container.add_child(zone)
+	active_zones.append(zone)
 	return true
 
 func apply_level_modifiers() -> void:
 	match current_level:
 		2:
-			base_damage = 11.0
-			zone_radius = 135.0
+			base_cooldown = 3.5
+			base_damage = 6.5
+			zone_radius = 125.0
+			storm_duration = 3.0
 		3:
-			base_cooldown = 2.7
-			zone_radius = 150.0
+			base_cooldown = 3.0
+			base_damage = 8.0
+			zone_radius = 125.0
+			storm_duration = 3.5
 		4:
-			base_damage = 15.0
-			storm_duration = 4.2
+			base_cooldown = 3.0
+			base_damage = 10.0
+			zone_radius = 145.0
+			storm_duration = 3.5
+			slow_ratio = 0.50
 		5:
-			base_damage = 20.0
-			zone_radius = 175.0
-			base_cooldown = 2.2
+			base_cooldown = 2.6
+			base_damage = 12.0
+			zone_radius = 160.0
+			storm_duration = 4.0
+			slow_ratio = 0.50
 
 func evolve() -> void:
 	is_evolved = true
@@ -73,12 +103,12 @@ func evolve() -> void:
 	zone_radius = 230.0
 	storm_duration = 6.0
 	base_cooldown = 1.8
+	max_active_zones = 3
 
 func get_next_upgrade_description() -> String:
 	match current_level + 1:
-		2: return "+Урон тика (11) и расширенный радиус бури"
-		3: return "Быстрее перезарядка (2.7с) и радиус 150px"
-		4: return "+Урон тика (15) и длительность 4.2с"
-		5: return "Великая вьюга: радиус 175px, урон 20, кд 2.2с"
+		2: return "+Урон тика (6.5) и радиус 125px"
+		3: return "Быстрее перезарядка (3.0с), урон тика 8, длительность 3.5с"
+		4: return "+Урон тика (10.0), радиус 145px, замедление -50%"
+		5: return "Великая вьюга: радиус 160px, урон 12/тик, кд 2.6с, длит. 4.0с"
 		_: return "Максимальный уровень"
-

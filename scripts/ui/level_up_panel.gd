@@ -110,6 +110,15 @@ func create_card_button(opt: RewardGenerator.UpgradeOption) -> Button:
 	lvl_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3, 0.9))
 	vbox.add_child(lvl_lbl)
 
+	# 3.1 Synergy opportunity indicator
+	if not opt.synergy_hint.is_empty():
+		var syn_lbl = Label.new()
+		syn_lbl.text = opt.synergy_hint
+		syn_lbl.add_theme_font_size_override("font_size", 12)
+		syn_lbl.add_theme_color_override("font_color", Color(0.3, 0.95, 0.7, 1.0))
+		syn_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(syn_lbl)
+
 	# Spacer
 	var spacer = Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL

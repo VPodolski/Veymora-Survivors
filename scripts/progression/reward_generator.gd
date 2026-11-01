@@ -12,6 +12,7 @@ class UpgradeOption:
 	var description: String = ""
 	var level_badge: String = ""
 	var category_badge: String = ""
+	var synergy_hint: String = ""
 
 static func generate_choices(player: PlayerController, count: int = 3) -> Array[UpgradeOption]:
 	var candidates: Array[UpgradeOption] = []
@@ -87,22 +88,30 @@ static func generate_choices(player: PlayerController, count: int = 3) -> Array[
 			match ability_id:
 				"runic_blade":
 					opt.title = "Рунический клинок"
-					opt.description = "Вращающиеся рунические клинки ближней защиты."
+					opt.description = "Вращающиеся рунические клинки ближней защиты и сбивания вражеских снарядов."
 				"magic_bolt":
 					opt.title = "Магическая стрела"
-					opt.description = "Сгустки чародейской энергии в дальних врагов."
+					opt.description = "Сгустки чародейской энергии в дальних врагов с врождённым пробиванием."
 				"ice_storm":
 					opt.title = "Ледяной шторм"
-					opt.description = "Область вьюги с периодическим уроном и замедлением."
+					opt.description = "Область вьюги с периодическим уроном и замедлением (макс. 2 зоны)."
 				"death_mark":
 					opt.title = "Клеймо смерти"
-					opt.description = "Помечает сильнейших врагов, увеличивая получаемый ими урон."
+					opt.description = "Помечает сильнейших врагов, увеличивая получаемый ими урон и казня при низком HP."
 				"fireball":
 					opt.title = "Огненная сфера"
 					opt.description = "Взрывающийся шар магмы, наносящий урон по площади и поджигающий врагов."
 				"lightning_strike":
 					opt.title = "Грозовой разряд"
-					opt.description = "Бьёт молнией из небес, перескакивающей между ближайшими врагами."
+					opt.description = "Бьёт молнией из небес, перескакивающей между ближайшими врагами с зарядом."
+				"magic_barrier":
+					opt.title = "Магический барьер"
+					opt.description = "Автоматический рунический щит, поглощающий удары и взрывающийся волной отталкивания при разрушении."
+				"font_of_life":
+					opt.title = "Источник жизни"
+					opt.description = "Постепенная регенерация здоровья и целебные импульсы каждые 15 убийств."
+
+			opt.synergy_hint = _detect_synergy_hint(player, opt)
 			candidates.append(opt)
 
 	# 2. Upgrades for active abilities
@@ -115,6 +124,7 @@ static func generate_choices(player: PlayerController, count: int = 3) -> Array[
 			opt.description = ability.get_next_upgrade_description()
 			opt.category_badge = "УЛУЧШЕНИЕ"
 			opt.level_badge = "Ур. %d → %d" % [ability.current_level, ability.current_level + 1]
+			opt.synergy_hint = _detect_synergy_hint(player, opt)
 			candidates.append(opt)
 
 	# 3. Artifacts (if inventory has space)
@@ -128,7 +138,8 @@ static func generate_choices(player: PlayerController, count: int = 3) -> Array[
 				opt.title = art_data["name"]
 				opt.description = art_data["desc"]
 				opt.category_badge = "АРТЕФАКТ"
-				opt.level_badge = "РЕДКОЕ"
+				opt.level_badge = art_data.get("rarity", "РЕДКОЕ")
+				opt.synergy_hint = _detect_synergy_hint(player, opt)
 				candidates.append(opt)
 
 	# 4. Passive upgrades
@@ -182,13 +193,64 @@ static func generate_choices(player: PlayerController, count: int = 3) -> Array[
 
 	return selected
 
+static func _detect_synergy_hint(player: PlayerController, opt: UpgradeOption) -> String:
+	if not player or not player.ability_controller:
+		return ""
+	var ac = player.ability_controller
+	var inv = player.inventory
+
+	match opt.id:
+		"ice_storm":
+			if ac.has_ability("fireball"): return "⚡ СИНЕРГИЯ: Паровой разлом"
+			if ac.has_ability("lightning_strike"): return "⚡ СИНЕРГИЯ: Криогенный шок"
+			if ac.has_ability("runic_blade"): return "⚡ СИНЕРГИЯ: Ледяные осколки"
+			if ac.has_ability("magic_bolt"): return "⚡ СИНЕРГИЯ: Ледяное пронзание"
+			if ac.has_ability("magic_barrier"): return "⚡ СИНЕРГИЯ: Ледяная защита"
+		"fireball":
+			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Паровой разлом"
+			if ac.has_ability("death_mark"): return "⚡ СИНЕРГИЯ: Казнь пламенем"
+			if ac.has_ability("runic_blade"): return "⚡ СИНЕРГИЯ: Пылающие клинки"
+		"lightning_strike":
+			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Криогенный шок"
+			if ac.has_ability("magic_bolt"): return "⚡ СИНЕРГИЯ: Заряженная стрела"
+			if ac.has_ability("magic_barrier"): return "⚡ СИНЕРГИЯ: Грозовой щит"
+		"death_mark":
+			if ac.has_ability("fireball"): return "⚡ СИНЕРГИЯ: Казнь пламенем"
+			if ac.has_ability("font_of_life"): return "⚡ СИНЕРГИЯ: Жатва жизни"
+		"runic_blade":
+			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Ледяные осколки"
+			if ac.has_ability("fireball"): return "⚡ СИНЕРГИЯ: Пылающие клинки"
+		"magic_barrier":
+			if ac.has_ability("lightning_strike"): return "⚡ СИНЕРГИЯ: Грозовой щит"
+			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Ледяная защита"
+			if inv and inv.has_artifact("warding_rune"): return "⚡ СИНЕРГИЯ: Укрепление щита"
+		"font_of_life":
+			if ac.has_ability("death_mark"): return "⚡ СИНЕРГИЯ: Жатва жизни"
+			if inv and inv.has_artifact("life_crystal"): return "⚡ СИНЕРГИЯ: Сердце жизни"
+		"magic_bolt":
+			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Ледяное пронзание"
+			if ac.has_ability("lightning_strike"): return "⚡ СИНЕРГИЯ: Заряженная стрела"
+		"warding_rune":
+			if ac.has_ability("magic_barrier"): return "⚡ СИНЕРГИЯ: Магический барьер"
+		"life_crystal":
+			if ac.has_ability("font_of_life"): return "⚡ СИНЕРГИЯ: Источник жизни"
+		"frost_core":
+			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Ледяной шторм"
+		"lightning_rod":
+			if ac.has_ability("lightning_strike"): return "⚡ СИНЕРГИЯ: Грозовой разряд"
+		"obsidian_heart":
+			if ac.has_ability("fireball"): return "⚡ СИНЕРГИЯ: Огненная сфера"
+
+	return ""
+
 static func apply_upgrade(player: PlayerController, option: UpgradeOption) -> void:
 	if not player:
 		return
 
 	match option.type:
 		"evolution":
-			var container = player.get_tree().current_scene if player.get_tree().current_scene else player.get_tree().root
+			var tree = player.get_tree()
+			var container = (tree.current_scene if tree.current_scene else tree.root) if tree else null
 			MetaArchive.record_discovery("evolutions", option.id)
 			MetaArchive.check_and_complete_goal("discover_evolution")
 			if AudioManager.instance:

@@ -18,9 +18,17 @@ const MAX_REACTION_DEPTH = 2
 var reaction_cooldowns: Dictionary = {} # "target_id_reaction_name": float_time
 var registered_cleanups: Dictionary = {} # target_id: true
 var cascade_hit_targets: Dictionary = {} # "cascade_id_target_id": true
+var popup_cooldowns: Dictionary = {} # "reaction_name": float_time
 
 func _ready() -> void:
 	add_to_group("synergy_engine")
+
+func spawn_popup_rate_limited(reaction_name: String, pos: Vector2, text: String, col: Color, is_crit: bool = false) -> void:
+	var now = Time.get_ticks_msec() / 1000.0
+	if now - popup_cooldowns.get(reaction_name, 0.0) >= 0.6:
+		popup_cooldowns[reaction_name] = now
+		var container = get_effects_container()
+		CombatEffects.spawn_text_popup(container, pos, text, col, is_crit)
 
 func on_hit_landed(context: ReactionContext) -> void:
 	if not context or not context.allow_reactions or not is_instance_valid(context.target) or context.target.is_dead:
@@ -31,8 +39,12 @@ func on_hit_landed(context: ReactionContext) -> void:
 
 	var target = context.target
 
-	# 1. Fire reactions (Rule of Elemental Precedence: Thermal Conflagration takes priority over Steam Rift)
+	# 1. Fire reactions (Rule of Elemental Precedence: Conflagration Execution / Thermal Conflagration takes priority over Steam Rift)
 	if context.has_tag("fire"):
+		if target.has_status(StatusEffects.STATUS_MARKED):
+			if can_trigger_reaction(target, "conflagration_execution"):
+				trigger_conflagration_execution(context)
+				return
 		if target.has_status(StatusEffects.STATUS_CHARGED):
 			if can_trigger_reaction(target, "thermal_conflagration"):
 				trigger_thermal_conflagration(context)
@@ -70,10 +82,16 @@ func on_hit_landed(context: ReactionContext) -> void:
 				trigger_spatial_collapse(context)
 				return
 
-		# Arcane Resonance (Arcane on Charged target)
+		# Charged Bolt / Arcane Resonance (Arcane on Charged target)
 		if target.has_status(StatusEffects.STATUS_CHARGED):
-			if can_trigger_reaction(target, "resonance"):
+			if can_trigger_reaction(target, "resonance") or can_trigger_reaction(target, "charged_bolt"):
 				trigger_arcane_resonance(context)
+				return
+
+		# Piercing Frost (Arcane on Slowed target)
+		if target.has_status(StatusEffects.STATUS_SLOWED):
+			if can_trigger_reaction(target, "piercing_frost"):
+				trigger_piercing_frost(context)
 				return
 
 	# 4. Frost Shatter (Melee/Orbit or physical impact on Slowed target; Ice Storm zone tick is explicitly excluded)
@@ -453,6 +471,126 @@ func trigger_chain_of_doom(pos: Vector2, hops_remaining: int = 2) -> void:
 			reaction_activated.emit("chain_of_doom", enemy.global_position, 1)
 			break
 
+# --- 12. Conflagration Execution ---
+func trigger_conflagration_execution(context: ReactionContext) -> void:
+	var target = context.target
+	var pos = context.hit_position
+	var container = get_effects_container()
+
+	target.remove_status(StatusEffects.STATUS_MARKED)
+	record_reaction(target, "conflagration_execution")
+
+	var defn = SynergyRegistry.get_definition("conflagration_execution")
+	var radius = defn.area_radius if defn else 110.0
+	var dmg = defn.base_damage if defn else 45.0
+
+	CombatEffects.spawn_shockwave(container, pos, radius, Color(1.0, 0.35, 0.1, 0.95), 0.32)
+	CombatEffects.spawn_ring(container, pos, 12.0, radius, Color(1.0, 0.7, 0.2, 0.9), 0.25, 3.0)
+	CombatEffects.spawn_impact_sparks(container, pos, Color(1.0, 0.4, 0.1), 8)
+	spawn_popup_rate_limited("conflagration_execution", pos, "КАЗНЬ ПЛАМЕНЕМ!", Color(1.0, 0.3, 0.15, 1.0), true)
+
+	if AudioManager.instance:
+		AudioManager.instance.play_synergy("thermal_conflagration")
+
+	var nearby = TargetSelector.find_enemies_in_radius(get_tree(), pos, radius)
+	var spread_count = 0
+	var hit_count = 0
+
+	for enemy in nearby:
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			hit_count += 1
+			var sub_ctx = context.create_sub_context(enemy, enemy.global_position, dmg, ["fire", "explosion"], false)
+			apply_reaction_damage(enemy, dmg, "conflagration_execution", sub_ctx)
+
+			if is_instance_valid(enemy) and not enemy.is_dead:
+				enemy.apply_status(StatusEffects.STATUS_BURNING, 3.5)
+				if spread_count < 2 and enemy != target:
+					spread_count += 1
+					enemy.apply_status(StatusEffects.STATUS_MARKED, 5.0)
+
+	reaction_triggered.emit("conflagration_execution", pos)
+	reaction_activated.emit("conflagration_execution", pos, hit_count)
+
+# --- 13. Charged Bolt ---
+func trigger_charged_bolt(context: ReactionContext) -> void:
+	var target = context.target
+	var pos = context.hit_position
+	var container = get_effects_container()
+
+	target.remove_status(StatusEffects.STATUS_CHARGED)
+	record_reaction(target, "charged_bolt")
+	record_reaction(target, "resonance")
+
+	var defn = SynergyRegistry.get_definition("charged_bolt")
+	var radius = defn.area_radius if defn else 120.0
+	var dmg = defn.base_damage if defn else 24.0
+
+	var enemies = TargetSelector.find_enemies_in_radius(get_tree(), pos, radius)
+	var secondary_targets: Array = []
+	for enemy in enemies:
+		if is_instance_valid(enemy) and not enemy.is_dead and enemy != target:
+			secondary_targets.append(enemy)
+
+	CombatEffects.spawn_resonance_visuals(container, pos, radius, secondary_targets)
+	CombatEffects.spawn_target_highlight(target, Color(0.4, 0.85, 1.0, 0.95), 24.0)
+	spawn_popup_rate_limited("charged_bolt", pos, "ЗАРЯЖЕННАЯ СТРЕЛА!", Color(0.4, 0.85, 1.0, 1.0))
+
+	if AudioManager.instance:
+		AudioManager.instance.play_synergy("resonance")
+
+	reaction_triggered.emit("charged_bolt", pos)
+	reaction_triggered.emit("resonance", pos)
+	reaction_activated.emit("charged_bolt", pos, secondary_targets.size() + 1)
+
+	for enemy in secondary_targets:
+		var sub_ctx = context.create_sub_context(enemy, enemy.global_position, dmg, ["arcane_impulse", "lightning"], false)
+		apply_reaction_damage(enemy, dmg, "charged_bolt", sub_ctx)
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			enemy.apply_status(StatusEffects.STATUS_CHARGED, 3.0)
+
+# --- 14. Piercing Frost ---
+func trigger_piercing_frost(context: ReactionContext) -> void:
+	var target = context.target
+	var pos = context.hit_position
+	var container = get_effects_container()
+
+	record_reaction(target, "piercing_frost")
+
+	var defn = SynergyRegistry.get_definition("piercing_frost")
+	var dmg = defn.base_damage if defn else 15.0
+
+	CombatEffects.spawn_hit_flash(container, pos, Color(0.4, 0.9, 1.0), 16.0)
+	CombatEffects.spawn_impact_sparks(container, pos, Color(0.3, 0.85, 1.0), 5)
+	spawn_popup_rate_limited("piercing_frost", pos, "ЛЕДЯНОЕ ПРОНЗАНИЕ!", Color(0.35, 0.9, 1.0, 1.0))
+
+	if AudioManager.instance:
+		AudioManager.instance.play_synergy("frost_shatter")
+
+	var sub_ctx = context.create_sub_context(target, pos, dmg, ["ice", "piercing"], false)
+	apply_reaction_damage(target, dmg, "piercing_frost", sub_ctx)
+
+	reaction_triggered.emit("piercing_frost", pos)
+	reaction_activated.emit("piercing_frost", pos, 1)
+
+# --- 15. Life Harvest ---
+func trigger_life_harvest(pos: Vector2) -> void:
+	var container = get_effects_container()
+	var player_node = get_tree().get_first_node_in_group("player")
+	if not player_node or not is_instance_valid(player_node):
+		return
+
+	var p_pos = player_node.global_position
+	CombatEffects.spawn_shockwave(container, pos, 60.0, Color(0.2, 0.95, 0.45, 0.9), 0.25)
+	CombatEffects.spawn_ring(container, p_pos, 10.0, 35.0, Color(0.2, 0.9, 0.4, 0.8), 0.2, 2.0)
+	spawn_popup_rate_limited("life_harvest", p_pos, "+9 ЖАТВА ЖИЗНИ!", Color(0.25, 0.95, 0.45, 1.0))
+
+	if AudioManager.instance:
+		AudioManager.instance.play_synergy("soul_harvest")
+
+	player_node.heal(9.0)
+	reaction_triggered.emit("life_harvest", pos)
+	reaction_activated.emit("life_harvest", pos, 1)
+
 func on_enemy_death(target: EnemyController) -> void:
 	if not is_instance_valid(target):
 		return
@@ -462,6 +600,13 @@ func on_enemy_death(target: EnemyController) -> void:
 	if target.has_status(StatusEffects.STATUS_MARKED):
 		var burst_dmg = target.get_meta("death_mark_burst_dmg", 35.0)
 		trigger_soul_harvest(pos, burst_dmg)
+
+		# Life harvest check (player owns font_of_life)
+		var player_node = get_tree().get_first_node_in_group("player")
+		if player_node and is_instance_valid(player_node):
+			if player_node.has_meta("has_life_harvest") or (player_node.has_node("Abilities") and player_node.get_node("Abilities").has_ability("font_of_life")):
+				trigger_life_harvest(pos)
+
 		# Chain of Doom check (only if enabled on marked target)
 		if target.get_meta("chain_of_doom_enabled", false):
 			trigger_chain_of_doom(pos, target.get_meta("chain_of_doom_hops", 2))

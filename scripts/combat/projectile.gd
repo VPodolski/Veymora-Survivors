@@ -12,6 +12,14 @@ enum Faction { PLAYER, ENEMY }
 @export var tags: Array = ["arcane", "projectile"]
 @export var is_returning: bool = false
 @export var is_evolved: bool = false
+@export var is_area: bool = false
+@export var area_radius: float = 90.0
+@export var status_to_apply: String = ""
+@export var status_duration: float = 3.5
+@export var ability_source_id: String = ""
+
+const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
+const DamageContext = preload("res://scripts/combat/damage_context.gd")
 
 var direction: Vector2 = Vector2.RIGHT
 var elapsed_lifetime: float = 0.0
@@ -73,7 +81,17 @@ func _handle_player_projectile_hit(body: Node2D) -> void:
 	if body is EnemyController and not body.is_dead:
 		if not hit_enemies.has(body):
 			hit_enemies.append(body)
-			body.take_damage(damage)
+
+			var is_area_attack = is_area or tags.has("area")
+
+			if is_area_attack:
+				_trigger_area_impact(global_position, body)
+			else:
+				var ctx = DamageContext.new(self, body, damage, tags, ability_source_id, global_position)
+				DamageResolver.apply_damage(ctx)
+
+				if not status_to_apply.is_empty() and is_instance_valid(body) and not body.is_dead:
+					body.apply_status(status_to_apply, status_duration)
 
 			if has_turned_back:
 				var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
@@ -85,15 +103,27 @@ func _handle_player_projectile_hit(body: Node2D) -> void:
 				if engines.size() > 0:
 					var was_killed = (body.is_dead or body.current_health <= 0.0)
 					engines[0].reaction_damage_dealt.emit("frost_shatter", damage, was_killed, false)
-			else:
-				# Trigger synergy reaction
-				if engines.size() > 0:
-					var ctx = ReactionContext.new(self, body, tags, global_position, damage, 0)
-					engines[0].on_hit_landed(ctx)
 
 			hits_remaining -= 1
 			if hits_remaining <= 0 and not is_returning:
 				destroy()
+
+func _trigger_area_impact(hit_pos: Vector2, primary_target: EnemyController) -> void:
+	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+	CombatEffects.spawn_shockwave(container, hit_pos, area_radius, Color(1.0, 0.45, 0.1, 0.95), 0.28)
+	CombatEffects.spawn_ring(container, hit_pos, 8.0, area_radius, Color(1.0, 0.7, 0.2, 0.8), 0.22, 2.5)
+	CombatEffects.spawn_impact_sparks(container, hit_pos, Color(1.0, 0.5, 0.1), 6)
+
+	if AudioManager.instance:
+		AudioManager.instance.play_spell("fireball")
+
+	var enemies = TargetSelector.find_enemies_in_radius(get_tree(), hit_pos, area_radius)
+	for enemy in enemies:
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			var sub_ctx = DamageContext.new(self, enemy, damage, tags, ability_source_id, hit_pos, enemy != primary_target)
+			DamageResolver.apply_damage(sub_ctx)
+			if not status_to_apply.is_empty() and is_instance_valid(enemy) and not enemy.is_dead:
+				enemy.apply_status(status_to_apply, status_duration)
 
 func _handle_enemy_projectile_hit(body: Node2D) -> void:
 	if has_hit_player:
@@ -109,11 +139,17 @@ func _handle_enemy_projectile_hit(body: Node2D) -> void:
 			CombatEffects.spawn_impact_sparks(container, global_position)
 		destroy()
 
+var is_destroyed: bool = false
+
 func destroy() -> void:
+	is_destroyed = true
 	set_deferred("monitoring", false)
 	var tween = create_tween()
-	tween.tween_property(self, "scale", Vector2.ZERO, 0.08)
-	tween.tween_callback(queue_free)
+	if tween:
+		tween.tween_property(self, "scale", Vector2.ZERO, 0.08)
+		tween.tween_callback(queue_free)
+	else:
+		queue_free()
 
 func _draw() -> void:
 	if faction == Faction.ENEMY:

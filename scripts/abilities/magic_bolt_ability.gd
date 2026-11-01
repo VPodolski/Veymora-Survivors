@@ -3,18 +3,21 @@ extends AbilityBase
 
 @export var projectile_scene: PackedScene = preload("res://scenes/combat/projectile.tscn")
 @export var projectile_count: int = 1
+@export var pierce_count: int = 1
 @export var spread_angle: float = 0.25 # Radians
 @export var is_evolved: bool = false
 
 func _init() -> void:
 	ability_id = "magic_bolt"
 	ability_name = "Магическая стрела"
-	description = "Выпускает сгустки чародейской энергии в ближайших врагов."
+	description = "Выпускает сгустки чародейской энергии в ближайших врагов с врождённым пробиванием."
 	category = "ranged"
 	current_level = 1
 	max_level = 5
-	base_cooldown = 1.2
-	base_damage = 18.0
+	base_cooldown = 1.1
+	base_damage = 22.0
+	projectile_count = 1
+	pierce_count = 1
 
 func _physics_process(delta: float) -> void:
 	if cooldown_timer > 0.0:
@@ -59,6 +62,11 @@ func fire_projectiles(base_dir: Vector2) -> void:
 		proj.global_position = player_owner.global_position
 		proj.direction = Vector2(cos(angle), sin(angle))
 		proj.damage = get_effective_damage()
+		proj.ability_source_id = "magic_bolt"
+		proj.pierce_count = pierce_count
+		proj.tags = ["arcane", "projectile"]
+		if pierce_count > 1:
+			proj.tags.append("piercing")
 
 		# Hourglass / Evolution returning & pierce logic
 		if is_evolved:
@@ -71,7 +79,7 @@ func fire_projectiles(base_dir: Vector2) -> void:
 					proj.tags.append(t)
 		elif has_hourglass:
 			proj.is_returning = true
-			proj.pierce_count = 3
+			proj.pierce_count = max(proj.pierce_count, 3)
 			if not proj.tags.has("returning"):
 				proj.tags.append("returning")
 			if not proj.tags.has("piercing"):
@@ -87,18 +95,25 @@ func fire_projectiles(base_dir: Vector2) -> void:
 func apply_level_modifiers() -> void:
 	match current_level:
 		2:
-			base_damage = 26.0
-			base_cooldown = 1.05
+			base_cooldown = 0.95
+			base_damage = 28.0
+			projectile_count = 1
+			pierce_count = 1
 		3:
+			base_cooldown = 0.95
 			projectile_count = 2
-			base_damage = 26.0
+			base_damage = 32.0
+			pierce_count = 2
 		4:
-			base_damage = 34.0
-			base_cooldown = 0.9
-		5:
-			projectile_count = 3
-			base_damage = 42.0
 			base_cooldown = 0.8
+			projectile_count = 2
+			base_damage = 38.0
+			pierce_count = 2
+		5:
+			base_cooldown = 0.8
+			projectile_count = 3
+			base_damage = 46.0
+			pierce_count = 3
 
 func evolve() -> void:
 	is_evolved = true
@@ -113,8 +128,8 @@ func get_next_upgrade_description() -> String:
 	if is_evolved:
 		return "Способность эволюционировала до пиковой формы"
 	match current_level + 1:
-		2: return "+Урон (26) и быстрее перезарядка (1.05с)"
-		3: return "+1 Снаряд (2 стрелы веером)"
-		4: return "+Урон (34) и быстрее перезарядка (0.9с)"
-		5: return "+1 Снаряд (3 стрелы веером), урон 42"
+		2: return "+Урон (28) и перезарядка 0.95с"
+		3: return "+1 Снаряд (2 стрелы веером), урон 32, пробивание 2 цели"
+		4: return "+Урон (38) и перезарядка 0.8с"
+		5: return "+1 Снаряд (3 стрелы веером), урон 46, пробивание 3 цели"
 		_: return "Максимальный уровень (готова к эволюции)"

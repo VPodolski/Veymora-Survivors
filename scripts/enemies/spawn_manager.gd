@@ -219,11 +219,26 @@ func trigger_swarm_event(swarm_size: int) -> void:
 	if players.is_empty():
 		return
 
+	# Smooth out swarm waves: split large swarms (>= 18) into two staggered waves spaced 3 seconds apart
+	if swarm_size >= 18:
+		var half_1 = int(swarm_size * 0.5)
+		var half_2 = swarm_size - half_1
+		_spawn_swarm_batch(half_1)
+		var t = get_tree().create_timer(3.0)
+		t.timeout.connect(func(): _spawn_swarm_batch(half_2))
+	else:
+		_spawn_swarm_batch(swarm_size)
+
+func _spawn_swarm_batch(count: int) -> void:
+	var players = get_tree().get_nodes_in_group("player")
+	if players.is_empty():
+		return
+
 	var player = players[0] as Node2D
-	for i in range(swarm_size):
+	for i in range(count):
 		if active_enemies.size() >= max_enemies:
 			break
-		var angle = (float(i) / float(swarm_size)) * TAU + randf_range(-0.1, 0.1)
+		var angle = (float(i) / float(count)) * TAU + randf_range(-0.1, 0.1)
 		var dist = randf_range(580.0, 680.0)
 		var spawn_pos = player.global_position + Vector2(cos(angle), sin(angle)) * dist
 		spawn_enemy_at(clamp_to_arena(spawn_pos))

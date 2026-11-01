@@ -81,3 +81,4 @@
 | **Media** | `media/store/*` | **CREATE** | Store promotional materials (Icon 1024x1024, Cover 1920x1080, 4 Screenshots 1280x720). |
 | **Tests** | `tests/test_v05_pikabu.gd` | **CREATE** | Comprehensive test suite covering all 15 required scenarios. |
 | **Packaging** | `build/gamepush_zip/*` | **CREATE** | Standalone ZIP archive with `index.html` at root for GamePush / Pikabu upload. |
+

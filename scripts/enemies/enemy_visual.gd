@@ -50,6 +50,12 @@ func _draw() -> void:
 		draw_circle(Vector2.ZERO, 17.0, Color(0.5, 0.6, 1.0, 0.3))
 	if active_statuses.has(StatusEffects.STATUS_UNSTABLE):
 		draw_circle(Vector2.ZERO, 18.0, Color(0.8, 0.2, 1.0, 0.3))
+	if active_statuses.has(StatusEffects.STATUS_BURNING):
+		draw_circle(Vector2.ZERO, 17.0, Color(1.0, 0.45, 0.1, 0.35))
+	if active_statuses.has(StatusEffects.STATUS_MARKED):
+		draw_circle(Vector2.ZERO, 19.0, Color(0.95, 0.15, 0.3, 0.4))
+		# Visible crimson brand / skull sigil behind entity
+		draw_arc(Vector2.ZERO, 18.0, 0, TAU, 16, Color(1.0, 0.2, 0.35, 0.8), 2.0)
 
 	# 2. Jagged fiend silhouette
 	var body_color = Color(0.18, 0.06, 0.1, 1.0)

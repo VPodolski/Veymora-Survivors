@@ -107,6 +107,9 @@ func _play_stream(stream: AudioStreamWAV, base_volume_db: float = -6.0, randomiz
 func play_cast() -> void:
 	_play_stream(sfx_cast, -8.0, true)
 
+func play_spell(_spell_name: String = "") -> void:
+	play_cast()
+
 func play_hit() -> void:
 	if hit_cooldown_timer > 0.0:
 		return

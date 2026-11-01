@@ -128,41 +128,26 @@ func check_player_contact() -> void:
 				attack_cooldown_timer = stats.attack_cooldown
 				break
 
+const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
+const DamageContext = preload("res://scripts/combat/damage_context.gd")
+
+func take_damage_context(ctx: DamageContext) -> Dictionary:
+	return DamageResolver.apply_damage(ctx)
+
 func take_damage(amount: float) -> void:
 	if is_dead:
 		return
-
-	# Death mark damage amplification
-	if has_status(StatusEffects.STATUS_MARKED):
-		var amp = get_meta("death_mark_amp", 0.40)
-		amount *= (1.0 + amp)
-
-	current_health = max(0.0, current_health - amount)
-	damage_taken.emit(amount)
-
-	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
-
-	# Visual effects
-	if visual_node:
-		if visual_node.has_method("trigger_hit_flash"):
-			visual_node.trigger_hit_flash()
-		if visual_node.has_method("update_health_display"):
-			visual_node.update_health_display(current_health, stats.max_health)
-
-	var num_col = Color(1.0, 0.3, 0.4, 1.0) if has_status(StatusEffects.STATUS_MARKED) else Color(1.0, 0.92, 0.5, 1.0)
-	CombatEffects.spawn_damage_number(container, global_position, amount, num_col)
-	CombatEffects.spawn_impact_sparks(container, global_position)
-
-	if current_health <= 0.0:
-		die()
+	var ctx = DamageContext.new(null, self, amount, [], "generic", global_position, false, 0, "", false)
+	DamageResolver.apply_damage(ctx)
 
 func die() -> void:
 	if is_dead:
 		return
 	is_dead = true
 	velocity = Vector2.ZERO
-	$CollisionShape2D.set_deferred("disabled", true)
-	if hit_area and hit_area.has_node("CollisionShape2D"):
+	if has_node("CollisionShape2D"):
+		$CollisionShape2D.set_deferred("disabled", true)
+	if hit_area and is_instance_valid(hit_area) and hit_area.has_node("CollisionShape2D"):
 		hit_area.get_node("CollisionShape2D").set_deferred("disabled", true)
 
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root

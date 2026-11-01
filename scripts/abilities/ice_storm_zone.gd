@@ -1,17 +1,20 @@
 class_name IceStormZone
 extends Area2D
 
-@export var radius: float = 120.0
-@export var damage_per_tick: float = 8.0
-@export var duration: float = 3.5
+@export var radius: float = 110.0
+@export var damage_per_tick: float = 5.0
+@export var duration: float = 3.0
 @export var tick_interval: float = 0.5
+@export var slow_ratio: float = 0.40
 
 var elapsed_time: float = 0.0
 var tick_timer: float = 0.0
 var swirl_angle: float = 0.0
 var flake_offsets: Array[Vector2] = []
+var is_fading: bool = false
 
 func _ready() -> void:
+	add_to_group("ice_storm_zones")
 	collision_layer = 8
 	collision_mask = 4
 
@@ -27,6 +30,9 @@ func _ready() -> void:
 		flake_offsets.append(Vector2(cos(ang), sin(ang)) * dist)
 
 func _process(delta: float) -> void:
+	if is_fading:
+		return
+
 	elapsed_time += delta
 	swirl_angle += 2.8 * delta
 	tick_timer += delta
@@ -36,11 +42,17 @@ func _process(delta: float) -> void:
 		apply_storm_tick()
 
 	if elapsed_time >= duration:
-		var tween = create_tween()
-		tween.tween_property(self, "modulate:a", 0.0, 0.2)
-		tween.tween_callback(queue_free)
+		fade_out()
 
 	queue_redraw()
+
+func fade_out() -> void:
+	if is_fading:
+		return
+	is_fading = true
+	var tween = create_tween()
+	tween.tween_property(self, "modulate:a", 0.0, 0.25)
+	tween.tween_callback(queue_free)
 
 func apply_storm_tick() -> void:
 	var overlapping = get_overlapping_bodies()
@@ -77,4 +89,3 @@ func _draw() -> void:
 		var base_pos = flake_offsets[i]
 		var rotated = base_pos.rotated(swirl_angle)
 		draw_circle(rotated, 2.2, Color(0.85, 0.95, 1.0, 0.85))
-

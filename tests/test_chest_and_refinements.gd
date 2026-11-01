@@ -75,7 +75,7 @@ func test_chest_excludes_owned_artifacts(player: PlayerController, panel: ChestR
 
 	assert(player.inventory.artifacts.size() == 3, "Must have 3 pre-equipped artifacts")
 	var unowned = player.inventory.get_unowned_artifacts()
-	assert(unowned.size() == 5, "Must have 5 unowned remaining")
+	assert(unowned.size() == InventoryState.ALL_ARTIFACTS.size() - 3, "Must have unowned remaining")
 
 	panel.open_panel(player)
 	assert(panel.current_options.size() == 3, "Must offer 3 options")
