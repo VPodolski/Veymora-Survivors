@@ -45,6 +45,12 @@ func _ready() -> void:
 	if controls_panel:
 		controls_panel.visible = false
 
+	if OS.has_feature("web"):
+		var search = JavaScriptBridge.eval("window.location.search")
+		if search and ("benchmark=1" in str(search) or "benchmark=true" in str(search)):
+			call_deferred("_start_benchmark_scene")
+			return
+
 	if LocalizationManager.instance:
 		LocalizationManager.instance.language_changed.connect(func(_l): _update_localized_texts())
 
@@ -168,3 +174,6 @@ func _on_settings_pressed() -> void:
 func _on_controls_pressed() -> void:
 	if controls_panel:
 		controls_panel.visible = true
+
+func _start_benchmark_scene() -> void:
+	get_tree().change_scene_to_file("res://scenes/main/main.tscn")

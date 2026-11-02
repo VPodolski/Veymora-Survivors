@@ -20,6 +20,7 @@ func _ready() -> void:
 	add_to_group("pickups")
 	body_entered.connect(_on_body_entered)
 	pulse_time = randf() * TAU
+	queue_redraw()
 
 func get_tier() -> int:
 	if xp_value >= 200:
@@ -67,37 +68,35 @@ static func condense_gems(tree: SceneTree, _max_threshold: int = 0) -> void:
 	if gems.size() < 2:
 		return
 
-	# Fast spatial bucketing with 120px grid
+	# Fast spatial bucketing with 120px grid using native Vector2i keys
 	const CELL_SIZE = 120.0
 	const MERGE_RADIUS_SQ = 14400.0 # 120px squared
 	var grid: Dictionary = {}
 
 	for g in gems:
-		var cx = int(floor(g.global_position.x / CELL_SIZE))
-		var cy = int(floor(g.global_position.y / CELL_SIZE))
-		var key = "%d_%d" % [cx, cy]
-		if not grid.has(key):
-			grid[key] = []
-		grid[key].append(g)
+		var cell = Vector2i(int(floor(g.global_position.x / CELL_SIZE)), int(floor(g.global_position.y / CELL_SIZE)))
+		if not grid.has(cell):
+			grid[cell] = []
+		grid[cell].append(g)
 
 	var processed: Dictionary = {}
 
-	for key in grid.keys():
-		var cell_gems = grid[key]
+	for cell in grid.keys():
+		var cell_gems = grid[cell]
 		for gem_a in cell_gems:
 			if processed.has(gem_a.get_instance_id()) or gem_a.is_collected or gem_a.is_merging:
 				continue
 
 			var cluster: Array[XPGem] = [gem_a]
-			var cx = int(floor(gem_a.global_position.x / CELL_SIZE))
-			var cy = int(floor(gem_a.global_position.y / CELL_SIZE))
+			var cx = cell.x
+			var cy = cell.y
 
-			# Check neighboring 3x3 cells
+			# Check neighboring 3x3 cells via Vector2i
 			for nx in range(cx - 1, cx + 2):
 				for ny in range(cy - 1, cy + 2):
-					var nkey = "%d_%d" % [nx, ny]
-					if grid.has(nkey):
-						for gem_b in grid[nkey]:
+					var n_cell = Vector2i(nx, ny)
+					if grid.has(n_cell):
+						for gem_b in grid[n_cell]:
 							if gem_b == gem_a or processed.has(gem_b.get_instance_id()):
 								continue
 							if not is_instance_valid(gem_b) or gem_b.is_collected or gem_b.is_merging:
@@ -180,10 +179,12 @@ func _process(delta: float) -> void:
 
 	pulse_time += delta * 4.0
 	rotation += 1.2 * delta
-	queue_redraw()
+	var pulse = 1.0 + sin(pulse_time) * 0.12
+	scale = Vector2(pulse, pulse)
 
 	if is_merging:
-		# During merge animation, gem cannot fly to player or be collected
+		# During merge animation, gem cannot fly to player or be collected; redraw merge line
+		queue_redraw()
 		return
 
 	if not is_instance_valid(target_player):
@@ -202,10 +203,16 @@ func _process(delta: float) -> void:
 		if dist <= pickup_distance:
 			collect()
 
+static var _cached_player_ref: Node2D = null
+
 func find_player() -> void:
+	if is_instance_valid(_cached_player_ref):
+		target_player = _cached_player_ref
+		return
 	var players = get_tree().get_nodes_in_group("player") if get_tree() else []
 	if players.size() > 0:
-		target_player = players[0] as Node2D
+		_cached_player_ref = players[0] as Node2D
+		target_player = _cached_player_ref
 
 func _on_body_entered(body: Node2D) -> void:
 	if not is_collected and not is_merging and body.is_in_group("player"):
@@ -238,8 +245,7 @@ func _draw() -> void:
 	var tier = get_tier()
 	# Compact base radius: 3.8px (reduced by 37% from 6.0px)
 	var tier_scale = clamp(1.0 + float(tier - 1) * 0.08, 1.0, 1.25)
-	var pulse = 1.0 + sin(pulse_time) * 0.12
-	var r = 3.8 * tier_scale * pulse
+	var r = 3.8 * tier_scale
 
 	var halo_col = get_tier_halo_color()
 	var body_col = get_tier_color()

@@ -8,20 +8,36 @@ var hp_ratio: float = 1.0
 var is_casting: bool = false
 var cast_glow: float = 0.0
 
+static var _robe_pts: PackedVector2Array = PackedVector2Array([
+	Vector2(-9, 10),
+	Vector2(-7, -4),
+	Vector2(7, -4),
+	Vector2(9, 10)
+])
+
+func _ready() -> void:
+	queue_redraw()
+
 func _process(delta: float) -> void:
+	var needs_redraw = false
 	if is_casting:
 		cast_glow += delta * 15.0
+		needs_redraw = true
 	if is_flashing:
 		flash_timer -= delta
 		if flash_timer <= 0.0:
 			is_flashing = false
 			modulate = Color.WHITE
-	queue_redraw()
+			needs_redraw = true
+
+	if needs_redraw:
+		queue_redraw()
 
 func set_casting(c: bool) -> void:
 	is_casting = c
 	if not is_casting:
 		cast_glow = 0.0
+	queue_redraw()
 
 func trigger_hit_flash(duration: float = 0.12) -> void:
 	is_flashing = true
@@ -30,26 +46,25 @@ func trigger_hit_flash(duration: float = 0.12) -> void:
 
 func update_facing(dir: Vector2) -> void:
 	if dir.length_squared() > 0.01:
-		facing_direction = dir.normalized()
+		var norm = dir.normalized()
+		if norm.dot(facing_direction) < 0.98:
+			facing_direction = norm
+			queue_redraw()
 
 func set_statuses(statuses: Array) -> void:
 	active_statuses = statuses
+	queue_redraw()
 
 func update_health_display(current_hp: float, max_hp: float) -> void:
 	hp_ratio = clamp(current_hp / max(1.0, max_hp), 0.0, 1.0)
+	queue_redraw()
 
 func _draw() -> void:
 	# Hooded cultist
 	draw_circle(Vector2.ZERO, 13.0, Color(0.2, 0.06, 0.25, 0.35))
 
 	# Dark violet robe
-	var robe_pts = PackedVector2Array([
-		Vector2(-9, 10),
-		Vector2(-7, -4),
-		Vector2(7, -4),
-		Vector2(9, 10)
-	])
-	draw_colored_polygon(robe_pts, Color(0.14, 0.08, 0.2, 1.0))
+	draw_colored_polygon(_robe_pts, Color(0.14, 0.08, 0.2, 1.0))
 
 	# Hood
 	draw_circle(Vector2(0, -5), 7.5, Color(0.18, 0.1, 0.28, 1.0))

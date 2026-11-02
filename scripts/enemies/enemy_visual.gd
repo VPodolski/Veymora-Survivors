@@ -8,19 +8,26 @@ var hp_ratio: float = 1.0
 var show_hp_bar: bool = false
 var hp_bar_timer: float = 0.0
 
+func _ready() -> void:
+	queue_redraw()
+
 func _process(delta: float) -> void:
+	var needs_redraw = false
 	if is_flashing:
 		flash_timer -= delta
 		if flash_timer <= 0.0:
 			is_flashing = false
 			modulate = Color.WHITE
+			needs_redraw = true
 
 	if show_hp_bar:
 		hp_bar_timer -= delta
 		if hp_bar_timer <= 0.0 and hp_ratio >= 1.0:
 			show_hp_bar = false
+			needs_redraw = true
 
-	queue_redraw()
+	if needs_redraw:
+		queue_redraw()
 
 func trigger_hit_flash(duration: float = 0.12) -> void:
 	is_flashing = true
@@ -29,15 +36,20 @@ func trigger_hit_flash(duration: float = 0.12) -> void:
 
 func update_facing(dir: Vector2) -> void:
 	if dir.length_squared() > 0.01:
-		facing_direction = dir.normalized()
+		var norm = dir.normalized()
+		if norm.dot(facing_direction) < 0.98:
+			facing_direction = norm
+			queue_redraw()
 
 func set_statuses(statuses: Array) -> void:
 	active_statuses = statuses
+	queue_redraw()
 
 func update_health_display(current_hp: float, max_hp: float) -> void:
 	hp_ratio = clamp(current_hp / max(1.0, max_hp), 0.0, 1.0)
 	show_hp_bar = true
 	hp_bar_timer = 2.5
+	queue_redraw()
 
 func _draw() -> void:
 	# 1. Shadow / Void aura

@@ -47,16 +47,15 @@ func get_effective_recharge_cooldown() -> float:
 	return max(4.0, cd)
 
 func _physics_process(delta: float) -> void:
-	pulse_angle += 2.0 * delta
-	if pulse_angle > TAU:
-		pulse_angle -= TAU
-
-	if not is_active:
+	if is_active:
+		pulse_angle += 2.0 * delta
+		if pulse_angle > TAU:
+			pulse_angle -= TAU
+		queue_redraw()
+	else:
 		recharge_timer -= delta
 		if recharge_timer <= 0.0:
 			restore_barrier()
-
-	queue_redraw()
 
 func absorb_damage(incoming: float) -> float:
 	if not is_active or current_shield <= 0.0:
@@ -83,6 +82,7 @@ func absorb_damage(incoming: float) -> float:
 func _break_barrier() -> void:
 	current_shield = 0.0
 	is_active = false
+	queue_redraw()
 	recharge_timer = get_effective_recharge_cooldown()
 
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root

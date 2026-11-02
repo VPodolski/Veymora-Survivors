@@ -27,6 +27,7 @@ const SpawnConfigResource = preload("res://scripts/resources/spawn_config.gd")
 var spawn_timer: float = 0.0
 var swarm_timer: float = 0.0
 var elite_timer: float = 0.0
+var cleanup_timer: float = 0.0
 var elapsed_time: float = 0.0
 var has_spawned_boss: bool = false
 var is_boss_alive: bool = false
@@ -124,13 +125,17 @@ func _process(delta: float) -> void:
 	elapsed_time += delta
 	swarm_timer += delta
 	elite_timer += delta
+	cleanup_timer += delta
 
-	active_enemies = active_enemies.filter(func(e): return is_instance_valid(e) and not e.is_dead)
+	# Periodic cleanup of destroyed enemies (1.5s interval to avoid per-frame allocations)
+	if cleanup_timer >= 1.5:
+		cleanup_timer = 0.0
+		active_enemies = active_enemies.filter(func(e): return is_instance_valid(e) and not e.is_dead)
+		if is_boss_alive and get_tree():
+			var bosses = get_tree().get_nodes_in_group("boss")
+			is_boss_alive = not bosses.is_empty()
 
 	# 1. Boss Spawn & Schedule Check
-	var bosses = get_tree().get_nodes_in_group("boss")
-	is_boss_alive = (bosses.size() > 0)
-
 	if not has_spawned_boss and elapsed_time >= boss_spawn_time:
 		has_spawned_boss = true
 		spawn_boss()

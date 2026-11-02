@@ -28,11 +28,21 @@ var hit_enemies: Array[EnemyController] = []
 var has_hit_player: bool = false
 var has_turned_back: bool = false
 var player_ref: Node2D = null
+static var _cached_player: Node2D = null
+
+# Cached point arrays to eliminate heap allocations per draw call
+static var _pts_regular: PackedVector2Array = PackedVector2Array([Vector2(6, 0), Vector2(-2, -3), Vector2(-10, 0), Vector2(-2, 3)])
+static var _pts_evolved: PackedVector2Array = PackedVector2Array([Vector2(10, 0), Vector2(-12, -5), Vector2(-6, 0), Vector2(-12, 5)])
+static var _pts_enemy: PackedVector2Array = PackedVector2Array([
+	Vector2(14, 0), Vector2(1, -4.5), Vector2(-2, -2.0), Vector2(-12, -4.0),
+	Vector2(-7, 0), Vector2(-12, 4.0), Vector2(-2, 2.0), Vector2(1, 4.5)
+])
 
 func _ready() -> void:
 	hits_remaining = pierce_count
 	body_entered.connect(_on_body_entered)
 	rotation = direction.angle()
+	queue_redraw()
 
 	# Configure collision layer and mask according to faction
 	collision_layer = 8 # Layer 4 (Projectiles)
@@ -43,9 +53,13 @@ func _ready() -> void:
 		collision_mask = 1 # Layer 1 (Player)
 
 func find_player() -> void:
-	var players = get_tree().get_nodes_in_group("player")
+	if is_instance_valid(_cached_player):
+		player_ref = _cached_player
+		return
+	var players = get_tree().get_nodes_in_group("player") if get_tree() else []
 	if players.size() > 0:
-		player_ref = players[0] as Node2D
+		_cached_player = players[0] as Node2D
+		player_ref = _cached_player
 
 func _physics_process(delta: float) -> void:
 	elapsed_lifetime += delta
@@ -58,6 +72,7 @@ func _physics_process(delta: float) -> void:
 			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 			CombatEffects.spawn_hit_flash(container, global_position, Color(1.0, 0.85, 0.3), 14.0)
 			CombatEffects.spawn_ring(container, global_position, 4.0, 24.0, Color(1.0, 0.85, 0.3, 0.85), 0.18, 1.8)
+			queue_redraw()
 
 		if is_instance_valid(player_ref):
 			var to_player = (player_ref.global_position - global_position).normalized()
@@ -69,7 +84,6 @@ func _physics_process(delta: float) -> void:
 		return
 
 	global_position += direction * speed * delta
-	queue_redraw()
 
 func _on_body_entered(body: Node2D) -> void:
 	if faction == Faction.PLAYER:
@@ -160,23 +174,13 @@ func _draw() -> void:
 	if is_evolved:
 		draw_circle(Vector2.ZERO, 13.0, Color(0.9, 0.3, 1.0, 0.35))
 		draw_circle(Vector2.ZERO, 9.0, Color(0.3, 0.9, 1.0, 0.5))
-		# Star prism shape
-		var p1 = Vector2(10, 0)
-		var p2 = Vector2(-12, -5)
-		var p3 = Vector2(-6, 0)
-		var p4 = Vector2(-12, 5)
-		draw_colored_polygon(PackedVector2Array([p1, p2, p3, p4]), Color(1.0, 0.85, 0.3, 1.0))
+		draw_colored_polygon(_pts_evolved, Color(1.0, 0.85, 0.3, 1.0))
 		draw_line(Vector2(-10, 0), Vector2(10, 0), Color.WHITE, 3.0)
 	else:
 		# Glow halo
 		draw_circle(Vector2.ZERO, 8.0, Color(projectile_color.r, projectile_color.g, projectile_color.b, 0.35))
 		# Inner elongated bolt
-		var front = Vector2(6, 0)
-		var back = Vector2(-10, 0)
-		var top = Vector2(-2, -3)
-		var bot = Vector2(-2, 3)
-		var pts = PackedVector2Array([front, top, back, bot])
-		draw_colored_polygon(pts, projectile_color)
+		draw_colored_polygon(_pts_regular, projectile_color)
 		# Center bright core
 		draw_line(Vector2(-4, 0), Vector2(4, 0), Color.WHITE, 2.0)
 
@@ -188,17 +192,7 @@ func _draw() -> void:
 
 func _draw_enemy_projectile() -> void:
 	# Barbed crimson needle/dagger silhouette (distinct from diamonds and round gems)
-	var needle_pts = PackedVector2Array([
-		Vector2(14, 0),       # Needle sharp tip
-		Vector2(1, -4.5),     # Upper barb
-		Vector2(-2, -2.0),    # Narrow waist
-		Vector2(-12, -4.0),   # Upper directional fin
-		Vector2(-7, 0),       # Tail notch
-		Vector2(-12, 4.0),    # Lower directional fin
-		Vector2(-2, 2.0),     # Narrow waist
-		Vector2(1, 4.5)       # Lower barb
-	])
-	draw_colored_polygon(needle_pts, Color(0.92, 0.12, 0.32, 1.0))
+	draw_colored_polygon(_pts_enemy, Color(0.92, 0.12, 0.32, 1.0))
 
 	# Bright razor-sharp spine
 	draw_line(Vector2(-6, 0), Vector2(13, 0), Color(1.0, 0.8, 0.9, 0.95), 1.8)

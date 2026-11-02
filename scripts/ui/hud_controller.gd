@@ -63,6 +63,7 @@ signal restart_requested
 @onready var toast_label: Label = $ToastLabel
 
 var elapsed_time: float = 0.0
+var _last_displayed_second: int = -1
 var is_game_active: bool = true
 var total_kills: int = 0
 var current_level: int = 1
@@ -537,9 +538,13 @@ func _on_boss_defeated() -> void:
 	get_tree().create_timer(1.2).timeout.connect(show_victory_screen)
 
 func update_timer_display() -> void:
+	var sec = int(elapsed_time)
+	if sec == _last_displayed_second:
+		return
+	_last_displayed_second = sec
 	if timer_label:
-		var minutes = int(elapsed_time) / 60
-		var seconds = int(elapsed_time) % 60
+		var minutes = sec / 60
+		var seconds = sec % 60
 		timer_label.text = "%02d:%02d" % [minutes, seconds]
 
 func show_victory_screen() -> void:

@@ -25,6 +25,7 @@ func apply_knockback(impulse: Vector2) -> void:
 
 func _ready() -> void:
 	add_to_group("enemies")
+	TargetSelector.register_enemy(self)
 	if stats == null:
 		stats = EnemyStats.new()
 	else:
@@ -32,10 +33,16 @@ func _ready() -> void:
 	current_health = stats.max_health
 	find_target()
 
+static var _cached_player: PlayerController = null
+
 func find_target() -> void:
-	var players = get_tree().get_nodes_in_group("player")
+	if is_instance_valid(_cached_player) and _cached_player.is_alive:
+		target_player = _cached_player
+		return
+	var players = get_tree().get_nodes_in_group("player") if get_tree() else []
 	if players.size() > 0:
-		target_player = players[0] as PlayerController
+		_cached_player = players[0] as PlayerController
+		target_player = _cached_player
 
 func _physics_process(delta: float) -> void:
 	if is_dead:
@@ -69,6 +76,9 @@ func _physics_process(delta: float) -> void:
 	check_player_contact()
 
 func update_statuses(delta: float) -> void:
+	if active_statuses.is_empty():
+		return
+
 	var expired: Array = []
 	for s_name in active_statuses.keys():
 		active_statuses[s_name] -= delta
@@ -89,7 +99,7 @@ func update_statuses(delta: float) -> void:
 			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 			CombatEffects.spawn_impact_sparks(container, global_position, Color(1.0, 0.5, 0.1, 0.9), 2)
 
-	if visual_node and visual_node.has_method("set_statuses"):
+	if expired.size() > 0 and visual_node and visual_node.has_method("set_statuses"):
 		visual_node.set_statuses(active_statuses.keys())
 
 func apply_status(status_name: String, duration: float) -> void:
@@ -105,6 +115,8 @@ func has_status(status_name: String) -> bool:
 
 func remove_status(status_name: String) -> void:
 	active_statuses.erase(status_name)
+	if visual_node and visual_node.has_method("set_statuses"):
+		visual_node.set_statuses(active_statuses.keys())
 
 func get_effective_speed() -> float:
 	var spd = stats.move_speed
@@ -116,7 +128,22 @@ func check_player_contact() -> void:
 	if attack_cooldown_timer > 0.0:
 		return
 
-	if hit_area:
+	# Fast distance check against player, eliminating expensive get_overlapping_bodies physics queries
+	if is_instance_valid(target_player) and target_player.is_alive:
+		var contact_r = 30.0
+		if stats and "contact_radius" in stats:
+			contact_r = stats.contact_radius
+		elif self is BossController:
+			contact_r = 64.0
+		elif self is EliteEnemyController:
+			contact_r = 38.0
+
+		if global_position.distance_squared_to(target_player.global_position) <= (contact_r * contact_r):
+			target_player.take_damage(stats.contact_damage)
+			attack_cooldown_timer = stats.attack_cooldown
+			return
+
+	if hit_area and not is_instance_valid(target_player):
 		var overlapping_bodies = hit_area.get_overlapping_bodies()
 		for body in overlapping_bodies:
 			if body is PlayerController and body.is_alive:
@@ -136,10 +163,14 @@ func take_damage(amount: float) -> void:
 	var ctx = DamageContext.new(null, self, amount, [], "generic", global_position, false, 0, "", false)
 	DamageResolver.apply_damage(ctx)
 
+func _exit_tree() -> void:
+	TargetSelector.unregister_enemy(self)
+
 func die() -> void:
 	if is_dead:
 		return
 	is_dead = true
+	TargetSelector.unregister_enemy(self)
 	velocity = Vector2.ZERO
 	if has_node("CollisionShape2D"):
 		$CollisionShape2D.set_deferred("disabled", true)
