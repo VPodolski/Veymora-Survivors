@@ -161,6 +161,9 @@ static func sanitize_data(raw: Dictionary) -> Dictionary:
 
 	return clean
 
+static func save_data(data: Dictionary) -> bool:
+	return save_custom_data(data, false)
+
 static func save_custom_data(data: Dictionary, sync_to_cloud: bool = true) -> bool:
 	var sanitized = sanitize_data(data)
 	var tmp_file = FileAccess.open(TMP_SAVE_PATH, FileAccess.WRITE)

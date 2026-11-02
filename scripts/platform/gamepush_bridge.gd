@@ -20,7 +20,9 @@ var _pending_interstitial_callback: Callable = Callable()
 var _ad_safety_timer: SceneTreeTimer = null
 
 var _is_reward_granted: bool = false
+var _reward_callback_consumed: bool = false
 var _is_showing_ad: bool = false
+@export var allow_debug_ad_fallback: bool = false
 
 var gp_node_override: Node = null
 
@@ -152,6 +154,8 @@ func _check_and_send_loading_ready() -> void:
 	notify_game_ready()
 
 func notify_game_ready() -> void:
+	if has_notified_ready:
+		return
 	super.notify_game_ready()
 	var gp = _get_gp_node()
 	if is_sdk_available and gp and gp.get("game"):
@@ -244,17 +248,32 @@ func _on_fullscreen_closed(was_shown: bool) -> void:
 func show_rewarded(reward_callback: Callable, close_callback: Callable = Callable()) -> void:
 	var gp = _get_gp_node()
 	if not is_sdk_available or not gp or not gp.get("ads"):
-		# Local fallback
-		print("[GamePushBridge] Rewarded video in local fallback.")
-		rewarded_completed.emit(true)
-		if reward_callback.is_valid():
-			reward_callback.call()
+		# Production safety: in production or when debug fallback is disabled, NEVER grant reward without SDK!
+		var can_debug_fallback = OS.is_debug_build() and allow_debug_ad_fallback
+		if can_debug_fallback:
+			print("[GamePushBridge] Rewarded video in explicit debug fallback.")
+			rewarded_completed.emit(true)
+			if reward_callback.is_valid():
+				reward_callback.call()
+			if close_callback.is_valid():
+				close_callback.call(true)
+		else:
+			print("[GamePushBridge] Rewarded video unavailable or SDK missing. Reward denied.")
+			rewarded_completed.emit(false)
+			if close_callback.is_valid():
+				close_callback.call(false)
+		return
+
+	if _is_showing_ad:
+		print("[GamePushBridge] Rewarded ad already active, request rejected.")
+		rewarded_completed.emit(false)
 		if close_callback.is_valid():
-			close_callback.call(true)
+			close_callback.call(false)
 		return
 
 	_is_showing_ad = true
 	_is_reward_granted = false
+	_reward_callback_consumed = false
 	_pending_reward_callback = reward_callback
 	_pending_reward_close_callback = close_callback
 
@@ -269,11 +288,12 @@ func show_rewarded(reward_callback: Callable, close_callback: Callable = Callabl
 	if not gp.ads.is_connected("rewarded_close", close_callable):
 		gp.ads.connect("rewarded_close", close_callable, CONNECT_ONE_SHOT)
 
-	# Safety timeout in case video hangs
+	# Safety timeout in case video hangs - strictly denies reward on timeout
 	_ad_safety_timer = get_tree().create_timer(45.0)
 	_ad_safety_timer.timeout.connect(func():
 		if _is_showing_ad:
-			print("[GamePushBridge] Rewarded video safety timeout triggered.")
+			print("[GamePushBridge] Rewarded video safety timeout triggered. Reward denied.")
+			_is_reward_granted = false
 			_on_rewarded_closed(false)
 	)
 
@@ -296,9 +316,12 @@ func _on_rewarded_closed(success: bool) -> void:
 	_pending_reward_callback = Callable()
 	_pending_reward_close_callback = Callable()
 
-	var final_granted = _is_reward_granted and success
-	if final_granted and reward_cb.is_valid():
-		reward_cb.call()
+	# Strictly enforce that reward is given ONLY if rewarded_reward fired, success is true, and not consumed
+	var final_granted = _is_reward_granted and success and not _reward_callback_consumed
+	if final_granted:
+		_reward_callback_consumed = true
+		if reward_cb.is_valid():
+			reward_cb.call()
 
 	rewarded_completed.emit(final_granted)
 	if close_cb.is_valid():
@@ -311,16 +334,46 @@ func schedule_cloud_save() -> void:
 func flush_cloud_save() -> void:
 	_is_cloud_save_scheduled = false
 	var local_data = SaveManager.load_data()
+	SaveManager.save_data(local_data) # Always preserve local progress on disk
 
 	var gp = _get_gp_node()
-	if is_sdk_available and gp and gp.get("player"):
-		var json_str = JSON.stringify(local_data)
-		gp.player.set_value("veymora_save", json_str)
-		gp.player.sync()
-		print("[GamePushBridge] Cloud save pushed to GamePush player storage.")
+	if not is_sdk_available or not gp or not gp.get("player"):
+		print("[GamePushBridge] Cloud save in local mode (saved to local storage).")
 		cloud_data_saved.emit(true)
-	else:
-		cloud_data_saved.emit(true)
+		return
+
+	var json_str = JSON.stringify(local_data)
+	gp.player.set_value("veymora_save", json_str)
+
+	# Await SDK confirmation via player.synced with timeout and single resolution
+	var is_resolved = false
+	var timer = get_tree().create_timer(5.0)
+
+	var sync_callback: Callable
+	sync_callback = func(success: bool):
+		if is_resolved:
+			return
+		is_resolved = true
+		if success:
+			print("[GamePushBridge] Cloud save confirmed by GamePush player.synced(true).")
+			cloud_data_saved.emit(true)
+		else:
+			print("[GamePushBridge] Cloud save failed to sync (player.synced(false)). Local progress preserved.")
+			cloud_data_saved.emit(false)
+
+	timer.timeout.connect(func():
+		if is_resolved:
+			return
+		is_resolved = true
+		if is_instance_valid(gp) and gp.get("player") and gp.player.is_connected("synced", sync_callback):
+			gp.player.disconnect("synced", sync_callback)
+		print("[GamePushBridge] Cloud save sync timed out. Local progress preserved.")
+		cloud_data_saved.emit(false)
+	)
+
+	gp.player.connect("synced", sync_callback, CONNECT_ONE_SHOT)
+	gp.player.sync()
+	print("[GamePushBridge] Cloud save sync requested.")
 
 func load_cloud_save(on_loaded: Callable = Callable()) -> void:
 	var gp = _get_gp_node()
@@ -340,6 +393,7 @@ func load_cloud_save(on_loaded: Callable = Callable()) -> void:
 			cloud_dict = json.data
 
 	var merged = SaveManager.merge_with_cloud(cloud_dict)
+	SaveManager.save_data(merged) # Preserve merged save locally
 	cloud_data_loaded.emit(cloud_dict)
 	cloud_sync_completed.emit(merged)
 	if on_loaded.is_valid():
@@ -347,14 +401,96 @@ func load_cloud_save(on_loaded: Callable = Callable()) -> void:
 
 func submit_score(score: int, _extra_data: String = "") -> void:
 	var gp = _get_gp_node()
-	if is_sdk_available and gp and gp.get("player"):
-		gp.player.set_value("score", score)
-		gp.player.sync()
-		print("[GamePushBridge] Score %d submitted to GamePush." % score)
-		leaderboard_score_submitted.emit(true)
-	else:
-		print("[GamePushBridge] Score %d recorded locally." % score)
-		leaderboard_score_submitted.emit(true)
+	if not is_sdk_available or not gp or not gp.get("player"):
+		print("[GamePushBridge] Leaderboard unavailable in local mode. Score: %d." % score)
+		leaderboard_score_submitted.emit(false)
+		return
+
+	gp.player.set_value("score", score)
+	if gp.get("leaderboard") and gp.leaderboard.has_method("publish_record"):
+		gp.leaderboard.publish_record("", {"score": score})
+
+	# Await SDK confirmation via player.synced
+	var is_resolved = false
+	var timer = get_tree().create_timer(5.0)
+
+	var sync_cb: Callable
+	sync_cb = func(success: bool):
+		if is_resolved:
+			return
+		is_resolved = true
+		if success:
+			print("[GamePushBridge] Score %d confirmed by GamePush." % score)
+			leaderboard_score_submitted.emit(true)
+		else:
+			print("[GamePushBridge] Score %d submission failed." % score)
+			leaderboard_score_submitted.emit(false)
+
+	timer.timeout.connect(func():
+		if is_resolved:
+			return
+		is_resolved = true
+		if is_instance_valid(gp) and gp.get("player") and gp.player.is_connected("synced", sync_cb):
+			gp.player.disconnect("synced", sync_cb)
+		print("[GamePushBridge] Score submission timed out.")
+		leaderboard_score_submitted.emit(false)
+	)
+
+	gp.player.connect("synced", sync_cb, CONNECT_ONE_SHOT)
+	gp.player.sync()
+
+func fetch_leaderboard(max_entries: int = 10, include_user: bool = true) -> void:
+	var gp = _get_gp_node()
+	if not is_sdk_available or not gp or not gp.get("leaderboard"):
+		print("[GamePushBridge] Leaderboard unavailable, returning empty list.")
+		leaderboard_entries_received.emit([])
+		return
+
+	var is_resolved = false
+	var timer = get_tree().create_timer(5.0)
+
+	var fetch_cb: Callable
+	fetch_cb = func(result: Dictionary):
+		if is_resolved:
+			return
+		is_resolved = true
+
+		var entries: Array = []
+		var raw_list = []
+		if result.has("players") and result["players"] is Array:
+			raw_list = result["players"]
+		elif result.has("top") and result["top"] is Array:
+			raw_list = result["top"]
+		elif result.has("records") and result["records"] is Array:
+			raw_list = result["records"]
+
+		for p in raw_list:
+			if p is Dictionary:
+				entries.append({
+					"rank": p.get("position", p.get("rank", 0)),
+					"name": p.get("name", p.get("player_name", "Игрок")),
+					"score": p.get("score", 0)
+				})
+		print("[GamePushBridge] Leaderboard entries received: ", entries.size())
+		leaderboard_entries_received.emit(entries)
+
+	timer.timeout.connect(func():
+		if is_resolved:
+			return
+		is_resolved = true
+		if is_instance_valid(gp) and gp.get("leaderboard") and gp.leaderboard.is_connected("fetched", fetch_cb):
+			gp.leaderboard.disconnect("fetched", fetch_cb)
+		print("[GamePushBridge] Leaderboard fetch timed out.")
+		leaderboard_entries_received.emit([])
+	)
+
+	gp.leaderboard.connect("fetched", fetch_cb, CONNECT_ONE_SHOT)
+	gp.leaderboard.fetch(["score"], "DESC", max_entries, [], "all" if include_user else "")
+
+func open_leaderboard_overlay(max_entries: int = 10) -> void:
+	var gp = _get_gp_node()
+	if is_sdk_available and gp and gp.get("leaderboard") and gp.leaderboard.has_method("open"):
+		gp.leaderboard.open(["score"], "DESC", max_entries)
 
 func authorize_player() -> void:
 	var gp = _get_gp_node()

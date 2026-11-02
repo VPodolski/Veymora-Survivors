@@ -94,7 +94,7 @@ func _ready():
 	
 	var timer := Timer.new()
 	var is_preloader_show := ProjectSettings.get_setting("game_push/config/is_preloader_show", false)
-	var ready_delay := ProjectSettings.get_setting("game_push/config/ready_delay", 0.0)
+	var ready_delay := ProjectSettings.get_setting("game_push/config/ready_delay", -1.0)
 	if is_preloader_show:
 		ads.show_preloader()
 	if ready_delay > 0.0:
@@ -103,6 +103,7 @@ func _ready():
 		timer.start(ready_delay)
 	elif ready_delay == 0.0:
 		_on_timer_timeout()
+	# If ready_delay < 0.0, game ready is sent manually by GamePushBridge.notify_game_ready()
 	
 	inited.connect(func(is_init): is_inited = true)
 	inited.emit(is_init)

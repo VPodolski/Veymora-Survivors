@@ -43,7 +43,12 @@ func resume() -> void:
 	else:
 		push_warning("Not Web")
 
+var has_started: bool = false
+
 func game_start() -> void:
+	if has_started:
+		return
+	has_started = true
 	if OS.get_name() == "Web":
 		while not gp:
 			pass

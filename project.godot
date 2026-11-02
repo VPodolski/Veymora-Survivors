@@ -39,7 +39,7 @@ enabled=PackedStringArray("res://addons/gamepush/plugin.cfg")
 config/project_id="32326"
 config/token="umjoY4f2tGIO2N9U49OVjFnq3uVAWM6r"
 config/is_preloader_show=false
-config/ready_delay=0.0
+config/ready_delay=-1.0
 config/is_archive=true
 config/archive_name="veymora_survivors_pikabu.zip"
 

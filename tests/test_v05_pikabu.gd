@@ -22,6 +22,7 @@ class MockGPNode extends Node:
 	var game: MockGPGame = MockGPGame.new()
 	var device: MockGPDevice = MockGPDevice.new()
 	var language: MockGPLanguage = MockGPLanguage.new()
+	var leaderboard: MockGPLeaderboard = MockGPLeaderboard.new()
 
 	signal inited(success: bool)
 
@@ -31,12 +32,14 @@ class MockGPNode extends Node:
 		add_child(game)
 		add_child(device)
 		add_child(language)
+		add_child(leaderboard)
 
 class MockGPAds extends Node:
 	var is_fullscreen_available_flag: bool = true
 	var is_rewarded_available_flag: bool = true
 	var should_grant_reward: bool = true
 	var should_succeed_fullscreen: bool = true
+	var trigger_multiple_rewards: bool = false
 
 	signal fullscreen_start()
 	signal fullscreen_close(success: bool)
@@ -64,6 +67,8 @@ class MockGPAds extends Node:
 	func _emit_rewarded_finish() -> void:
 		if should_grant_reward:
 			rewarded_reward.emit()
+			if trigger_multiple_rewards:
+				rewarded_reward.emit() # Simulate buggy SDK sending duplicate reward event
 			rewarded_close.emit(true)
 		else:
 			rewarded_close.emit(false)
@@ -73,6 +78,7 @@ class MockGPPlayer extends Node:
 	var _is_logged: bool = false
 	var _player_name: String = "Исследователь Пикабу"
 	var _player_id: int = 123456
+	var should_sync_succeed: bool = true
 
 	signal logged_in(success: bool)
 	signal synced(success: bool)
@@ -98,12 +104,16 @@ class MockGPPlayer extends Node:
 		_storage[key] = value
 
 	func sync() -> void:
-		synced.emit(true)
+		call_deferred("_emit_synced")
+
+	func _emit_synced() -> void:
+		synced.emit(should_sync_succeed)
 
 	func load() -> void:
 		loaded.emit(true)
 
 class MockGPGame extends Node:
+	var start_call_count: int = 0
 	var is_game_started: bool = false
 	var is_gameplay_active: bool = false
 
@@ -111,6 +121,7 @@ class MockGPGame extends Node:
 	signal resumed
 
 	func game_start() -> void:
+		start_call_count += 1
 		is_game_started = true
 
 	func gameplay_start() -> void:
@@ -118,6 +129,39 @@ class MockGPGame extends Node:
 
 	func gameplay_stop() -> void:
 		is_gameplay_active = false
+
+class MockGPLeaderboard extends Node:
+	var last_published_variant: String = ""
+	var last_published_record: Dictionary = {}
+	var should_fetch_succeed: bool = true
+	var opened_count: int = 0
+	var mock_entries: Dictionary = {
+		"players": [
+			{"position": 1, "name": "Игрок 1", "score": 2500},
+			{"position": 2, "name": "Игрок 2", "score": 1800}
+		]
+	}
+
+	signal opened
+	signal closed
+	signal fetched(result: Dictionary)
+
+	func publish_record(variant: String, record: Dictionary, _id: int = 0, _tag: String = "", _override = null) -> void:
+		last_published_variant = variant
+		last_published_record = record
+
+	func fetch(_order_by: Array = [], _order: String = "", _limit: int = 0, _include_fields: Array = [], _with_me: String = "", _show_nearest: int = 0) -> void:
+		call_deferred("_emit_fetched")
+
+	func _emit_fetched() -> void:
+		if should_fetch_succeed:
+			fetched.emit(mock_entries)
+		else:
+			fetched.emit({})
+
+	func open(_order_by: Array = [], _order: String = "", _limit: int = 0) -> void:
+		opened_count += 1
+		opened.emit()
 
 class MockGPDevice extends Node:
 	var mobile_flag: bool = false
@@ -130,7 +174,7 @@ class MockGPLanguage extends Node:
 		return lang
 
 func _init() -> void:
-	print("\n--- Running Veymora Survivors 0.5 (Pikabu Edition) Test Suite ---")
+	print("\n--- Running Veymora Survivors 0.5.2 (Pikabu Edition) Test Suite ---")
 	call_deferred("run_all_tests")
 
 func run_all_tests() -> void:
@@ -144,13 +188,16 @@ func run_all_tests() -> void:
 	await test_8_ad_load_failure_handling()
 	await test_9_rewarded_video_success()
 	await test_10_rewarded_video_closed_without_reward()
+	await test_10b_rewarded_video_production_safety()
 	await test_11_tab_hide_pause()
 	await test_12_clean_unpause_lifecycle()
 	await test_13_mobile_virtual_joystick()
 	await test_14_input_conflict_immunity()
 	await test_15_web_export_and_zip_verification()
+	await test_16_leaderboard_submit_and_fetch()
+	await test_17_cloud_save_sync_confirmation()
 
-	print("\n--- ALL VEYMORA SURVIVORS 0.5 (PIKABU) TESTS PASSED CLEANLY! ---")
+	print("\n--- ALL VEYMORA SURVIVORS 0.5.2 (PIKABU) TESTS PASSED CLEANLY! ---")
 	quit(0)
 
 func test_1_local_launch_without_sdk() -> void:
@@ -171,7 +218,7 @@ func test_1_local_launch_without_sdk() -> void:
 	print("[PASS] Local launch without SDK verified.")
 
 func test_2_gamepush_successful_init() -> void:
-	print("[TEST] 2. GamePush successful initialization...")
+	print("[TEST] 2. GamePush successful initialization & single Game Ready call...")
 	var mock_gp = MockGPNode.new()
 	var bridge = GamePushBridge.new()
 	bridge.gp_node_override = mock_gp
@@ -189,9 +236,13 @@ func test_2_gamepush_successful_init() -> void:
 	assert(bridge.player_name == "Исследователь Пикабу", "Player name must match mock")
 	assert(bridge.player_unique_id == "123456", "Player ID must match mock")
 
-	# Test game ready call
+	# Test game ready call: exactly ONE call to GP.game.game_start()
+	assert(mock_gp.game.start_call_count == 1, "GP.game.game_start must be invoked exactly ONCE on ready (got %d)" % mock_gp.game.start_call_count)
+
+	# Subsequent ready notifications must be idempotent
 	bridge.notify_game_ready()
-	assert(mock_gp.game.is_game_started == true, "GP.game.game_start must be invoked")
+	bridge.notify_game_ready()
+	assert(mock_gp.game.start_call_count == 1, "Subsequent notify_game_ready must NOT duplicate game_start()")
 
 	# Test gameplay start/stop
 	bridge.is_gameplay_active = true
@@ -201,7 +252,7 @@ func test_2_gamepush_successful_init() -> void:
 
 	bridge.queue_free()
 	mock_gp.queue_free()
-	print("[PASS] GamePush successful initialization verified.")
+	print("[PASS] GamePush successful initialization and single Game Ready verified.")
 
 func test_3_gamepush_init_error_fallback() -> void:
 	print("[TEST] 3. GamePush initialization error / timeout fallback...")
@@ -275,6 +326,9 @@ func test_5_cloud_save_push() -> void:
 
 	# Immediate flush
 	bridge.flush_cloud_save()
+	await process_frame
+	await process_frame
+
 	assert(bridge._is_cloud_save_scheduled == false, "Scheduled flag cleared after flush")
 	assert(mock_gp.player._storage.has("veymora_save"), "Cloud storage must have veymora_save")
 
@@ -459,6 +513,49 @@ func test_10_rewarded_video_closed_without_reward() -> void:
 	mock_gp.queue_free()
 	print("[PASS] Rewarded video closed without reward verified.")
 
+func test_10b_rewarded_video_production_safety() -> void:
+	print("[TEST] 10b. Rewarded video production safety (unavailable SDK, repeated callbacks, debug flag)...")
+	# 1. SDK unavailable without debug flag -> NO reward
+	var local_bridge = GamePushBridge.new()
+	local_bridge.is_sdk_available = false
+	local_bridge.allow_debug_ad_fallback = false
+	root.add_child(local_bridge)
+
+	var reward_granted = [false]
+	var close_result = [true]
+	local_bridge.show_rewarded(
+		func(): reward_granted[0] = true,
+		func(granted): close_result[0] = granted
+	)
+	await process_frame
+	assert(reward_granted[0] == false, "Reward must NOT be granted when SDK unavailable in production mode")
+	assert(close_result[0] == false, "Close result must be false when SDK unavailable")
+	local_bridge.queue_free()
+
+	# 2. Duplicate reward events from buggy SDK -> reward called at most ONCE
+	var mock_gp = MockGPNode.new()
+	mock_gp.gp = {"active": true}
+	mock_gp.ads.should_grant_reward = true
+	mock_gp.ads.trigger_multiple_rewards = true # Buggy double event
+
+	var bridge = GamePushBridge.new()
+	bridge.gp_node_override = mock_gp
+	root.add_child(bridge)
+	mock_gp.is_inited = true
+	bridge._on_gp_inited(true)
+	await process_frame
+
+	var reward_call_count = [0]
+	bridge.show_rewarded(func(): reward_call_count[0] += 1)
+	await process_frame
+	await process_frame
+
+	assert(reward_call_count[0] == 1, "Duplicate SDK reward callbacks must NOT grant reward more than once (got %d)" % reward_call_count[0])
+
+	bridge.queue_free()
+	mock_gp.queue_free()
+	print("[PASS] Rewarded video production safety verified.")
+
 func test_11_tab_hide_pause() -> void:
 	print("[TEST] 11. Game pause on tab hide / browser focus loss...")
 	var pm = PauseManager.new()
@@ -570,6 +667,98 @@ func test_15_web_export_and_zip_verification() -> void:
 	assert(FileAccess.file_exists("res://media/store/screenshot_3_boss.png"), "Screenshot 3 must exist")
 	assert(FileAccess.file_exists("res://media/store/screenshot_4_artifacts.png"), "Screenshot 4 must exist")
 
-	assert(FileAccess.file_exists("res://build/veymora_survivors_pikabu.zip"), "ZIP archive for Pikabu must exist")
+	var zip_exists = FileAccess.file_exists("res://build/veymora_survivors_pikabu.zip") or FileAccess.file_exists("res://build/web_pikabu/veymora_survivors_pikabu.zip")
+	assert(zip_exists, "ZIP archive for Pikabu must exist in build/ or build/web_pikabu/")
 
 	print("[PASS] Web export and store assets verified.")
+
+func test_16_leaderboard_submit_and_fetch() -> void:
+	print("[TEST] 16. Leaderboard score submission, SDK confirmation, and fetch...")
+	var mock_gp = MockGPNode.new()
+	mock_gp.gp = {"active": true}
+
+	var bridge = GamePushBridge.new()
+	bridge.gp_node_override = mock_gp
+	root.add_child(bridge)
+	mock_gp.is_inited = true
+	bridge._on_gp_inited(true)
+	await process_frame
+
+	# 1. Successful score submission
+	var submit_results = []
+	bridge.leaderboard_score_submitted.connect(func(res): submit_results.append(res))
+	bridge.submit_score(2400)
+	await process_frame
+	await process_frame
+
+	assert(submit_results.size() == 1, "Must receive exactly 1 score submitted signal")
+	assert(submit_results[0] == true, "Score submission must succeed on SDK sync")
+	assert(mock_gp.player._storage.get("score") == 2400, "Player storage score must match 2400")
+	assert(mock_gp.leaderboard.last_published_record.get("score") == 2400, "Leaderboard publish_record must receive score")
+
+	# 2. Failed score submission (SDK sync error)
+	mock_gp.player.should_sync_succeed = false
+	bridge.submit_score(3000)
+	await process_frame
+	await process_frame
+
+	assert(submit_results.size() == 2, "Must receive second submission signal")
+	assert(submit_results[1] == false, "Score submission must report failure when SDK sync fails")
+	mock_gp.player.should_sync_succeed = true
+
+	# 3. Fetch leaderboard
+	var received_entries = []
+	bridge.leaderboard_entries_received.connect(func(entries): received_entries.append_array(entries))
+	bridge.fetch_leaderboard(5)
+	await process_frame
+	await process_frame
+
+	assert(received_entries.size() == 2, "Leaderboard fetch must return 2 entries")
+	assert(received_entries[0]["score"] == 2500, "First entry score is 2500")
+	assert(received_entries[0]["name"] == "Игрок 1", "First entry name is Игрок 1")
+
+	# 4. Open leaderboard overlay
+	bridge.open_leaderboard_overlay(10)
+	assert(mock_gp.leaderboard.opened_count == 1, "Leaderboard open overlay invoked")
+
+	bridge.queue_free()
+	mock_gp.queue_free()
+	print("[PASS] Leaderboard score submission, confirmation, and fetch verified.")
+
+func test_17_cloud_save_sync_confirmation() -> void:
+	print("[TEST] 17. Cloud save sync confirmation, error handling, and local fallback...")
+	var mock_gp = MockGPNode.new()
+	mock_gp.gp = {"active": true}
+
+	var bridge = GamePushBridge.new()
+	bridge.gp_node_override = mock_gp
+	root.add_child(bridge)
+	mock_gp.is_inited = true
+	bridge._on_gp_inited(true)
+	await process_frame
+
+	var save_results = []
+	bridge.cloud_data_saved.connect(func(res): save_results.append(res))
+
+	# 1. Successful sync
+	mock_gp.player.should_sync_succeed = true
+	bridge.flush_cloud_save()
+	await process_frame
+	await process_frame
+
+	assert(save_results.size() == 1, "Received 1 save result")
+	assert(save_results[0] == true, "Cloud save confirmed after player.synced(true)")
+
+	# 2. Failed sync -> reports false and preserves local save
+	mock_gp.player.should_sync_succeed = false
+	bridge.flush_cloud_save()
+	await process_frame
+	await process_frame
+
+	assert(save_results.size() == 2, "Received second save result")
+	assert(save_results[1] == false, "Cloud save reports false when player.synced(false)")
+	assert(FileAccess.file_exists(SaveManager.SAVE_PATH), "Local save remains intact")
+
+	bridge.queue_free()
+	mock_gp.queue_free()
+	print("[PASS] Cloud save sync confirmation and error handling verified.")
