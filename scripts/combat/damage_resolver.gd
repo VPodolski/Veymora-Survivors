@@ -5,6 +5,7 @@ const StatusEffects = preload("res://scripts/combat/status_effects.gd")
 const CombatEffects = preload("res://scripts/combat/combat_effects.gd")
 const DamageContext = preload("res://scripts/combat/damage_context.gd")
 const ReactionContext = preload("res://scripts/synergies/reaction_context.gd")
+const RunStats = preload("res://scripts/game/run_stats.gd")
 
 static func apply_damage(ctx: DamageContext) -> Dictionary:
 	var result = {
@@ -57,11 +58,15 @@ static func _apply_enemy_damage(ctx: DamageContext) -> Dictionary:
 			final_dmg = enemy.current_health
 			would_execute = true
 
-	# 4. Apply damage
+	# 4. Actual damage dealt calculation (capped at current health)
+	var actual_dmg = min(final_dmg, enemy.current_health)
 	enemy.current_health = max(0.0, enemy.current_health - final_dmg)
-	enemy.damage_taken.emit(final_dmg)
+	var is_killed = enemy.current_health <= 0.0
+
+	enemy.damage_taken.emit(actual_dmg)
 	res["applied"] = true
-	res["damage_dealt"] = final_dmg
+	res["damage_dealt"] = actual_dmg
+	res["killed"] = is_killed
 
 	var container = enemy.get_tree().current_scene if enemy.get_tree().current_scene else enemy.get_tree().root
 
@@ -88,48 +93,34 @@ static func _apply_enemy_damage(ctx: DamageContext) -> Dictionary:
 	elif ctx.has_tag("arcane"):
 		num_col = Color(0.85, 0.5, 1.0, 1.0)
 
-	CombatEffects.spawn_damage_number(container, enemy.global_position, final_dmg, num_col)
+	CombatEffects.spawn_damage_number(container, enemy.global_position, actual_dmg, num_col)
 	CombatEffects.spawn_impact_sparks(container, enemy.global_position)
 
 	# 7. Telemetry recording
-	_record_telemetry_damage(ctx.source_id, final_dmg)
+	_record_telemetry_damage(ctx.source_id, actual_dmg, enemy, ctx.has_tag("dot"))
 
-	# 8. Check death
-	if enemy.current_health <= 0.0:
-		res["killed"] = true
-		enemy.die()
-
-		# Notify Font of Life on kill
-		var players = enemy.get_tree().get_nodes_in_group("player")
-		if players.size() > 0:
-			var p = players[0]
-			if p and p.has_node("Abilities"):
-				var font = p.get_node("Abilities").get_ability("font_of_life")
-				if font and font.has_method("notify_enemy_killed"):
-					font.notify_enemy_killed()
-
-		# Trigger on-death synergies (Unstable explosion, Soul harvest, Chain of doom, Life harvest)
+	# 8. Process on-hit reactions BEFORE death handling (Lethal hit processing)
+	# Target still exists and had the statuses at the moment of the hit!
+	if ctx.allow_reactions and not ctx.tags.is_empty():
 		var engines = enemy.get_tree().get_nodes_in_group("synergy_engine")
 		if engines.size() > 0:
-			engines[0].on_enemy_death(enemy)
-	else:
-		# If not dead, dispatch hit to SynergyEngine
-		if ctx.allow_reactions and not ctx.tags.is_empty():
-			var engines = enemy.get_tree().get_nodes_in_group("synergy_engine")
-			if engines.size() > 0:
-				var react_ctx = ReactionContext.new(
-					ctx.source,
-					enemy,
-					ctx.tags,
-					enemy.global_position,
-					final_dmg,
-					ctx.depth,
-					ctx.allow_reactions,
-					ctx.excluded_targets,
-					ctx.cascade_id,
-					ctx.is_secondary
-				)
-				engines[0].on_hit_landed(react_ctx)
+			var react_ctx = ReactionContext.new(
+				ctx.source,
+				enemy,
+				ctx.tags,
+				enemy.global_position,
+				actual_dmg,
+				ctx.depth,
+				ctx.allow_reactions,
+				ctx.excluded_targets,
+				ctx.cascade_id,
+				ctx.is_secondary
+			)
+			engines[0].on_hit_landed(react_ctx)
+
+	# 9. Handle death if killed - EnemyController.die() handles death reactions once
+	if is_killed and not enemy.is_dead:
+		enemy.die()
 
 	return res
 
@@ -163,9 +154,9 @@ static func _apply_player_damage(ctx: DamageContext) -> Dictionary:
 		CombatEffects.spawn_shockwave(container, player.global_position, 55.0, Color(0.3, 0.75, 1.0, 0.7))
 		return res
 
-	# Overheal armor resistance
+	# Overheal armor resistance (temporary buff from Font of Life)
 	if player.has_meta("font_overheal_armor"):
-		var armor_bonus = player.get_meta("font_overheal_armor", 0.0)
+		var armor_bonus = clampf(player.get_meta("font_overheal_armor", 0.0), 0.0, 0.50)
 		incoming *= max(0.0, 1.0 - armor_bonus)
 
 	# 3. Apply remaining damage to player health
@@ -203,17 +194,28 @@ static func _apply_player_damage(ctx: DamageContext) -> Dictionary:
 
 	return res
 
-static func _record_telemetry_damage(source_id: String, amount: float) -> void:
-	if Engine.get_main_loop() and Engine.get_main_loop().root:
-		var gf = Engine.get_main_loop().root.get_node_or_null("GameFlow")
+static func _record_telemetry_damage(source_id: String, amount: float, enemy: EnemyController = null, is_dot: bool = false) -> void:
+	var stats = RunStats.active_stats
+	if not stats and Engine.get_main_loop() and Engine.get_main_loop().root:
+		var root = Engine.get_main_loop().root
+		var gf = root.get_node_or_null("GameFlow")
 		if gf and "run_stats" in gf and gf.run_stats:
-			if gf.run_stats.has_method("record_spell_hit"):
-				gf.run_stats.record_spell_hit(source_id, amount)
-			else:
-				gf.run_stats.record_damage(amount)
+			stats = gf.run_stats
+		elif root.get_node_or_null("Main") and "run_stats" in root.get_node_or_null("Main"):
+			stats = root.get_node_or_null("Main").run_stats
+
+	if stats:
+		stats.record_hit(source_id, amount, enemy, is_dot)
 
 static func _record_barrier_absorbed(amount: float) -> void:
-	if Engine.get_main_loop() and Engine.get_main_loop().root:
-		var gf = Engine.get_main_loop().root.get_node_or_null("GameFlow")
-		if gf and "run_stats" in gf and gf.run_stats and gf.run_stats.has_method("record_damage_absorbed"):
-			gf.run_stats.record_damage_absorbed(amount)
+	var stats = RunStats.active_stats
+	if not stats and Engine.get_main_loop() and Engine.get_main_loop().root:
+		var root = Engine.get_main_loop().root
+		var gf = root.get_node_or_null("GameFlow")
+		if gf and "run_stats" in gf and gf.run_stats:
+			stats = gf.run_stats
+		elif root.get_node_or_null("Main") and "run_stats" in root.get_node_or_null("Main"):
+			stats = root.get_node_or_null("Main").run_stats
+
+	if stats and stats.has_method("record_damage_absorbed"):
+		stats.record_damage_absorbed(amount)

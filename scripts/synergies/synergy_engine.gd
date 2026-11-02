@@ -7,6 +7,9 @@ const StatusEffects = preload("res://scripts/combat/status_effects.gd")
 const CombatEffects = preload("res://scripts/combat/combat_effects.gd")
 const Projectile = preload("res://scripts/combat/projectile.gd")
 const SteamCloudArea = preload("res://scripts/combat/steam_cloud_area.gd")
+const DamageContext = preload("res://scripts/combat/damage_context.gd")
+const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
+const RunStats = preload("res://scripts/game/run_stats.gd")
 
 signal reaction_triggered(reaction_name: String, position: Vector2)
 signal reaction_activated(reaction_name: String, position: Vector2, targets_count: int)
@@ -19,9 +22,19 @@ var reaction_cooldowns: Dictionary = {} # "target_id_reaction_name": float_time
 var registered_cleanups: Dictionary = {} # target_id: true
 var cascade_hit_targets: Dictionary = {} # "cascade_id_target_id": true
 var popup_cooldowns: Dictionary = {} # "reaction_name": float_time
+var processed_deaths: Dictionary = {} # target_id: true
+
+var thunder_energy: float = 0.0
+var thunder_cooldown: float = 0.0
+const THUNDER_THRESHOLD: float = 25.0
+const THUNDER_INTERNAL_CD: float = 0.8
 
 func _ready() -> void:
 	add_to_group("synergy_engine")
+
+func _physics_process(delta: float) -> void:
+	if thunder_cooldown > 0.0:
+		thunder_cooldown -= delta
 
 func spawn_popup_rate_limited(reaction_name: String, pos: Vector2, text: String, col: Color, is_crit: bool = false) -> void:
 	var now = Time.get_ticks_msec() / 1000.0
@@ -84,7 +97,10 @@ func on_hit_landed(context: ReactionContext) -> void:
 
 		# Charged Bolt / Arcane Resonance (Arcane on Charged target)
 		if target.has_status(StatusEffects.STATUS_CHARGED):
-			if can_trigger_reaction(target, "resonance") or can_trigger_reaction(target, "charged_bolt"):
+			if can_trigger_reaction(target, "charged_bolt"):
+				trigger_charged_bolt(context)
+				return
+			elif can_trigger_reaction(target, "resonance"):
 				trigger_arcane_resonance(context)
 				return
 
@@ -99,6 +115,14 @@ func on_hit_landed(context: ReactionContext) -> void:
 	if can_shatter_impact and target.has_status(StatusEffects.STATUS_SLOWED):
 		if can_trigger_reaction(target, "frost_shatter"):
 			trigger_frost_shatter(context)
+			return
+
+	# 5. Blazing Blades (Melee/Blade with Fireball or Blazing Blades synergy active)
+	var is_blade = context.has_tag("melee") or context.has_tag("orbit") or context.has_tag("runic_blade")
+	var player_node = get_tree().get_first_node_in_group("player") as PlayerController
+	if is_blade and is_synergy_unlocked("blazing_blades", player_node):
+		if can_trigger_reaction(target, "blazing_blades"):
+			trigger_blazing_blades(context)
 			return
 
 # --- 1. Arcane Resonance ---
@@ -519,7 +543,6 @@ func trigger_charged_bolt(context: ReactionContext) -> void:
 
 	target.remove_status(StatusEffects.STATUS_CHARGED)
 	record_reaction(target, "charged_bolt")
-	record_reaction(target, "resonance")
 
 	var defn = SynergyRegistry.get_definition("charged_bolt")
 	var radius = defn.area_radius if defn else 120.0
@@ -539,7 +562,6 @@ func trigger_charged_bolt(context: ReactionContext) -> void:
 		AudioManager.instance.play_synergy("resonance")
 
 	reaction_triggered.emit("charged_bolt", pos)
-	reaction_triggered.emit("resonance", pos)
 	reaction_activated.emit("charged_bolt", pos, secondary_targets.size() + 1)
 
 	for enemy in secondary_targets:
@@ -595,17 +617,21 @@ func on_enemy_death(target: EnemyController) -> void:
 	if not is_instance_valid(target):
 		return
 
+	var target_id = target.get_instance_id()
+	if processed_deaths.has(target_id):
+		return
+	processed_deaths[target_id] = true
+
 	var pos = target.global_position
 
 	if target.has_status(StatusEffects.STATUS_MARKED):
 		var burst_dmg = target.get_meta("death_mark_burst_dmg", 35.0)
 		trigger_soul_harvest(pos, burst_dmg)
 
-		# Life harvest check (player owns font_of_life)
-		var player_node = get_tree().get_first_node_in_group("player")
-		if player_node and is_instance_valid(player_node):
-			if player_node.has_meta("has_life_harvest") or (player_node.has_node("Abilities") and player_node.get_node("Abilities").has_ability("font_of_life")):
-				trigger_life_harvest(pos)
+		# Life harvest check (player owns font_of_life or has_life_harvest)
+		var player_node = get_tree().get_first_node_in_group("player") as PlayerController
+		if player_node and is_synergy_unlocked("life_harvest", player_node):
+			trigger_life_harvest(pos)
 
 		# Chain of Doom check (only if enabled on marked target)
 		if target.get_meta("chain_of_doom_enabled", false):
@@ -613,6 +639,95 @@ func on_enemy_death(target: EnemyController) -> void:
 
 	if target.has_status(StatusEffects.STATUS_UNSTABLE):
 		trigger_unstable_explosion(pos)
+
+# --- 16. Blazing Blades ---
+func trigger_blazing_blades(context: ReactionContext) -> void:
+	var target = context.target
+	var pos = context.hit_position
+	var container = get_effects_container()
+
+	record_reaction(target, "blazing_blades")
+	var dmg = max(6.0, context.damage * 0.30)
+
+	CombatEffects.spawn_impact_sparks(container, pos, Color(1.0, 0.45, 0.1), 6)
+	spawn_popup_rate_limited("blazing_blades", pos, "ПЫЛАЮЩИЕ КЛИНКИ!", Color(1.0, 0.45, 0.1, 1.0))
+
+	if AudioManager.instance:
+		AudioManager.instance.play_spell("fireball")
+
+	target.apply_status(StatusEffects.STATUS_BURNING, 3.0)
+	target.set_meta("burning_source", "blazing_blades")
+
+	var sub_ctx = context.create_sub_context(target, pos, dmg, ["fire", "burning", "blade"], false)
+	apply_reaction_damage(target, dmg, "blazing_blades", sub_ctx)
+
+	reaction_triggered.emit("blazing_blades", pos)
+	reaction_activated.emit("blazing_blades", pos, 1)
+
+# --- 17. Thunder Shield ---
+func on_barrier_absorbed(player: PlayerController, absorbed: float) -> void:
+	if not is_instance_valid(player) or not is_synergy_unlocked("thunder_shield", player):
+		return
+	thunder_energy += absorbed
+	if thunder_energy >= THUNDER_THRESHOLD and thunder_cooldown <= 0.0:
+		thunder_energy = 0.0
+		thunder_cooldown = THUNDER_INTERNAL_CD
+		trigger_thunder_shield(player)
+
+func trigger_thunder_shield(player: PlayerController) -> void:
+	var container = get_effects_container()
+	var defn = SynergyRegistry.get_definition("thunder_shield")
+	var dmg = defn.base_damage if defn else 30.0
+	var radius = defn.area_radius if defn else 180.0
+
+	var enemies = TargetSelector.find_enemies_in_radius(get_tree(), player.global_position, radius)
+	if enemies.is_empty():
+		return
+
+	var target = enemies[0]
+	CombatEffects.spawn_lightning_arc(container, player.global_position, target.global_position, Color(0.4, 0.9, 1.0), 3.0)
+	spawn_popup_rate_limited("thunder_shield", player.global_position, "ГРОЗОВОЙ ЩИТ!", Color(0.4, 0.9, 1.0, 1.0), true)
+
+	if AudioManager.instance:
+		AudioManager.instance.play_synergy("lightning_chain")
+
+	apply_reaction_damage(target, dmg, "thunder_shield", null)
+	if is_instance_valid(target) and not target.is_dead:
+		target.apply_status(StatusEffects.STATUS_CHARGED, 3.5)
+
+	reaction_triggered.emit("thunder_shield", player.global_position)
+	reaction_activated.emit("thunder_shield", player.global_position, 1)
+
+# --- 18. Glacial Ward ---
+func on_barrier_broken(player: PlayerController, base_radius: float) -> void:
+	if not is_instance_valid(player) or not is_synergy_unlocked("glacial_ward", player):
+		return
+	trigger_glacial_ward(player, base_radius)
+
+func trigger_glacial_ward(player: PlayerController, base_radius: float) -> void:
+	var container = get_effects_container()
+	var defn = SynergyRegistry.get_definition("glacial_ward")
+	var dmg = defn.base_damage if defn else 25.0
+	var radius = defn.area_radius if defn else (base_radius + 40.0)
+
+	CombatEffects.spawn_shockwave(container, player.global_position, radius, Color(0.2, 0.8, 1.0, 0.8), 0.35)
+	CombatEffects.spawn_ring(container, player.global_position, 12.0, radius, Color(0.3, 0.85, 1.0, 0.9), 0.28, 3.0)
+	spawn_popup_rate_limited("glacial_ward", player.global_position, "ЛЕДЯНАЯ ЗАЩИТА!", Color(0.3, 0.9, 1.0, 1.0), true)
+
+	if AudioManager.instance:
+		AudioManager.instance.play_synergy("frost_shatter")
+
+	var enemies = TargetSelector.find_enemies_in_radius(get_tree(), player.global_position, radius)
+	var hit_count = 0
+	for enemy in enemies:
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			hit_count += 1
+			apply_reaction_damage(enemy, dmg, "glacial_ward", null)
+			if is_instance_valid(enemy) and not enemy.is_dead:
+				enemy.apply_status(StatusEffects.STATUS_SLOWED, 2.5)
+
+	reaction_triggered.emit("glacial_ward", player.global_position)
+	reaction_activated.emit("glacial_ward", player.global_position, hit_count)
 
 func apply_reaction_damage(target: EnemyController, amount: float, reaction_id: String, context: ReactionContext = null, is_dot: bool = false) -> bool:
 	if not is_instance_valid(target) or target.is_dead:
@@ -629,13 +744,56 @@ func apply_reaction_damage(target: EnemyController, amount: float, reaction_id: 
 		if not context.excluded_targets.has(target):
 			context.excluded_targets.append(target)
 
-	var hp_before = target.current_health
-	target.take_damage(amount)
-	var was_killed = (target.is_dead or target.current_health <= 0.0)
+	var sub_depth = (context.depth + 1) if context else 1
+	var cascade_id = context.cascade_id if context else ("casc_" + str(Time.get_ticks_msec()) + "_" + str(randi() % 10000))
+	var excluded = context.excluded_targets if context else [target]
+
+	var dmg_ctx = DamageContext.new(
+		self,
+		target,
+		amount,
+		["secondary", "synergy", reaction_id] if not is_dot else ["secondary", "synergy", reaction_id, "dot"],
+		reaction_id,
+		target.global_position,
+		true,
+		sub_depth,
+		cascade_id,
+		false,
+		excluded
+	)
+
+	var res = DamageResolver.apply_damage(dmg_ctx)
+	var actual_dealt = res.get("damage_dealt", 0.0)
+	var was_killed = res.get("killed", false)
 
 	# Emit backward-compatible 2-param signal and rich detailed signal
-	reaction_damage_dealt.emit(reaction_id, amount)
-	reaction_damage_detailed.emit(reaction_id, amount, was_killed, is_dot)
+	reaction_damage_dealt.emit(reaction_id, actual_dealt)
+	reaction_damage_detailed.emit(reaction_id, actual_dealt, was_killed, is_dot)
+
+	# Explicitly record in active RunStats
+	var stats = RunStats.active_stats
+	if stats:
+		stats.record_synergy_damage(reaction_id, actual_dealt, was_killed, is_dot)
+
+	return true
+
+func is_synergy_unlocked(synergy_id: String, player: PlayerController = null) -> bool:
+	if not player:
+		player = get_tree().get_first_node_in_group("player") as PlayerController
+	if not player:
+		return false
+	var defn = SynergyRegistry.get_definition(synergy_id)
+	if not defn:
+		return false
+	var meta_key = "has_" + synergy_id
+	if player.has_meta(meta_key) and bool(player.get_meta(meta_key)):
+		return true
+	var ac = player.ability_controller
+	if not ac:
+		return false
+	for req in defn.required_abilities:
+		if not ac.has_ability(req):
+			return false
 	return true
 
 func is_player_in_rune_zone() -> bool:
@@ -699,6 +857,9 @@ func reset() -> void:
 	reaction_cooldowns.clear()
 	registered_cleanups.clear()
 	cascade_hit_targets.clear()
+	processed_deaths.clear()
+	thunder_energy = 0.0
+	thunder_cooldown = 0.0
 
 func get_effects_container() -> Node:
 	return get_tree().current_scene if get_tree().current_scene else get_tree().root

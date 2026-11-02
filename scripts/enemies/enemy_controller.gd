@@ -83,15 +83,11 @@ func update_statuses(delta: float) -> void:
 		burning_tick_timer -= delta
 		if burning_tick_timer <= 0.0:
 			burning_tick_timer = 0.5
-			take_damage(4.0)
-			var was_killed = (is_dead or current_health <= 0.0)
+			var burning_source = get_meta("burning_source", "fireball")
+			var ctx = DamageContext.new(null, self, 4.0, ["fire", "burning", "dot"], burning_source, global_position, true)
+			DamageResolver.apply_damage(ctx)
 			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 			CombatEffects.spawn_impact_sparks(container, global_position, Color(1.0, 0.5, 0.1, 0.9), 2)
-			var burning_source = get_meta("burning_source", "")
-			if not burning_source.is_empty():
-				var engines = get_tree().get_nodes_in_group("synergy_engine")
-				if engines.size() > 0:
-					engines[0].reaction_damage_dealt.emit(burning_source, 4.0, was_killed, true)
 
 	if visual_node and visual_node.has_method("set_statuses"):
 		visual_node.set_statuses(active_statuses.keys())
@@ -154,6 +150,15 @@ func die() -> void:
 	CombatEffects.spawn_death_burst(container, global_position)
 
 	died.emit(self)
+
+	# Notify Font of Life on kill
+	var players = get_tree().get_nodes_in_group("player")
+	if players.size() > 0:
+		var p = players[0]
+		if p and p.has_node("Abilities"):
+			var font = p.get_node("Abilities").get_ability("font_of_life")
+			if font and font.has_method("notify_enemy_killed"):
+				font.notify_enemy_killed()
 
 	# Delegate death reactions cleanly to SynergyEngine
 	var engine_nodes = get_tree().get_nodes_in_group("synergy_engine")

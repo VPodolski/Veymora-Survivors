@@ -3,6 +3,10 @@ extends RefCounted
 
 signal stats_updated
 
+const SynergyRegistry = preload("res://scripts/synergies/synergy_registry.gd")
+
+static var active_stats: RunStats = null
+
 var arena_id: String = "forgotten_forest"
 var arena_name: String = "Забытый лес"
 var survival_time: float = 0.0
@@ -17,6 +21,13 @@ var artifacts_collected: int = 0
 var barrier_absorbed_damage: float = 0.0
 var total_healing_done: float = 0.0
 var spell_damage: Dictionary = {} # spell_id -> float total damage
+var spell_hits: Dictionary = {} # spell_id -> int hits
+var hit_count: int = 0
+var unique_enemies_hit: Dictionary = {} # enemy_id -> true
+var enemies_hit_count: int = 0
+var total_dot_damage: float = 0.0
+var projectiles_intercepted: int = 0
+var damage_prevented: float = 0.0
 
 # Rich Synergy Tracking (v0.4)
 var synergy_counts: Dictionary = {} # synergy_id -> int activation count
@@ -27,6 +38,9 @@ var synergy_max_targets: Dictionary = {} # synergy_id -> int peak targets in sin
 var synergy_dot_damage: Dictionary = {} # synergy_id -> float periodic DoT damage
 
 var _recorded_enemy_ids: Dictionary = {}
+
+func _init() -> void:
+	active_stats = self
 
 func record_kill(enemy: EnemyController) -> void:
 	if not enemy:
@@ -49,10 +63,38 @@ func record_damage(amount: float) -> void:
 	if amount > 0.0:
 		damage_dealt += amount
 
-func record_spell_hit(spell_id: String, amount: float) -> void:
+func record_hit(source_id: String, amount: float, enemy: EnemyController = null, is_dot: bool = false) -> void:
+	if amount <= 0.0:
+		return
 	record_damage(amount)
-	if not spell_id.is_empty() and amount > 0.0:
-		spell_damage[spell_id] = spell_damage.get(spell_id, 0.0) + amount
+	hit_count += 1
+
+	if enemy:
+		var eid = enemy.get_instance_id()
+		if not unique_enemies_hit.has(eid):
+			unique_enemies_hit[eid] = true
+			enemies_hit_count += 1
+
+	if is_dot:
+		total_dot_damage += amount
+
+	if SynergyRegistry.has_definition(source_id):
+		synergy_damage[source_id] = synergy_damage.get(source_id, 0.0) + amount
+		if is_dot:
+			synergy_dot_damage[source_id] = synergy_dot_damage.get(source_id, 0.0) + amount
+	else:
+		var s_id = source_id if not source_id.is_empty() else "generic"
+		spell_damage[s_id] = spell_damage.get(s_id, 0.0) + amount
+		spell_hits[s_id] = spell_hits.get(s_id, 0) + 1
+
+func record_spell_hit(spell_id: String, amount: float) -> void:
+	record_hit(spell_id, amount, null, false)
+
+func record_projectile_intercepted(amount: float = 0.0) -> void:
+	projectiles_intercepted += 1
+	if amount > 0.0:
+		damage_prevented += amount
+	stats_updated.emit()
 
 func record_damage_absorbed(amount: float) -> void:
 	if amount > 0.0:
@@ -134,7 +176,13 @@ func to_dictionary() -> Dictionary:
 		"artifacts_collected": artifacts_collected,
 		"barrier_absorbed_damage": barrier_absorbed_damage,
 		"total_healing_done": total_healing_done,
+		"hit_count": hit_count,
+		"enemies_hit_count": enemies_hit_count,
+		"total_dot_damage": total_dot_damage,
+		"projectiles_intercepted": projectiles_intercepted,
+		"damage_prevented": damage_prevented,
 		"spell_damage": spell_damage.duplicate(),
+		"spell_hits": spell_hits.duplicate(),
 		"synergy_counts": synergy_counts.duplicate(),
 		"synergy_damage": synergy_damage.duplicate(),
 		"synergy_targets": synergy_targets.duplicate(),
@@ -159,7 +207,14 @@ func reset() -> void:
 	artifacts_collected = 0
 	barrier_absorbed_damage = 0.0
 	total_healing_done = 0.0
+	hit_count = 0
+	enemies_hit_count = 0
+	total_dot_damage = 0.0
+	projectiles_intercepted = 0
+	damage_prevented = 0.0
+	unique_enemies_hit.clear()
 	spell_damage.clear()
+	spell_hits.clear()
 	synergy_counts.clear()
 	synergy_damage.clear()
 	synergy_targets.clear()

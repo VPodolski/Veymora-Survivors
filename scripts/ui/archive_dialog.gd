@@ -36,16 +36,6 @@ const EVOLUTIONS_DATA = [
 	{"id": "evolve_lightning", "name": "Ярость Небес", "req": "Грозовой разряд 5 + Громоотвод", "desc": "Штормовой каскад небесных молний (до 7 скачков, урон 45, интервал 1.4 сек)."}
 ]
 
-const SYNERGIES_DATA = [
-	{"id": "resonance", "name": "Чародейский резонанс", "formula": "Аркан + Статический заряд", "desc": "Удар арканом по заряженному врагу высвобождает дугу 25 урона."},
-	{"id": "frost_shatter", "name": "Ледяные осколки", "formula": "Лёд + Замедленный враг", "desc": "Удар льдом по замедленной цели раскалывает её на 3 осколка."},
-	{"id": "lightning_chain", "name": "Грозовая дуга", "formula": "Молния + Заряженный враг", "desc": "Цепной импульс перегружает цель электричеством."},
-	{"id": "unstable_explosion", "name": "Взрыв нестабильности", "formula": "Метка смерти + Гибель цели", "desc": "Гибель помеченного врага вызывает взрыв по площади."},
-	{"id": "steam_rift", "name": "Паровой разлом", "formula": "Огонь + Замедленный враг", "desc": "Огненный удар испаряет мороз, создавая густое облако пара с 20 урона/сек."},
-	{"id": "thermal_conflagration", "name": "Термодинамическая перегрузка", "formula": "Огонь + Статический заряд", "desc": "Огонь по заряду вызывает мощнейшую тепловую вспышку 38 урона."},
-	{"id": "returning_pierce", "name": "Возвратный разлом", "formula": "Магическая стрела + Песочные часы", "desc": "Чародейские снаряды пробивают врагов и летят обратно к магу, нанося повторные удары."}
-]
-
 const ARTIFACTS_DATA = [
 	{"id": "amulet_of_haste", "name": "Амулет спешки", "desc": "+15% к скорости передвижения мага."},
 	{"id": "obsidian_heart", "name": "Обсидиановое сердце", "desc": "+25% к урону всех заклинаний, ударная волна при получении урона."},
@@ -141,11 +131,16 @@ func _render_spells_tab(archive: Dictionary) -> void:
 func _render_synergies_tab(archive: Dictionary) -> void:
 	var loc = LocalizationManager.instance
 	var discovered = archive.get("synergies", [])
-	var all_synergies = SynergyRegistry.get_all()
-	var sec_syn_fmt = loc.get_text("codex_sec_synergies", "МАГИЧЕСКИЕ СИНЕРГИИ И РЕАКЦИИ (%d/%d)") if loc else "МАГИЧЕСКИЕ СИНЕРГИИ И РЕАКЦИИ (%d/%d)"
-	_add_section_header(sec_syn_fmt % [discovered.size(), all_synergies.size()])
+	var core_synergies = SynergyRegistry.get_core_synergies()
+	var discovered_core_count = 0
+	for syn in core_synergies:
+		if discovered.has(syn.id) or discovered.has(syn.default_name):
+			discovered_core_count += 1
 
-	for syn in all_synergies:
+	var sec_syn_fmt = loc.get_text("codex_sec_synergies", "МАГИЧЕСКИЕ СИНЕРГИИ И РЕАКЦИИ (%d/%d)") if loc else "МАГИЧЕСКИЕ СИНЕРГИИ И РЕАКЦИИ (%d/%d)"
+	_add_section_header(sec_syn_fmt % [discovered_core_count, core_synergies.size()])
+
+	for syn in core_synergies:
 		var is_known = discovered.has(syn.id) or discovered.has(syn.default_name)
 		var unk_name = loc.get_text("codex_unknown_syn", "??? Скрытая комбинация стихий") if loc else "??? Скрытая комбинация стихий"
 		var unk_desc = loc.get_text("codex_unknown_syn_desc", "Комбинируйте эффекты разных стихий в бою, чтобы раскрыть резонанс.") if loc else "Комбинируйте эффекты разных стихий в бою, чтобы раскрыть резонанс."

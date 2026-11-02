@@ -1,28 +1,27 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene format=3 uid="uid://chcbi1gnommu6"]
 
-[ext_resource type="Script" path="res://scripts/game/main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://cwjvqwn1gs1hr" path="res://scripts/game/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/arena/arena.tscn" id="2_arena"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="4_hud"]
-[ext_resource type="Script" path="res://scripts/enemies/spawn_manager.gd" id="5_spawner"]
-[ext_resource type="Script" path="res://scripts/progression/experience_manager.gd" id="6_exp"]
-[ext_resource type="Script" path="res://scripts/synergies/synergy_engine.gd" id="7_synergy"]
+[ext_resource type="Script" uid="uid://frm7376rqhrr" path="res://scripts/enemies/spawn_manager.gd" id="5_spawner"]
+[ext_resource type="Script" uid="uid://br3cyhrgidqkt" path="res://scripts/progression/experience_manager.gd" id="6_exp"]
+[ext_resource type="Script" uid="uid://bbyf3v2nt8gey" path="res://scripts/synergies/synergy_engine.gd" id="7_synergy"]
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=1066214447]
 script = ExtResource("1_main")
 
-[node name="Arena" parent="." instance=ExtResource("2_arena")]
+[node name="Arena" parent="." unique_id=1931609575 instance=ExtResource("2_arena")]
 
-[node name="Player" parent="." instance=ExtResource("3_player")]
-position = Vector2(0, 0)
+[node name="Player" parent="." unique_id=2061423549 instance=ExtResource("3_player")]
 
-[node name="SpawnManager" type="Node2D" parent="."]
+[node name="SpawnManager" type="Node2D" parent="." unique_id=907117853]
 script = ExtResource("5_spawner")
 
-[node name="ExperienceManager" type="Node" parent="."]
+[node name="ExperienceManager" type="Node" parent="." unique_id=1159963320]
 script = ExtResource("6_exp")
 
-[node name="SynergyEngine" type="Node" parent="."]
+[node name="SynergyEngine" type="Node" parent="." unique_id=110386399]
 script = ExtResource("7_synergy")
 
-[node name="HUD" parent="." instance=ExtResource("4_hud")]
+[node name="HUD" parent="." unique_id=1655896798 instance=ExtResource("4_hud")]

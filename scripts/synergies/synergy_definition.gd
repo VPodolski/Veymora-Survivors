@@ -20,6 +20,8 @@ var secondary_status_duration: float = 0.0
 var visual_color: Color = Color.WHITE
 var audio_sfx_key: String = ""
 var badge_text: String = "СИНЕРГИЯ"
+var required_abilities: Array[String] = []
+var is_core: bool = true
 
 func _init(
 	p_id: String,
@@ -37,7 +39,9 @@ func _init(
 	p_sec_status: String = "",
 	p_sec_duration: float = 0.0,
 	p_color: Color = Color.WHITE,
-	p_sfx_key: String = ""
+	p_sfx_key: String = "",
+	p_req_abilities: Array[String] = [],
+	p_is_core: bool = true
 ) -> void:
 	id = p_id
 	name_key = "syn_" + p_id + "_name"
@@ -57,4 +61,6 @@ func _init(
 	secondary_status_duration = p_sec_duration
 	visual_color = p_color
 	audio_sfx_key = p_sfx_key if not p_sfx_key.is_empty() else p_id
+	required_abilities = p_req_abilities
+	is_core = p_is_core
 

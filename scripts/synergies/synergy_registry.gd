@@ -32,7 +32,9 @@ static func _ensure_initialized() -> void:
 		"slowed",
 		3.5,
 		Color(0.8, 0.92, 1.0, 1.0),
-		"steam_rift"
+		"steam_rift",
+		["ice_storm", "fireball"],
+		true
 	))
 
 	# --- 2. Cryogenic Shock (Ice + Lightning) ---
@@ -52,7 +54,9 @@ static func _ensure_initialized() -> void:
 		"slowed",
 		2.0,
 		Color(0.35, 0.85, 1.0, 1.0),
-		"cryogenic_shock"
+		"cryogenic_shock",
+		["ice_storm", "lightning_strike"],
+		true
 	))
 
 	# --- 3. Frost Shatter (Ice + Runic Blade) ---
@@ -72,7 +76,9 @@ static func _ensure_initialized() -> void:
 		"",
 		0.0,
 		Color(0.3, 0.9, 1.0, 1.0),
-		"frost_shatter"
+		"frost_shatter",
+		["ice_storm", "runic_blade"],
+		true
 	))
 
 	# --- 4. Conflagration Execution (Fire + Death Mark) ---
@@ -92,7 +98,9 @@ static func _ensure_initialized() -> void:
 		"burning",
 		3.5,
 		Color(1.0, 0.3, 0.15, 1.0),
-		"thermal_conflagration"
+		"thermal_conflagration",
+		["fireball", "death_mark"],
+		true
 	))
 
 	# --- 5. Charged Bolt (Lightning + Magic Bolt) ---
@@ -112,7 +120,9 @@ static func _ensure_initialized() -> void:
 		"charged",
 		3.0,
 		Color(0.4, 0.85, 1.0, 1.0),
-		"resonance"
+		"resonance",
+		["magic_bolt", "lightning_strike"],
+		true
 	))
 
 	# --- 6. Thunder Shield (Magic Barrier + Lightning) ---
@@ -132,7 +142,9 @@ static func _ensure_initialized() -> void:
 		"charged",
 		3.5,
 		Color(0.4, 0.9, 1.0, 1.0),
-		"lightning_chain"
+		"lightning_chain",
+		["magic_barrier", "lightning_strike"],
+		true
 	))
 
 	# --- 7. Glacial Ward (Magic Barrier + Ice) ---
@@ -152,7 +164,9 @@ static func _ensure_initialized() -> void:
 		"slowed",
 		2.5,
 		Color(0.3, 0.9, 1.0, 1.0),
-		"frost_shatter"
+		"frost_shatter",
+		["magic_barrier", "ice_storm"],
+		true
 	))
 
 	# --- 8. Life Harvest (Font of Life + Death Mark) ---
@@ -172,7 +186,9 @@ static func _ensure_initialized() -> void:
 		"",
 		0.0,
 		Color(0.25, 0.95, 0.45, 1.0),
-		"soul_harvest"
+		"soul_harvest",
+		["font_of_life", "death_mark"],
+		true
 	))
 
 	# --- 9. Blazing Blades (Runic Blade + Fireball) ---
@@ -192,7 +208,9 @@ static func _ensure_initialized() -> void:
 		"burning",
 		3.0,
 		Color(1.0, 0.45, 0.1, 1.0),
-		"thermal_conflagration"
+		"thermal_conflagration",
+		["runic_blade", "fireball"],
+		true
 	))
 
 	# --- 10. Piercing Frost (Ice Storm + Magic Bolt) ---
@@ -212,7 +230,9 @@ static func _ensure_initialized() -> void:
 		"slowed",
 		2.0,
 		Color(0.35, 0.9, 1.0, 1.0),
-		"frost_shatter"
+		"frost_shatter",
+		["ice_storm", "magic_bolt"],
+		true
 	))
 
 	# =========================================================================
@@ -236,7 +256,9 @@ static func _ensure_initialized() -> void:
 		"charged",
 		3.0,
 		Color(0.75, 0.45, 1.0, 1.0),
-		"resonance"
+		"resonance",
+		[],
+		false
 	))
 
 	# Lightning Chain
@@ -256,7 +278,9 @@ static func _ensure_initialized() -> void:
 		"charged",
 		3.0,
 		Color(0.45, 0.85, 1.0, 1.0),
-		"lightning_chain"
+		"lightning_chain",
+		[],
+		false
 	))
 
 	# Thermal Conflagration
@@ -276,7 +300,9 @@ static func _ensure_initialized() -> void:
 		"burning",
 		3.5,
 		Color(1.0, 0.55, 0.1, 1.0),
-		"thermal_conflagration"
+		"thermal_conflagration",
+		[],
+		false
 	))
 
 	# Unstable Explosion
@@ -296,7 +322,9 @@ static func _ensure_initialized() -> void:
 		"",
 		0.0,
 		Color(0.85, 0.25, 1.0, 1.0),
-		"unstable_explosion"
+		"unstable_explosion",
+		[],
+		false
 	))
 
 	# Soul Harvest
@@ -316,7 +344,9 @@ static func _ensure_initialized() -> void:
 		"",
 		0.0,
 		Color(1.0, 0.25, 0.35, 1.0),
-		"soul_harvest"
+		"soul_harvest",
+		[],
+		false
 	))
 
 	# Returning Pierce
@@ -336,7 +366,9 @@ static func _ensure_initialized() -> void:
 		"",
 		0.0,
 		Color(0.4, 0.85, 1.0, 1.0),
-		"returning_pierce"
+		"returning_pierce",
+		[],
+		false
 	))
 
 	# Spatial Collapse
@@ -356,7 +388,9 @@ static func _ensure_initialized() -> void:
 		"",
 		0.0,
 		Color(0.7, 0.2, 0.95, 1.0),
-		"spatial_collapse"
+		"spatial_collapse",
+		[],
+		false
 	))
 
 	# Chain of Doom
@@ -376,7 +410,9 @@ static func _ensure_initialized() -> void:
 		"marked",
 		5.0,
 		Color(0.95, 0.15, 0.25, 1.0),
-		"chain_of_doom"
+		"chain_of_doom",
+		[],
+		false
 	))
 
 	# Runic Conductor
@@ -396,7 +432,9 @@ static func _ensure_initialized() -> void:
 		"charged",
 		3.0,
 		Color(0.5, 0.9, 1.0, 1.0),
-		"runic_conductor"
+		"runic_conductor",
+		[],
+		false
 	))
 
 	_initialized = true
@@ -445,3 +483,70 @@ static func get_death_synergies() -> Array:
 			list.append(defn)
 	list.sort_custom(func(a, b): return a.priority > b.priority)
 	return list
+
+static func get_core_synergies() -> Array:
+	_ensure_initialized()
+	var list: Array = []
+	for k in _definitions.keys():
+		var defn = _definitions[k]
+		if defn.is_core:
+			list.append(defn)
+	list.sort_custom(func(a, b): return a.priority > b.priority)
+	return list
+
+static func get_core_synergy_ids() -> Array[String]:
+	_ensure_initialized()
+	var ids: Array[String] = []
+	for k in _definitions.keys():
+		if _definitions[k].is_core:
+			ids.append(k)
+	return ids
+
+static func get_synergy_for_components(comp_a: String, comp_b: String) -> SynergyDefinitionClass:
+	_ensure_initialized()
+	for k in _definitions.keys():
+		var defn = _definitions[k]
+		if defn.required_abilities.size() >= 2:
+			if (defn.required_abilities[0] == comp_a and defn.required_abilities[1] == comp_b) or \
+			   (defn.required_abilities[0] == comp_b and defn.required_abilities[1] == comp_a):
+				return defn
+	return null
+
+static func get_synergy_hint(player: Node2D, offered_id: String) -> String:
+	if not player or not player.get("ability_controller"):
+		return ""
+	_ensure_initialized()
+	var ac = player.get("ability_controller")
+	var inv = player.get("inventory")
+
+	# 1. Artifact special synergy hints
+	match offered_id:
+		"warding_rune":
+			if ac.has_ability("magic_barrier"): return "⚡ СИНЕРГИЯ: Магический барьер"
+		"life_crystal":
+			if ac.has_ability("font_of_life"): return "⚡ СИНЕРГИЯ: Источник жизни"
+		"frost_core":
+			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Ледяной шторм"
+		"lightning_rod":
+			if ac.has_ability("lightning_strike"): return "⚡ СИНЕРГИЯ: Грозовой разряд"
+		"obsidian_heart":
+			if ac.has_ability("fireball"): return "⚡ СИНЕРГИЯ: Огненная сфера"
+
+	# If offering an ability that pairs with an artifact:
+	if offered_id == "magic_barrier" and inv and inv.has_artifact("warding_rune"):
+		return "⚡ СИНЕРГИЯ: Укрепление щита"
+	if offered_id == "font_of_life" and inv and inv.has_artifact("life_crystal"):
+		return "⚡ СИНЕРГИЯ: Сердце жизни"
+
+	# 2. Spells core synergy hints
+	for k in _definitions.keys():
+		var defn = _definitions[k]
+		if not defn.is_core or defn.required_abilities.size() < 2:
+			continue
+		var reqs = defn.required_abilities
+		if reqs.has(offered_id):
+			var other_req = reqs[0] if reqs[1] == offered_id else reqs[1]
+			if ac.has_ability(other_req):
+				return "⚡ СИНЕРГИЯ: " + defn.default_name
+
+	return ""

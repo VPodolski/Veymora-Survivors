@@ -4,6 +4,7 @@ extends RefCounted
 const FireballAbility = preload("res://scripts/abilities/fireball_ability.gd")
 const LightningAbility = preload("res://scripts/abilities/lightning_ability.gd")
 const MetaArchive = preload("res://scripts/game/meta_archive.gd")
+const SynergyRegistry = preload("res://scripts/synergies/synergy_registry.gd")
 
 class UpgradeOption:
 	var id: String = ""
@@ -183,65 +184,29 @@ static func generate_choices(player: PlayerController, count: int = 3) -> Array[
 	candidates.shuffle()
 
 	var selected: Array[UpgradeOption] = []
-	for p_opt in priority_choices:
-		selected.append(p_opt)
+	var chosen_ids: Dictionary = {}
 
+	# 1. Fill with available evolutions first (priority), strictly respecting count
+	priority_choices.shuffle()
+	for p_opt in priority_choices:
+		if selected.size() >= count:
+			break
+		if not chosen_ids.has(p_opt.id):
+			chosen_ids[p_opt.id] = true
+			selected.append(p_opt)
+
+	# 2. Fill remaining slots from candidates up to count without duplicates
 	for c in candidates:
 		if selected.size() >= count:
 			break
-		selected.append(c)
+		if not chosen_ids.has(c.id):
+			chosen_ids[c.id] = true
+			selected.append(c)
 
 	return selected
 
 static func _detect_synergy_hint(player: PlayerController, opt: UpgradeOption) -> String:
-	if not player or not player.ability_controller:
-		return ""
-	var ac = player.ability_controller
-	var inv = player.inventory
-
-	match opt.id:
-		"ice_storm":
-			if ac.has_ability("fireball"): return "⚡ СИНЕРГИЯ: Паровой разлом"
-			if ac.has_ability("lightning_strike"): return "⚡ СИНЕРГИЯ: Криогенный шок"
-			if ac.has_ability("runic_blade"): return "⚡ СИНЕРГИЯ: Ледяные осколки"
-			if ac.has_ability("magic_bolt"): return "⚡ СИНЕРГИЯ: Ледяное пронзание"
-			if ac.has_ability("magic_barrier"): return "⚡ СИНЕРГИЯ: Ледяная защита"
-		"fireball":
-			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Паровой разлом"
-			if ac.has_ability("death_mark"): return "⚡ СИНЕРГИЯ: Казнь пламенем"
-			if ac.has_ability("runic_blade"): return "⚡ СИНЕРГИЯ: Пылающие клинки"
-		"lightning_strike":
-			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Криогенный шок"
-			if ac.has_ability("magic_bolt"): return "⚡ СИНЕРГИЯ: Заряженная стрела"
-			if ac.has_ability("magic_barrier"): return "⚡ СИНЕРГИЯ: Грозовой щит"
-		"death_mark":
-			if ac.has_ability("fireball"): return "⚡ СИНЕРГИЯ: Казнь пламенем"
-			if ac.has_ability("font_of_life"): return "⚡ СИНЕРГИЯ: Жатва жизни"
-		"runic_blade":
-			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Ледяные осколки"
-			if ac.has_ability("fireball"): return "⚡ СИНЕРГИЯ: Пылающие клинки"
-		"magic_barrier":
-			if ac.has_ability("lightning_strike"): return "⚡ СИНЕРГИЯ: Грозовой щит"
-			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Ледяная защита"
-			if inv and inv.has_artifact("warding_rune"): return "⚡ СИНЕРГИЯ: Укрепление щита"
-		"font_of_life":
-			if ac.has_ability("death_mark"): return "⚡ СИНЕРГИЯ: Жатва жизни"
-			if inv and inv.has_artifact("life_crystal"): return "⚡ СИНЕРГИЯ: Сердце жизни"
-		"magic_bolt":
-			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Ледяное пронзание"
-			if ac.has_ability("lightning_strike"): return "⚡ СИНЕРГИЯ: Заряженная стрела"
-		"warding_rune":
-			if ac.has_ability("magic_barrier"): return "⚡ СИНЕРГИЯ: Магический барьер"
-		"life_crystal":
-			if ac.has_ability("font_of_life"): return "⚡ СИНЕРГИЯ: Источник жизни"
-		"frost_core":
-			if ac.has_ability("ice_storm"): return "⚡ СИНЕРГИЯ: Ледяной шторм"
-		"lightning_rod":
-			if ac.has_ability("lightning_strike"): return "⚡ СИНЕРГИЯ: Грозовой разряд"
-		"obsidian_heart":
-			if ac.has_ability("fireball"): return "⚡ СИНЕРГИЯ: Огненная сфера"
-
-	return ""
+	return SynergyRegistry.get_synergy_hint(player, opt.id)
 
 static func apply_upgrade(player: PlayerController, option: UpgradeOption) -> void:
 	if not player:

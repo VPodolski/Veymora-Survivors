@@ -1,6 +1,9 @@
 class_name LightningAbility
 extends AbilityBase
 
+const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
+const DamageContext = preload("res://scripts/combat/damage_context.gd")
+
 var tags: Array = ["lightning", "chain"]
 @export var is_evolved: bool = false
 @export var chain_jumps: int = 2
@@ -55,7 +58,8 @@ func cast_lightning(target: EnemyController) -> void:
 	var arc_w = 3.8 if is_evolved else 2.4
 	CombatEffects.spawn_lightning_arc(container, player_owner.global_position, pos, arc_col, arc_w)
 	CombatEffects.spawn_hit_flash(container, pos, arc_col, 16.0 if is_evolved else 12.0)
-	target.take_damage(dmg)
+	var prim_ctx = DamageContext.new(self, target, dmg, tags, "lightning_strike", pos, false, 0, "", false)
+	DamageResolver.apply_damage(prim_ctx)
 	if is_instance_valid(target) and not target.is_dead:
 		target.apply_status(StatusEffects.STATUS_CHARGED, 4.0)
 
@@ -77,7 +81,9 @@ func cast_lightning(target: EnemyController) -> void:
 			var sub_w = max(1.2, arc_w * (1.0 - float(chained_targets.size()) * 0.08))
 			CombatEffects.spawn_lightning_arc(container, current_pos, next_enemy.global_position, arc_col, sub_w)
 			CombatEffects.spawn_hit_flash(container, next_enemy.global_position, arc_col, 10.0)
-			next_enemy.take_damage(dmg * (0.9 if is_evolved else 0.75))
+			var chain_dmg = dmg * (0.9 if is_evolved else 0.75)
+			var sub_ctx = DamageContext.new(self, next_enemy, chain_dmg, tags, "lightning_strike", next_enemy.global_position, true, 0, "", false)
+			DamageResolver.apply_damage(sub_ctx)
 			if is_instance_valid(next_enemy) and not next_enemy.is_dead:
 				next_enemy.apply_status(StatusEffects.STATUS_CHARGED, 3.5)
 			current_pos = next_enemy.global_position

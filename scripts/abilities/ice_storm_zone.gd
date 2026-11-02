@@ -1,6 +1,9 @@
 class_name IceStormZone
 extends Area2D
 
+const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
+const DamageContext = preload("res://scripts/combat/damage_context.gd")
+
 @export var radius: float = 110.0
 @export var damage_per_tick: float = 5.0
 @export var duration: float = 3.0
@@ -70,13 +73,14 @@ func apply_storm_tick() -> void:
 	var engines = get_tree().get_nodes_in_group("synergy_engine")
 
 	for body in targets:
-		body.take_damage(damage_per_tick)
+		var ctx = DamageContext.new(self, body, damage_per_tick, ["ice_zone", "chill", "area"], "ice_storm", body.global_position, false, 0, "", false)
+		DamageResolver.apply_damage(ctx)
 		body.apply_status(StatusEffects.STATUS_SLOWED, 2.5)
 
 		if engines.size() > 0:
 			# Ice Storm zone prepares targets with chill/slow, but does not self-trigger shatter
-			var ctx = ReactionContext.new(self, body, ["ice_zone", "chill", "area"], body.global_position, damage_per_tick, 0, false)
-			engines[0].on_hit_landed(ctx)
+			var react_ctx = ReactionContext.new(self, body, ["ice_zone", "chill", "area"], body.global_position, damage_per_tick, 0, false)
+			engines[0].on_hit_landed(react_ctx)
 
 func _draw() -> void:
 	# Frost zone ground circle

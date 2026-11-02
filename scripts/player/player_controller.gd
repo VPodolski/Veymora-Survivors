@@ -4,6 +4,7 @@ extends CharacterBody2D
 const SaveManager = preload("res://scripts/game/save_manager.gd")
 const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
 const DamageContext = preload("res://scripts/combat/damage_context.gd")
+const RunStats = preload("res://scripts/game/run_stats.gd")
 
 signal health_changed(current_hp: float, max_hp: float)
 signal died
@@ -128,13 +129,29 @@ func trigger_obsidian_pulse() -> void:
 				enemy.apply_knockback(push_dir * 380.0)
 			else:
 				enemy.global_position += push_dir * 30.0
-			enemy.take_damage(16.0)
+			var ctx = DamageContext.new(self, enemy, 16.0, ["obsidian", "pulse"], "obsidian_heart", enemy.global_position, true)
+			DamageResolver.apply_damage(ctx)
 
 func heal(amount: float) -> void:
-	if not is_alive:
+	if not is_alive or amount <= 0.0:
 		return
-	current_health = min(stats.max_health, current_health + amount)
-	health_changed.emit(current_health, stats.max_health)
+	var max_hp = stats.max_health if stats else 100.0
+	var missing_hp = max(0.0, max_hp - current_health)
+	var actual_healed = clampf(amount, 0.0, missing_hp)
+	current_health += actual_healed
+	health_changed.emit(current_health, max_hp)
+
+	if actual_healed > 0.0:
+		var rs = RunStats.active_stats
+		if not rs and Engine.get_main_loop() and Engine.get_main_loop().root:
+			var root = Engine.get_main_loop().root
+			var gf = root.get_node_or_null("GameFlow")
+			if gf and "run_stats" in gf and gf.run_stats:
+				rs = gf.run_stats
+			elif root.get_node_or_null("Main") and "run_stats" in root.get_node_or_null("Main"):
+				rs = root.get_node_or_null("Main").run_stats
+		if rs and rs.has_method("record_healing"):
+			rs.record_healing(actual_healed)
 
 func increase_max_health(amount: float) -> void:
 	stats.max_health += amount

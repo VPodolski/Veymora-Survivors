@@ -1,6 +1,9 @@
 class_name SteamCloudArea
 extends Area2D
 
+const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
+const DamageContext = preload("res://scripts/combat/damage_context.gd")
+
 @export var radius: float = 90.0
 @export var damage_per_tick: float = 5.0
 @export var duration: float = 2.8
@@ -62,7 +65,8 @@ func _apply_steam_tick() -> void:
 	var engine = engines[0] if engines.size() > 0 else null
 
 	for body in targets:
-		body.take_damage(damage_per_tick)
+		var ctx = DamageContext.new(self, body, damage_per_tick, ["steam", "dot", "area"], "steam_rift", body.global_position, true, 1, "", false)
+		DamageResolver.apply_damage(ctx)
 		body.apply_status(StatusEffects.STATUS_SLOWED, 2.0)
 		var was_killed = (body.is_dead or body.current_health <= 0.0)
 		if engine and engine.has_signal("reaction_damage_dealt"):

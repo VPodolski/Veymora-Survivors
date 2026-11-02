@@ -1,6 +1,9 @@
 class_name MagicBarrierAbility
 extends AbilityBase
 
+const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
+const DamageContext = preload("res://scripts/combat/damage_context.gd")
+
 @export var max_shield: float = 30.0
 @export var current_shield: float = 30.0
 @export var recharge_cooldown: float = 12.0
@@ -64,10 +67,10 @@ func absorb_damage(incoming: float) -> float:
 
 	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 
-	# Synergy: Thunder Shield (with lightning_strike)
-	var has_lightning = player_owner and (player_owner.has_meta("has_thunder_shield") or (player_owner.ability_controller and player_owner.ability_controller.has_ability("lightning_strike")))
-	if has_lightning:
-		_trigger_thunder_retaliation()
+	# Delegate defense event to SynergyEngine (handles Thunder Shield accumulation and retaliation)
+	var engines = get_tree().get_nodes_in_group("synergy_engine")
+	if engines.size() > 0:
+		engines[0].on_barrier_absorbed(player_owner, absorbed)
 
 	if current_shield <= 0.0:
 		_break_barrier()
@@ -76,16 +79,6 @@ func absorb_damage(incoming: float) -> float:
 		CombatEffects.spawn_ring(container, player_owner.global_position, 16.0, 36.0, Color(0.4, 0.8, 1.0, 0.8), 0.15, 2.0)
 
 	return absorbed
-
-func _trigger_thunder_retaliation() -> void:
-	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
-	var enemies = TargetSelector.find_enemies_in_radius(get_tree(), player_owner.global_position, 180.0)
-	if not enemies.is_empty():
-		var target = enemies[0]
-		CombatEffects.spawn_lightning_arc(container, player_owner.global_position, target.global_position, Color(0.4, 0.9, 1.0), 3.0)
-		target.take_damage(30.0)
-		target.apply_status(StatusEffects.STATUS_CHARGED, 3.5)
-		CombatEffects.spawn_text_popup(container, player_owner.global_position, "ГРОЗОВОЙ ЩИТ!", Color(0.4, 0.9, 1.0, 1.0), true)
 
 func _break_barrier() -> void:
 	current_shield = 0.0
@@ -97,11 +90,7 @@ func _break_barrier() -> void:
 	CombatEffects.spawn_ring(container, player_owner.global_position, 10.0, pulse_radius, Color(0.5, 0.9, 1.0, 0.85), 0.25, 3.0)
 	CombatEffects.spawn_text_popup(container, player_owner.global_position, "БАРЬЕР СЛОМАН!", Color(0.4, 0.8, 1.0, 1.0))
 
-	# Synergy: Glacial Ward (with ice_storm)
-	var has_ice = player_owner and (player_owner.has_meta("has_glacial_ward") or (player_owner.ability_controller and player_owner.ability_controller.has_ability("ice_storm")))
-	var ward_radius = (pulse_radius + 40.0) if has_ice else pulse_radius
-
-	var enemies = TargetSelector.find_enemies_in_radius(get_tree(), player_owner.global_position, ward_radius)
+	var enemies = TargetSelector.find_enemies_in_radius(get_tree(), player_owner.global_position, pulse_radius)
 	for enemy in enemies:
 		if is_instance_valid(enemy) and not enemy.is_dead:
 			var push_dir = (enemy.global_position - player_owner.global_position).normalized()
@@ -110,17 +99,16 @@ func _break_barrier() -> void:
 			else:
 				enemy.global_position += push_dir * 35.0
 
-			enemy.take_damage(pulse_damage)
-
-			if has_ice:
-				enemy.apply_status(StatusEffects.STATUS_SLOWED, 2.5)
+			var ctx = DamageContext.new(self, enemy, pulse_damage, ["barrier", "force"], "magic_barrier", enemy.global_position)
+			DamageResolver.apply_damage(ctx)
 
 			if current_level >= 5:
 				enemy.apply_status(StatusEffects.STATUS_SLOWED, 3.5)
 
-	if has_ice:
-		CombatEffects.spawn_text_popup(container, player_owner.global_position, "ЛЕДЯНАЯ ЗАЩИТА!", Color(0.3, 0.9, 1.0, 1.0), true)
-		CombatEffects.spawn_shockwave(container, player_owner.global_position, ward_radius, Color(0.2, 0.8, 1.0, 0.8), 0.35)
+	# Delegate barrier broken synergy (e.g. Glacial Ward) to SynergyEngine
+	var engines = get_tree().get_nodes_in_group("synergy_engine")
+	if engines.size() > 0:
+		engines[0].on_barrier_broken(player_owner, pulse_radius)
 
 func restore_barrier() -> void:
 	current_shield = get_effective_max_shield()

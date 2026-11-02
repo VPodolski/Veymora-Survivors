@@ -29,6 +29,7 @@ func _ready() -> void:
 	var cfg = ArenaConfig.get_arena_config(target_arena_id)
 	run_stats.arena_id = target_arena_id
 	run_stats.arena_name = cfg.name
+	RunStats.active_stats = run_stats
 
 	if arena:
 		arena.apply_arena_config(cfg)
@@ -94,9 +95,8 @@ func _process(delta: float) -> void:
 			# Unlock next arena (Frost Necropolis)
 			SaveManager.unlock_arena("frost_necropolis")
 
-func _on_enemy_spawned(enemy: EnemyController) -> void:
-	if is_instance_valid(enemy):
-		enemy.damage_taken.connect(func(dmg): run_stats.record_damage(dmg))
+func _on_enemy_spawned(_enemy: EnemyController) -> void:
+	pass
 
 func _on_reaction_triggered(reaction_name: String, _pos: Vector2) -> void:
 	MetaArchive.record_discovery("synergies", reaction_name)

@@ -1,6 +1,10 @@
 class_name RunicBladeAbility
 extends AbilityBase
 
+const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
+const DamageContext = preload("res://scripts/combat/damage_context.gd")
+const RunStats = preload("res://scripts/game/run_stats.gd")
+
 @export var blade_count: int = 1
 @export var orbit_radius: float = 90.0
 @export var orbit_speed: float = 3.2 # Radians per second
@@ -87,6 +91,10 @@ func _on_blade_area_entered(other_area: Area2D) -> void:
 		CombatEffects.spawn_ring(container, other_area.global_position, 4.0, 20.0, Color(0.4, 0.8, 1.0, 0.8), 0.15, 1.5)
 		if AudioManager.instance:
 			AudioManager.instance.play_spell("magic_bolt")
+		var prevented_dmg = other_area.damage if "damage" in other_area else 12.0
+		var rs = RunStats.active_stats
+		if rs and rs.has_method("record_projectile_intercepted"):
+			rs.record_projectile_intercepted(prevented_dmg)
 		other_area.destroy()
 
 func _on_blade_hit(body: Node2D) -> void:
@@ -99,18 +107,11 @@ func _on_blade_hit(body: Node2D) -> void:
 
 			var has_fire = player_owner and (player_owner.has_meta("has_blazing_blades") or (player_owner.ability_controller and player_owner.ability_controller.has_ability("fireball")))
 			if has_fire:
-				dmg *= 1.30
 				if not hit_tags.has("fire"):
 					hit_tags.append("fire")
-				body.apply_status(StatusEffects.STATUS_BURNING, 3.0)
 
-			body.take_damage(dmg)
-
-			# Trigger synergy reaction
-			var engines = get_tree().get_nodes_in_group("synergy_engine")
-			if engines.size() > 0:
-				var ctx = ReactionContext.new(self, body, hit_tags, body.global_position, dmg, 0)
-				engines[0].on_hit_landed(ctx)
+			var ctx = DamageContext.new(self, body, dmg, hit_tags, "runic_blade", body.global_position, false, 0, "", true)
+			DamageResolver.apply_damage(ctx)
 
 func apply_level_modifiers() -> void:
 	match current_level:
