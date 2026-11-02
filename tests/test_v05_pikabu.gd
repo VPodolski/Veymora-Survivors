@@ -667,8 +667,8 @@ func test_15_web_export_and_zip_verification() -> void:
 	assert(FileAccess.file_exists("res://media/store/screenshot_3_boss.png"), "Screenshot 3 must exist")
 	assert(FileAccess.file_exists("res://media/store/screenshot_4_artifacts.png"), "Screenshot 4 must exist")
 
-	var zip_exists = FileAccess.file_exists("res://build/veymora_survivors_pikabu.zip") or FileAccess.file_exists("res://build/web_pikabu/veymora_survivors_pikabu.zip")
-	assert(zip_exists, "ZIP archive for Pikabu must exist in build/ or build/web_pikabu/")
+	var zip_exists = FileAccess.file_exists("res://build/veymora_survivors_pikabu_v0.5.2.zip") or FileAccess.file_exists("res://build/web_pikabu/veymora_survivors_pikabu_v0.5.2.zip") or FileAccess.file_exists("res://build/veymora_survivors_pikabu.zip") or FileAccess.file_exists("res://build/web_pikabu/veymora_survivors_pikabu.zip")
+	assert(zip_exists, "ZIP archive for Pikabu (v0.5.2) must exist in build/ or build/web_pikabu/")
 
 	print("[PASS] Web export and store assets verified.")
 

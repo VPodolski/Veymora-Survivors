@@ -13,8 +13,8 @@ const STRINGS = {
 	"ru": {
 		# Common
 		"app_title": "VEYMORA SURVIVORS",
-		"app_subtitle": "Магические синергии • Разломы стихий • Версия 0.3",
-		"version_tag": "v0.3 WebGL2",
+		"app_subtitle": "Магические синергии • Разломы стихий • Версия 0.5.2",
+		"version_tag": "v0.5.2 WebGL2",
 		"btn_back": "← Назад",
 		"btn_close": "✕",
 		"btn_apply": "Готово",
@@ -214,8 +214,8 @@ const STRINGS = {
 	"en": {
 		# Common
 		"app_title": "VEYMORA SURVIVORS",
-		"app_subtitle": "Elemental Synergies • Dimensional Rifts • Version 0.3",
-		"version_tag": "v0.3 WebGL2",
+		"app_subtitle": "Elemental Synergies • Dimensional Rifts • Version 0.5.2",
+		"version_tag": "v0.5.2 WebGL2",
 		"btn_back": "← Back",
 		"btn_close": "✕",
 		"btn_apply": "Done",

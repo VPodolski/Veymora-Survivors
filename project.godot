@@ -41,7 +41,7 @@ config/token="umjoY4f2tGIO2N9U49OVjFnq3uVAWM6r"
 config/is_preloader_show=false
 config/ready_delay=-1.0
 config/is_archive=true
-config/archive_name="veymora_survivors_pikabu.zip"
+config/archive_name="veymora_survivors_pikabu_v0.5.2.zip"
 
 [layer_names]
 
