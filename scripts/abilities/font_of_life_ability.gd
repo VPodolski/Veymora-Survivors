@@ -4,13 +4,13 @@ extends AbilityBase
 const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
 const DamageContext = preload("res://scripts/combat/damage_context.gd")
 
-@export var heal_interval: float = 4.0
-@export var heal_amount: float = 4.0
-@export var kills_for_pulse: int = 15
-@export var kill_heal_amount: float = 2.0
-@export var overheal_armor_duration: float = 3.5
+@export var heal_interval: float = 5.0
+@export var heal_amount: float = 3.0
+@export var kills_for_pulse: int = 20
+@export var kill_heal_amount: float = 3.0
+@export var overheal_armor_duration: float = 2.5
 
-const OVERHEAL_ARMOR_VALUE: float = 0.15
+const OVERHEAL_ARMOR_VALUE: float = 0.10
 
 var heal_timer: float = 0.0
 var kill_counter: int = 0
@@ -24,22 +24,22 @@ func _init() -> void:
 	category = "healing"
 	current_level = 1
 	max_level = 5
-	base_cooldown = 4.0
-	heal_interval = 4.0
-	heal_amount = 4.0
-	kills_for_pulse = 15
-	kill_heal_amount = 2.0
+	base_cooldown = 5.0
+	heal_interval = 5.0
+	heal_amount = 3.0
+	kills_for_pulse = 20
+	kill_heal_amount = 3.0
 
 func get_effective_heal() -> float:
 	var h = heal_amount
 	if player_owner and player_owner.has_meta("has_life_crystal"):
-		h *= 1.30
+		h *= 1.20
 	return h
 
 func get_effective_kill_heal() -> float:
 	var h = kill_heal_amount
 	if player_owner and player_owner.has_meta("has_life_crystal"):
-		h *= 1.30
+		h *= 1.20
 	return h
 
 func _physics_process(delta: float) -> void:
@@ -122,28 +122,28 @@ func _trigger_kill_pulse() -> void:
 func apply_level_modifiers() -> void:
 	match current_level:
 		2:
-			heal_interval = 3.5
-			heal_amount = 6.0
+			heal_interval = 4.5
+			heal_amount = 4.0
 			kill_heal_amount = 3.0
 		3:
-			heal_interval = 3.0
-			heal_amount = 8.0
-			kill_heal_amount = 4.0
+			heal_interval = 4.5
+			heal_amount = 5.0
+			kill_heal_amount = 3.0
 		4:
-			heal_interval = 2.8
-			heal_amount = 11.0
-			kill_heal_amount = 5.0
+			heal_interval = 4.0
+			heal_amount = 5.0
+			kill_heal_amount = 3.0
 		5:
-			heal_interval = 2.4
-			heal_amount = 15.0
-			kill_heal_amount = 6.0
+			heal_interval = 4.0
+			heal_amount = 6.0
+			kill_heal_amount = 3.0
 
 func get_next_upgrade_description() -> String:
 	match current_level + 1:
-		2: return "+6 HP каждые 3.5с; +3 HP за 15 убийств"
-		3: return "+8 HP каждые 3.0с; импульс наносит 15 урона врагам"
-		4: return "+11 HP каждые 2.8с; +5 HP за 15 убийств"
-		5: return "Живой Исток: +15 HP каждые 2.4с, избыток дает +15% брони"
+		2: return "+4 HP каждые 4.5с; +3 HP за 20 убийств"
+		3: return "+5 HP каждые 4.5с; импульс наносит 15 урона врагам"
+		4: return "+5 HP каждые 4.0с; +3 HP за 20 убийств"
+		5: return "Живой Исток: +6 HP каждые 4.0с, избыток дает +10% брони"
 		_: return "Максимальный уровень"
 
 func _draw() -> void:

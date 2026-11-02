@@ -5,13 +5,18 @@ extends EnemyController
 
 func _ready() -> void:
 	stats = EnemyStats.new()
-	stats.max_health = 180.0
+	stats.max_health = 500.0
 	stats.move_speed = 90.0
-	stats.contact_damage = 20.0
+	stats.contact_damage = 28.0
+	stats.attack_cooldown = 0.8
 	super._ready()
 	current_health = stats.max_health
 	add_to_group("elite_enemies")
 	tags = ["enemy", "elite", "metal"]
+
+	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+	CombatEffects.spawn_shockwave(container, global_position, 80.0, Color(1.0, 0.8, 0.2, 0.9), 0.3)
+	CombatEffects.spawn_text_popup(container, global_position, "ЭЛИТНЫЙ ВРАГ!", Color(1.0, 0.85, 0.2, 1.0))
 
 func die() -> void:
 	if is_dead:
@@ -23,5 +28,14 @@ func die() -> void:
 		chest.global_position = global_position
 		var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 		container.call_deferred("add_child", chest)
+
+	# Elite reward: guaranteed high-tier (Greater) XP gem (50 XP)
+	if xp_gem_scene:
+		var gem = xp_gem_scene.instantiate() as XPGem
+		if gem:
+			gem.xp_value = 50
+			gem.global_position = global_position + Vector2(randf_range(-15, 15), randf_range(-15, 15))
+			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+			container.call_deferred("add_child", gem)
 
 	super.die()

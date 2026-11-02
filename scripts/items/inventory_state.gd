@@ -75,7 +75,7 @@ static var ALL_ARTIFACTS: Dictionary = {
 	},
 	"life_crystal": {
 		"name": "Кристалл жизни",
-		"desc": "+35 к максимальному здоровью мага и +30% к эффективности любого исцеления и регенерации.",
+		"desc": "+35 к максимальному здоровью мага и +20% к эффективности любого исцеления и регенерации.",
 		"color": Color(0.2, 0.95, 0.45, 1.0),
 		"tags": ["defense", "healing", "vitality"],
 		"icon_symbol": "crystal",
@@ -83,7 +83,7 @@ static var ALL_ARTIFACTS: Dictionary = {
 	},
 	"warding_rune": {
 		"name": "Рунический щиток",
-		"desc": "+40% к прочности Магического барьера и -2.0 секунды к времени его перезарядки.",
+		"desc": "+20% к прочности Магического барьера и -1.0 секунду к времени его перезарядки.",
 		"color": Color(0.35, 0.75, 1.0, 1.0),
 		"tags": ["defense", "barrier", "protection"],
 		"icon_symbol": "shield",

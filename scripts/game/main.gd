@@ -86,9 +86,9 @@ func _process(delta: float) -> void:
 			run_stats.survival_time += delta
 
 		condensation_timer += delta
-		if condensation_timer >= 2.0:
+		if condensation_timer >= 1.5:
 			condensation_timer = 0.0
-			XPGem.condense_gems(get_tree(), 65)
+			XPGem.condense_gems(get_tree())
 
 		if run_stats.survival_time >= 300.0:
 			MetaArchive.check_and_complete_goal("survive_5_min")

@@ -21,10 +21,10 @@ func _init() -> void:
 	category = "defense"
 	current_level = 1
 	max_level = 5
-	base_cooldown = 12.0
-	max_shield = 30.0
-	current_shield = 30.0
-	recharge_cooldown = 12.0
+	base_cooldown = 14.0
+	max_shield = 25.0
+	current_shield = 25.0
+	recharge_cooldown = 14.0
 	pulse_damage = 20.0
 	pulse_radius = 120.0
 
@@ -35,16 +35,16 @@ func _ready() -> void:
 func get_effective_max_shield() -> float:
 	var s = max_shield
 	if player_owner and player_owner.has_meta("has_warding_rune"):
-		s *= 1.40
+		s *= 1.20
 	return s
 
 func get_effective_recharge_cooldown() -> float:
 	var cd = recharge_cooldown
 	if player_owner and player_owner.has_meta("has_warding_rune"):
-		cd = max(3.0, cd - 2.0)
+		cd = max(5.0, cd - 1.0)
 	if player_owner and player_owner.has_meta("cooldown_mult"):
 		cd *= player_owner.get_meta("cooldown_mult")
-	return max(2.0, cd)
+	return max(4.0, cd)
 
 func _physics_process(delta: float) -> void:
 	pulse_angle += 2.0 * delta
@@ -120,30 +120,31 @@ func restore_barrier() -> void:
 func apply_level_modifiers() -> void:
 	match current_level:
 		2:
-			max_shield = 45.0
-			recharge_cooldown = 10.5
+			max_shield = 30.0
+			recharge_cooldown = 13.0
+			pulse_damage = 22.0
 		3:
-			max_shield = 60.0
-			recharge_cooldown = 10.5
-			pulse_damage = 25.0
+			max_shield = 35.0
+			recharge_cooldown = 12.0
+			pulse_damage = 24.0
 		4:
-			max_shield = 75.0
-			recharge_cooldown = 8.5
-			pulse_damage = 30.0
+			max_shield = 40.0
+			recharge_cooldown = 12.0
+			pulse_damage = 26.0
 		5:
-			max_shield = 90.0
-			recharge_cooldown = 7.0
-			pulse_damage = 40.0
+			max_shield = 45.0
+			recharge_cooldown = 11.0
+			pulse_damage = 30.0
 
 	if is_active:
 		current_shield = get_effective_max_shield()
 
 func get_next_upgrade_description() -> String:
 	match current_level + 1:
-		2: return "+Прочность щита (45 HP) и быстрее зарядка (10.5с)"
-		3: return "+Прочность (60 HP) и урон взрыва разрыва 25"
-		4: return "+Прочность (75 HP) и быстрая зарядка (8.5с)"
-		5: return "Эгида Арканы: 90 HP, зарядка 7.0с, оглушающий импульс 40 урона"
+		2: return "+Прочность щита (30 HP) и перезарядка 13.0с"
+		3: return "+Прочность (35 HP), перезарядка 12.0с, импульс 24"
+		4: return "+Прочность (40 HP) и импульс 26"
+		5: return "Эгида Арканы: 45 HP, перезарядка 11.0с, оглушающий импульс 30 урона"
 		_: return "Максимальный уровень"
 
 func _draw() -> void:

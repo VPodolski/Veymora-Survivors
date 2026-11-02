@@ -11,6 +11,9 @@ signal experience_collected(amount: int)
 
 var required_xp: int = 25
 
+func _init() -> void:
+	add_to_group("experience_manager")
+
 func _ready() -> void:
 	add_to_group("experience_manager")
 	required_xp = base_required_xp

@@ -178,11 +178,11 @@ const STRINGS = {
 		"spell_magic_barrier_name": "Магический барьер",
 		"spell_magic_barrier_desc": "Автоматический рунический щит, поглощающий удары и взрывающийся волной отталкивания при разрушении",
 		"spell_font_of_life_name": "Источник жизни",
-		"spell_font_of_life_desc": "Постепенная регенерация здоровья и целебные импульсы каждые 15 убийств",
+		"spell_font_of_life_desc": "Постепенная регенерация здоровья и целебные импульсы каждые 20 убийств",
 		"art_life_crystal_name": "Кристалл жизни",
-		"art_life_crystal_desc": "+35 к максимальному здоровью мага и +30% к эффективности любого исцеления и регенерации",
+		"art_life_crystal_desc": "+35 к максимальному здоровью мага и +20% к эффективности любого исцеления и регенерации",
 		"art_warding_rune_name": "Рунический щиток",
-		"art_warding_rune_desc": "+40% к прочности Магического барьера и -2.0 секунды к времени его перезарядки",
+		"art_warding_rune_desc": "+20% к прочности Магического барьера и -1.0 секунду к времени его перезарядки",
 
 		# Codex / Archive
 		"codex_sec_spells": "БАЗОВЫЕ ЗАКЛИНАНИЯ (%d/%d)",
@@ -379,11 +379,11 @@ const STRINGS = {
 		"spell_magic_barrier_name": "Magic Barrier",
 		"spell_magic_barrier_desc": "Passive runic shield absorbing incoming damage and detonating shockwave on break",
 		"spell_font_of_life_name": "Font of Life",
-		"spell_font_of_life_desc": "Gradual health regeneration and healing shockwave pulse every 15 kills",
+		"spell_font_of_life_desc": "Gradual health regeneration and healing shockwave pulse every 20 kills",
 		"art_life_crystal_name": "Life Crystal",
-		"art_life_crystal_desc": "+35 max health and +30% to all healing and regeneration efficiency",
+		"art_life_crystal_desc": "+35 max health and +20% to all healing and regeneration efficiency",
 		"art_warding_rune_name": "Warding Rune",
-		"art_warding_rune_desc": "+40% Magic Barrier shield health and -2.0s to barrier recharge cooldown",
+		"art_warding_rune_desc": "+20% Magic Barrier shield health and -1.0s to barrier recharge cooldown",
 
 		# Codex / Archive
 		"codex_sec_spells": "BASE SPELLS (%d/%d)",

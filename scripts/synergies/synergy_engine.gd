@@ -604,12 +604,12 @@ func trigger_life_harvest(pos: Vector2) -> void:
 	var p_pos = player_node.global_position
 	CombatEffects.spawn_shockwave(container, pos, 60.0, Color(0.2, 0.95, 0.45, 0.9), 0.25)
 	CombatEffects.spawn_ring(container, p_pos, 10.0, 35.0, Color(0.2, 0.9, 0.4, 0.8), 0.2, 2.0)
-	spawn_popup_rate_limited("life_harvest", p_pos, "+9 ЖАТВА ЖИЗНИ!", Color(0.25, 0.95, 0.45, 1.0))
+	spawn_popup_rate_limited("life_harvest", p_pos, "+4 ЖАТВА ЖИЗНИ!", Color(0.25, 0.95, 0.45, 1.0))
 
 	if AudioManager.instance:
 		AudioManager.instance.play_synergy("soul_harvest")
 
-	player_node.heal(9.0)
+	player_node.heal(4.0)
 	reaction_triggered.emit("life_harvest", pos)
 	reaction_activated.emit("life_harvest", pos, 1)
 

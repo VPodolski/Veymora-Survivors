@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/pickups/xp_gem.gd" id="1_gem"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_gem"]
-radius = 16.0
+radius = 11.0
 
 [node name="XPGem" type="Area2D"]
 collision_layer = 16

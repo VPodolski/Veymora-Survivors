@@ -248,12 +248,12 @@ func test_font_of_life_regen_and_kill_pulse(player: PlayerController, parent: No
 	font._trigger_interval_heal()
 	assert(player.current_health == 66.0, "Healed +6 HP from interval")
 
-	# Kill pulse (15 kills)
-	for i in range(14):
+	# Kill pulse (20 kills)
+	for i in range(font.kills_for_pulse - 1):
 		font.notify_enemy_killed()
 		assert(font.kill_counter == i + 1, "Kill counter incrementing")
 
-	# 15th kill triggers pulse
+	# final kill triggers pulse
 	font.notify_enemy_killed()
 	assert(font.kill_counter == 0, "Counter reset after pulse")
 	assert(player.current_health == 69.0, "Healed +3 HP from kill pulse")

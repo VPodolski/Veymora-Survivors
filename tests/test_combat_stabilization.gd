@@ -164,19 +164,19 @@ func test_1_3_font_overheal_armor(player: PlayerController, parent: Node) -> voi
 	font._trigger_interval_heal()
 	assert(player.has_meta("font_overheal_armor"), "Player must have font_overheal_armor meta")
 	assert(font.has_overheal_armor() == true, "Font must indicate active overheal armor")
-	assert(abs(player.get_meta("font_overheal_armor") - 0.15) < 0.001, "Armor bonus must be 15%")
+	assert(abs(player.get_meta("font_overheal_armor") - 0.10) < 0.001, "Armor bonus must be 10%")
 
-	# 2. Damage mitigation: 20 incoming damage mitigated by 15% -> 17 damage taken
+	# 2. Damage mitigation: 20 incoming damage mitigated by 10% -> 18 damage taken
 	var dmg_ctx = DamageContext.new(null, player, 20.0, ["enemy_damage"], "enemy", player.global_position)
 	player.invulnerable_timer = 0.0
 	var res = DamageResolver.apply_damage(dmg_ctx)
-	assert(abs(res["damage_dealt"] - 17.0) < 0.01, "Damage should be 17.0 (mitigated by 15%%), got %f" % res["damage_dealt"])
-	assert(abs(player.current_health - 83.0) < 0.01, "Player health must be 83.0")
+	assert(abs(res["damage_dealt"] - 18.0) < 0.01, "Damage should be 18.0 (mitigated by 10%%), got %f" % res["damage_dealt"])
+	assert(abs(player.current_health - 82.0) < 0.01, "Player health must be 82.0")
 
 	# 3. Re-healing while full refreshes duration without stacking defense
 	player.current_health = 100.0
 	font._trigger_interval_heal()
-	assert(abs(player.get_meta("font_overheal_armor") - 0.15) < 0.001, "Armor bonus remains 15%, no infinite stack")
+	assert(abs(player.get_meta("font_overheal_armor") - 0.10) < 0.001, "Armor bonus remains 10%, no infinite stack")
 	assert(font.overheal_armor_timer >= 1.9, "Duration refreshed to 2.0s")
 
 	# 4. Timer expiry
@@ -283,7 +283,7 @@ func test_2_all_ten_synergies_behavior(engine: SynergyEngine, player: PlayerCont
 				target.apply_status(StatusEffects.STATUS_MARKED, 5.0)
 				engine.on_enemy_death(target)
 				assert(triggered_names.has("life_harvest"), "Life Harvest triggered")
-				assert(player.current_health >= 79.0, "Player healed +9 from Life Harvest")
+				assert(player.current_health >= 74.0, "Player healed +4 from Life Harvest")
 
 			"blazing_blades":
 				player.ability_controller.unlock_ability("runic_blade")

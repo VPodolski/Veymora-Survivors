@@ -156,7 +156,7 @@ static func _apply_player_damage(ctx: DamageContext) -> Dictionary:
 
 	# Overheal armor resistance (temporary buff from Font of Life)
 	if player.has_meta("font_overheal_armor"):
-		var armor_bonus = clampf(player.get_meta("font_overheal_armor", 0.0), 0.0, 0.50)
+		var armor_bonus = clampf(player.get_meta("font_overheal_armor", 0.0), 0.0, 0.15)
 		incoming *= max(0.0, 1.0 - armor_bonus)
 
 	# 3. Apply remaining damage to player health
