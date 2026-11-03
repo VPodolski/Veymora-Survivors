@@ -54,3 +54,4 @@ func _init() -> void:
 	
 	print("[EVIDENCE] Arena capture completed successfully!")
 	quit()
+

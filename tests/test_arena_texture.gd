@@ -17,3 +17,4 @@ func _init():
 	arena.queue_redraw()
 	print("Arena instantiated and ground_texture assigned.")
 	quit()
+
