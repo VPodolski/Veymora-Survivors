@@ -15,6 +15,7 @@ extends Resource
 @export var ambient_color: Color = Color(0.3, 0.9, 0.6, 0.6)
 @export var arena_size: Vector2 = Vector2(2400, 1600)
 @export var special_mechanic: String = "rune_hotspots"
+@export var ground_texture_path: String = ""
 
 static func _create_item() -> Resource:
 	var script = load("res://scripts/arena/arena_config.gd") as GDScript
@@ -39,6 +40,7 @@ static func get_catalog() -> Dictionary:
 	forest.ambient_color = Color(0.35, 0.9, 0.6, 0.5)
 	forest.arena_size = Vector2(2400, 1600)
 	forest.special_mechanic = "rune_hotspots"
+	forest.ground_texture_path = "res://Assets/Arenas/1/enchanted_ground_single_micro_1793704431717.jpg"
 	catalog["forgotten_forest"] = forest
 
 	# 2. Frost Necropolis (Second playable arena in v0.3)

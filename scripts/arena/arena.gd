@@ -7,6 +7,7 @@ const FrostHazardZone = preload("res://scripts/arena/frost_hazard_zone.gd")
 const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
 
 @export var arena_config: ArenaConfig = null
+@export var ground_texture: Texture2D = null
 @export var arena_size: Vector2 = Vector2(2400, 1600)
 @export var border_color: Color = Color(0.25, 0.45, 0.75, 0.8)
 @export var floor_color: Color = Color(0.06, 0.07, 0.1, 1.0)
@@ -18,6 +19,7 @@ var hazard_timer: float = 18.0
 
 func _ready() -> void:
 	add_to_group("arena")
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	if arena_config == null:
 		var target_id = "forgotten_forest"
 		if GameFlowController.instance:
@@ -39,6 +41,11 @@ func apply_arena_config(cfg: ArenaConfig) -> void:
 	border_color = cfg.border_color
 	ambient_color = cfg.ambient_color
 	hazard_timer = 12.0 if cfg.special_mechanic == "frost_zones" else 25.0
+	
+	if cfg.ground_texture_path != "" and ResourceLoader.exists(cfg.ground_texture_path):
+		ground_texture = load(cfg.ground_texture_path)
+	else:
+		ground_texture = null
 
 func _process(delta: float) -> void:
 	if get_tree().paused:
@@ -118,8 +125,11 @@ func _draw() -> void:
 	var half_h = arena_size.y * 0.5
 	var rect = Rect2(-half_w, -half_h, arena_size.x, arena_size.y)
 
-	# 1. Dark arena floor
-	draw_rect(rect, floor_color, true)
+	# 1. Dark arena floor (texture with procedural color fallback)
+	if ground_texture:
+		draw_texture_rect(ground_texture, rect, true)
+	else:
+		draw_rect(rect, floor_color, true)
 
 	# 2. Subtle floor grid
 	var grid_step = 120.0
