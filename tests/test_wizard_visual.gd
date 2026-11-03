@@ -68,3 +68,4 @@ func get_direction_frame(dir_str: String) -> int:
 		"W": return 6
 		"SW": return 7
 		_: return 1
+

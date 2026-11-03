@@ -56,34 +56,37 @@ func _init() -> void:
 	print("[EVIDENCE] 2. Capturing Wizard Movement in Multiple Directions...")
 	# Distinct directions: E, NE, N, NW, W, SW, S, SE
 	var test_dirs = [
-		{"dir": Vector2(1, 0), "name": "E", "steps": 12},
-		{"dir": Vector2(1, -1).normalized(), "name": "NE", "steps": 10},
-		{"dir": Vector2(0, -1), "name": "N", "steps": 10},
-		{"dir": Vector2(-1, 0), "name": "W", "steps": 12},
-		{"dir": Vector2(0, 1), "name": "S", "steps": 10},
-		{"dir": Vector2(1, 1).normalized(), "name": "SE", "steps": 10}
+		{"dir": Vector2(1, 0), "name": "E", "steps": 10},
+		{"dir": Vector2(1, -1).normalized(), "name": "NE", "steps": 8},
+		{"dir": Vector2(0, -1), "name": "N", "steps": 8},
+		{"dir": Vector2(-1, 0), "name": "W", "steps": 10},
+		{"dir": Vector2(0, 1), "name": "S", "steps": 8},
+		{"dir": Vector2(1, 1).normalized(), "name": "SE", "steps": 8}
 	]
 	
 	var saved_moving = false
 	for item in test_dirs:
 		var md: Vector2 = item["dir"]
-		_set_simulated_input(md)
+		player.velocity = md * player.stats.move_speed
+		if player.visual_node and player.visual_node.has_method("update_facing"):
+			player.visual_node.update_facing(md)
 		
 		for f in range(item["steps"]):
+			player.global_position += player.velocity * 0.016
 			await process_frame
 			
-			if not saved_moving and item["name"] == "E" and f == 6:
+			if not saved_moving and item["name"] == "E" and f == 5:
 				var img_mov = root.get_texture().get_image()
 				img_mov.save_png("res://evidence/wizard_prototype/02_wizard_moving.png")
 				saved_moving = true
-				print("[EVIDENCE] Saved 02_wizard_moving.png (Direction: East, Frame: %d)" % player.visual_node.sprite_node.frame)
+				print("[EVIDENCE] Saved 02_wizard_moving.png (Direction: East)")
 			
 			var img = root.get_texture().get_image()
 			img.save_png("res://evidence/wizard_prototype/gif_frames/frame_%03d.png" % gif_frame_idx)
 			gif_frame_idx += 1
 	
-	_set_simulated_input(Vector2.ZERO)
-	for f in range(8):
+	player.velocity = Vector2.ZERO
+	for f in range(6):
 		await process_frame
 	
 	# --- 3. SURROUNDED BY ENEMIES CAPTURE ---
@@ -143,17 +146,3 @@ func _init() -> void:
 	
 	print("[EVIDENCE] All evidence frames captured successfully (%d GIF frames)!" % gif_frame_idx)
 	quit()
-
-func _set_simulated_input(dir: Vector2) -> void:
-	Input.action_release("ui_left")
-	Input.action_release("ui_right")
-	Input.action_release("ui_up")
-	Input.action_release("ui_down")
-	if dir.x > 0.3:
-		Input.action_press("ui_right")
-	elif dir.x < -0.3:
-		Input.action_press("ui_left")
-	if dir.y > 0.3:
-		Input.action_press("ui_down")
-	elif dir.y < -0.3:
-		Input.action_press("ui_up")
