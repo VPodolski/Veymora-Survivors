@@ -6,6 +6,9 @@ const ArchiveDialog = preload("res://scripts/ui/archive_dialog.gd")
 const ArchiveDialogScene = preload("res://scenes/ui/archive_dialog.tscn")
 const SettingsDialogScene = preload("res://scenes/ui/settings_dialog.tscn")
 const SettingsDialog = preload("res://scripts/ui/settings_dialog.gd")
+const ShopDialogScene = preload("res://scenes/ui/shop_dialog.tscn")
+const ShopDialog = preload("res://scripts/ui/shop_dialog.gd")
+const CharacterProgressionManager = preload("res://scripts/progression/character_progression_manager.gd")
 const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
 const PlatformManager = preload("res://scripts/platform/platform_manager.gd")
 const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
@@ -14,6 +17,7 @@ const LocalizationManager = preload("res://scripts/game/localization_manager.gd"
 @onready var title_label: Label = $Center/VBox/HeaderContainer/Title
 @onready var subtitle_label: Label = $Center/VBox/HeaderContainer/Subtitle
 @onready var start_btn: Button = $Center/VBox/StartButton
+@onready var shop_btn: Button = get_node_or_null("Center/VBox/ShopButton")
 @onready var archive_btn: Button = $Center/VBox/ArchiveButton
 @onready var settings_btn: Button = $Center/VBox/SettingsButton
 @onready var controls_btn: Button = $Center/VBox/ControlsButton
@@ -24,13 +28,21 @@ const LocalizationManager = preload("res://scripts/game/localization_manager.gd"
 @onready var close_controls_btn: Button = $ControlsPanel/Margin/VBox/CloseControlsBtn
 @onready var account_label: Label = get_node_or_null("TopRightBar/AccountLabel")
 @onready var auth_btn: Button = get_node_or_null("TopRightBar/AuthButton")
+@onready var gold_label: Label = get_node_or_null("TopRightBar/GoldLabel")
+@onready var char_name_label: Label = get_node_or_null("Center/VBox/CharacterPanel/Margin/VBox/CharHeader/CharName")
+@onready var char_level_label: Label = get_node_or_null("Center/VBox/CharacterPanel/Margin/VBox/CharHeader/CharLevel")
+@onready var char_xp_bar: ProgressBar = get_node_or_null("Center/VBox/CharacterPanel/Margin/VBox/CharXPBar")
+@onready var char_bonus_label: Label = get_node_or_null("Center/VBox/CharacterPanel/Margin/VBox/CharBonus")
 
 var archive_dialog: ArchiveDialog = null
 var settings_dialog: SettingsDialog = null
+var shop_dialog: ShopDialog = null
 
 func _ready() -> void:
 	if start_btn:
 		start_btn.pressed.connect(_on_start_pressed)
+	if shop_btn:
+		shop_btn.pressed.connect(_on_shop_pressed)
 	if archive_btn:
 		archive_btn.pressed.connect(_on_archive_pressed)
 	if settings_btn:
@@ -135,9 +147,36 @@ func _update_localized_texts() -> void:
 	_update_stats_display()
 
 func _update_stats_display() -> void:
+	var data = SaveManager.load_data()
+	var current_gold = int(data.get("gold", 0))
+
+	# Update Gold Counter in Header
+	if gold_label:
+		gold_label.text = "🪙 %d" % current_gold
+
+	# Update Character Card Display
+	var char_data = SaveManager.get_character_data("wizard")
+	var char_lvl = int(char_data.get("level", 1))
+	var char_xp = int(char_data.get("xp", 0))
+	var req_xp = CharacterProgressionManager.get_required_xp(char_lvl)
+	var bonuses = CharacterProgressionManager.get_character_bonuses("wizard")
+
+	if char_name_label:
+		char_name_label.text = "🧙 Маг Разлома"
+	if char_level_label:
+		char_level_label.text = "Ур. %d" % char_lvl
+	if char_xp_bar:
+		char_xp_bar.max_value = req_xp
+		char_xp_bar.value = char_xp
+		char_xp_bar.tooltip_text = "Опыт мага: %d / %d XP" % [char_xp, req_xp]
+	if char_bonus_label:
+		if char_lvl > 1:
+			char_bonus_label.text = "Чародейская стрела: +%.1f урона, +%d скорости" % [bonuses.damage_bonus, int(bonuses.speed_bonus)]
+		else:
+			char_bonus_label.text = "Чародейская стрела: базовая форма"
+
 	if not stats_label:
 		return
-	var data = SaveManager.load_data()
 	var best_sec = int(data.get("best_survival_time", 0.0))
 	var m = best_sec / 60
 	var s = best_sec % 60
@@ -152,6 +191,13 @@ func _update_stats_display() -> void:
 		stats_label.text = "Всего забегов: %d   |   Рекорд: %02d:%02d   |   Повержено боссов: %d   |   Доступно арен: %d" % [
 			total_runs, m, s, bosses, arenas.size()
 		]
+
+func _on_shop_pressed() -> void:
+	if not shop_dialog:
+		shop_dialog = ShopDialogScene.instantiate() as ShopDialog
+		add_child(shop_dialog)
+		shop_dialog.gold_updated.connect(func(_g): _update_stats_display())
+	shop_dialog.open()
 
 func _on_start_pressed() -> void:
 	if GameFlowController.instance:

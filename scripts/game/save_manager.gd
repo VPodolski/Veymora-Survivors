@@ -1,7 +1,7 @@
 class_name SaveManager
 extends RefCounted
 
-const CURRENT_VERSION = 2
+const CURRENT_VERSION = 3
 const SAVE_PATH = "user://save_data.json"
 const TMP_SAVE_PATH = "user://save_data.json.tmp"
 
@@ -31,7 +31,15 @@ static func get_default_data() -> Dictionary:
 		"discovered_synergies": [],
 		"discovered_evolutions": [],
 		"discovered_artifacts": [],
-		"completed_atlas_goals": []
+		"completed_atlas_goals": [],
+		"gold": 0,
+		"characters": {
+			"wizard": {
+				"level": 1,
+				"xp": 0
+			}
+		},
+		"shop_upgrades": {}
 	}
 
 static func load_data() -> Dictionary:
@@ -158,6 +166,36 @@ static func sanitize_data(raw: Dictionary) -> Dictionary:
 	# Ensure base spell is always discovered
 	if not clean["discovered_spells"].has("magic_bolt"):
 		clean["discovered_spells"].append("magic_bolt")
+
+	# Gold balance
+	var g = raw.get("gold", 0)
+	if (g is int or g is float) and g >= 0:
+		clean["gold"] = int(g)
+
+	# Characters permanent progression
+	var chars = clean["characters"]
+	if raw.has("characters") and raw["characters"] is Dictionary:
+		for char_id in raw["characters"].keys():
+			var c_entry = raw["characters"][char_id]
+			if c_entry is Dictionary:
+				var lvl = int(c_entry.get("level", 1))
+				var xp = int(c_entry.get("xp", 0))
+				chars[char_id] = {
+					"level": max(1, lvl),
+					"xp": max(0, xp)
+				}
+	if not chars.has("wizard"):
+		chars["wizard"] = {"level": 1, "xp": 0}
+	clean["characters"] = chars
+
+	# Permanent shop upgrades
+	var upgrades: Dictionary = {}
+	if raw.has("shop_upgrades") and raw["shop_upgrades"] is Dictionary:
+		for up_id in raw["shop_upgrades"].keys():
+			var up_lvl = raw["shop_upgrades"][up_id]
+			if (up_lvl is int or up_lvl is float) and up_lvl > 0:
+				upgrades[str(up_id)] = int(up_lvl)
+	clean["shop_upgrades"] = upgrades
 
 	return clean
 
@@ -344,6 +382,40 @@ static func merge_with_cloud(cloud_raw: Dictionary, base_local_data: Dictionary 
 		history = history.slice(0, 10)
 	merged["run_history"] = history
 
+	# Gold balance (highest value preserved)
+	merged["gold"] = max(int(local_data.get("gold", 0)), int(cloud_data.get("gold", 0)))
+
+	# Characters permanent progression (union, highest level & XP)
+	var merged_chars: Dictionary = {}
+	var all_char_keys: Array = []
+	for ck in local_data.get("characters", {}).keys():
+		if not all_char_keys.has(ck): all_char_keys.append(ck)
+	for ck in cloud_data.get("characters", {}).keys():
+		if not all_char_keys.has(ck): all_char_keys.append(ck)
+	if not all_char_keys.has("wizard"): all_char_keys.append("wizard")
+	for ck in all_char_keys:
+		var loc_c = local_data.get("characters", {}).get(ck, {})
+		var cld_c = cloud_data.get("characters", {}).get(ck, {})
+		var lvl = max(int(loc_c.get("level", 1)), int(cld_c.get("level", 1)))
+		var xp = max(int(loc_c.get("xp", 0)), int(cld_c.get("xp", 0)))
+		merged_chars[ck] = {"level": max(1, lvl), "xp": max(0, xp)}
+	merged["characters"] = merged_chars
+
+	# Shop upgrades (highest purchased level preserved)
+	var merged_upgrades: Dictionary = {}
+	var all_up_keys: Array = []
+	for uk in local_data.get("shop_upgrades", {}).keys():
+		if not all_up_keys.has(uk): all_up_keys.append(uk)
+	for uk in cloud_data.get("shop_upgrades", {}).keys():
+		if not all_up_keys.has(uk): all_up_keys.append(uk)
+	for uk in all_up_keys:
+		var loc_u = int(local_data.get("shop_upgrades", {}).get(uk, 0))
+		var cld_u = int(cloud_data.get("shop_upgrades", {}).get(uk, 0))
+		var max_u = max(loc_u, cld_u)
+		if max_u > 0:
+			merged_upgrades[uk] = max_u
+	merged["shop_upgrades"] = merged_upgrades
+
 	if base_local_data.is_empty():
 		save_custom_data(merged, false)
 	return merged
@@ -355,4 +427,65 @@ static func get_setting(key: String, default_value: Variant = null) -> Variant:
 static func set_setting(key: String, value: Variant) -> void:
 	var data = load_data()
 	data[key] = value
+	save_custom_data(data)
+
+# --- Progression & Shop Helpers ---
+
+static func get_gold() -> int:
+	var data = load_data()
+	return int(data.get("gold", 0))
+
+static func add_gold(amount: int) -> int:
+	if amount <= 0:
+		return get_gold()
+	var data = load_data()
+	var current = int(data.get("gold", 0))
+	data["gold"] = current + amount
+	save_custom_data(data)
+	return data["gold"]
+
+static func spend_gold(amount: int) -> bool:
+	if amount <= 0:
+		return true
+	var data = load_data()
+	var current = int(data.get("gold", 0))
+	if current < amount:
+		return false
+	data["gold"] = current - amount
+	save_custom_data(data)
+	return true
+
+static func get_character_data(char_id: String = "wizard") -> Dictionary:
+	var data = load_data()
+	var chars = data.get("characters", {})
+	if chars.has(char_id):
+		return chars[char_id]
+	return {"level": 1, "xp": 0}
+
+static func save_character_data(char_id: String, level: int, xp: int) -> void:
+	var data = load_data()
+	var chars = data.get("characters", {})
+	chars[char_id] = {
+		"level": max(1, level),
+		"xp": max(0, xp)
+	}
+	data["characters"] = chars
+	save_custom_data(data)
+
+static func get_shop_upgrades() -> Dictionary:
+	var data = load_data()
+	return data.get("shop_upgrades", {})
+
+static func get_upgrade_level(upgrade_id: String) -> int:
+	var upgrades = get_shop_upgrades()
+	return int(upgrades.get(upgrade_id, 0))
+
+static func set_upgrade_level(upgrade_id: String, level: int) -> void:
+	var data = load_data()
+	var upgrades = data.get("shop_upgrades", {})
+	if level > 0:
+		upgrades[upgrade_id] = level
+	else:
+		upgrades.erase(upgrade_id)
+	data["shop_upgrades"] = upgrades
 	save_custom_data(data)

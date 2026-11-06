@@ -5,6 +5,7 @@ const SaveManager = preload("res://scripts/game/save_manager.gd")
 const DamageResolver = preload("res://scripts/combat/damage_resolver.gd")
 const DamageContext = preload("res://scripts/combat/damage_context.gd")
 const RunStats = preload("res://scripts/game/run_stats.gd")
+const CharacterProgressionManager = preload("res://scripts/progression/character_progression_manager.gd")
 
 signal health_changed(current_hp: float, max_hp: float)
 signal died
@@ -35,6 +36,7 @@ func _ready() -> void:
 	else:
 		stats = stats.duplicate()
 
+	CharacterProgressionManager.apply_character_progression_to_player(self, "wizard")
 	current_health = stats.max_health
 	update_modifiers_meta()
 	health_changed.emit(current_health, stats.max_health)
@@ -42,10 +44,16 @@ func _ready() -> void:
 func update_modifiers_meta() -> void:
 	set_meta("spell_power_mult", stats.spell_power_mult)
 	set_meta("cooldown_mult", stats.cooldown_mult)
+	set_meta("spell_area_mult", stats.spell_area_mult)
+	set_meta("synergy_damage_mult", stats.synergy_damage_mult)
+	set_meta("synergy_energy_mult", stats.synergy_energy_mult)
 
 func _physics_process(delta: float) -> void:
 	if not is_alive:
 		return
+
+	if stats and stats.hp_regen > 0.0 and current_health < stats.max_health:
+		heal(stats.hp_regen * delta)
 
 	if invulnerable_timer > 0.0:
 		invulnerable_timer -= delta

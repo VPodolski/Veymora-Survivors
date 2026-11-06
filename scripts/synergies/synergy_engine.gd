@@ -668,7 +668,10 @@ func trigger_blazing_blades(context: ReactionContext) -> void:
 func on_barrier_absorbed(player: PlayerController, absorbed: float) -> void:
 	if not is_instance_valid(player) or not is_synergy_unlocked("thunder_shield", player):
 		return
-	thunder_energy += absorbed
+	var energy_gain = absorbed
+	if player.has_meta("synergy_energy_mult"):
+		energy_gain *= player.get_meta("synergy_energy_mult")
+	thunder_energy += energy_gain
 	if thunder_energy >= THUNDER_THRESHOLD and thunder_cooldown <= 0.0:
 		thunder_energy = 0.0
 		thunder_cooldown = THUNDER_INTERNAL_CD
@@ -748,10 +751,17 @@ func apply_reaction_damage(target: EnemyController, amount: float, reaction_id: 
 	var cascade_id = context.cascade_id if context else ("casc_" + str(Time.get_ticks_msec()) + "_" + str(randi() % 10000))
 	var excluded = context.excluded_targets if context else [target]
 
+	var actual_amount = amount
+	var players = get_tree().get_nodes_in_group("player") if get_tree() else []
+	if players.size() > 0:
+		var p = players[0]
+		if p and p.has_meta("synergy_damage_mult"):
+			actual_amount *= p.get_meta("synergy_damage_mult")
+
 	var dmg_ctx = DamageContext.new(
 		self,
 		target,
-		amount,
+		actual_amount,
 		["secondary", "synergy", reaction_id] if not is_dot else ["secondary", "synergy", reaction_id, "dot"],
 		reaction_id,
 		target.global_position,

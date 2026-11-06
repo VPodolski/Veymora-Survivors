@@ -20,13 +20,20 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -280.0
+offset_left = -360.0
 offset_top = 16.0
 offset_right = -16.0
 offset_bottom = 54.0
 grow_horizontal = 0
 theme_override_constants/separation = 12
 alignment = 2
+
+[node name="GoldLabel" type="Label" parent="TopRightBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.88, 0.25, 1)
+theme_override_font_sizes/font_size = 14
+text = "🪙 0"
+vertical_alignment = 1
 
 [node name="AccountLabel" type="Label" parent="TopRightBar"]
 layout_mode = 2
@@ -77,8 +84,54 @@ text = "Магические синергии • Разломы стихий �
 horizontal_alignment = 1
 
 [node name="Spacer" type="Control" parent="Center/VBox"]
-custom_minimum_size = Vector2(0, 16)
+custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
+
+[node name="CharacterPanel" type="PanelContainer" parent="Center/VBox"]
+custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="Margin" type="MarginContainer" parent="Center/VBox/CharacterPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Center/VBox/CharacterPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CharHeader" type="HBoxContainer" parent="Center/VBox/CharacterPanel/Margin/VBox"]
+layout_mode = 2
+
+[node name="CharName" type="Label" parent="Center/VBox/CharacterPanel/Margin/VBox/CharHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.4, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "🧙 Маг Разлома"
+
+[node name="CharLevel" type="Label" parent="Center/VBox/CharacterPanel/Margin/VBox/CharHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 14
+text = "Ур. 1"
+
+[node name="CharXPBar" type="ProgressBar" parent="Center/VBox/CharacterPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+max_value = 100.0
+step = 1.0
+show_percentage = false
+
+[node name="CharBonus" type="Label" parent="Center/VBox/CharacterPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.78, 0.9, 0.9)
+theme_override_font_sizes/font_size = 11
+text = "Чародейская стрела: базовая форма"
+horizontal_alignment = 1
 
 [node name="StartButton" type="Button" parent="Center/VBox"]
 custom_minimum_size = Vector2(280, 50)
@@ -87,6 +140,14 @@ size_flags_horizontal = 4
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 18
 text = "⚔ ВЫБОР АРЕНЫ"
+
+[node name="ShopButton" type="Button" parent="Center/VBox"]
+custom_minimum_size = Vector2(280, 46)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(1, 0.95, 0.45, 1)
+theme_override_font_sizes/font_size = 16
+text = "✨ МАГАЗИН УЛУЧШЕНИЙ"
 
 [node name="ArchiveButton" type="Button" parent="Center/VBox"]
 custom_minimum_size = Vector2(280, 44)

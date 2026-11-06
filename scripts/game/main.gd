@@ -7,6 +7,7 @@ const SaveManager = preload("res://scripts/game/save_manager.gd")
 const MetaArchive = preload("res://scripts/game/meta_archive.gd")
 const AudioManager = preload("res://scripts/audio/audio_manager.gd")
 const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
+const MetaShopManager = preload("res://scripts/progression/meta_shop_manager.gd")
 
 @onready var arena: Arena = $Arena
 @onready var player: PlayerController = $Player
@@ -16,7 +17,6 @@ const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
 @onready var synergy_engine: SynergyEngine = $SynergyEngine
 
 var run_stats: RunStats = RunStats.new()
-var condensation_timer: float = 0.0
 
 func _ready() -> void:
 	CombatEffects.set_fx_intensity(SaveManager.get_setting("fx_intensity", "standard"))
@@ -39,6 +39,7 @@ func _ready() -> void:
 		hud.restart_requested.connect(_on_restart_game)
 
 	if player and hud:
+		MetaShopManager.apply_shop_upgrades_to_player(player)
 		player.health_changed.connect(hud.update_health)
 		player.died.connect(_on_player_died)
 		if hud.virtual_joystick:
@@ -299,11 +300,6 @@ func _process(delta: float) -> void:
 			run_stats.survival_time = hud.elapsed_time
 		else:
 			run_stats.survival_time += delta
-
-		condensation_timer += delta
-		if condensation_timer >= 1.5:
-			condensation_timer = 0.0
-			XPGem.condense_gems(get_tree())
 
 		if run_stats.survival_time >= 300.0:
 			MetaArchive.check_and_complete_goal("survive_5_min")

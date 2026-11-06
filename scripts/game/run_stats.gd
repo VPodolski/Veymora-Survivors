@@ -15,9 +15,12 @@ var elite_kills: int = 0
 var boss_kills: int = 0
 var level_reached: int = 1
 var defeated_boss: bool = false
+var is_victory: bool = false
 var damage_dealt: float = 0.0
 var experience_gained: float = 0.0
 var artifacts_collected: int = 0
+var chests_opened: int = 0
+var gold_collected: int = 0
 var barrier_absorbed_damage: float = 0.0
 var total_healing_done: float = 0.0
 var spell_damage: Dictionary = {} # spell_id -> float total damage
@@ -108,6 +111,15 @@ func record_xp(amount: float) -> void:
 	if amount > 0.0:
 		experience_gained += amount
 
+func record_gold(amount: int) -> void:
+	if amount > 0:
+		gold_collected += amount
+		stats_updated.emit()
+
+func record_chest_opened() -> void:
+	chests_opened += 1
+	stats_updated.emit()
+
 func record_synergy_activation(synergy_id: String, targets_count: int = 1) -> void:
 	if synergy_id.is_empty():
 		return
@@ -171,9 +183,12 @@ func to_dictionary() -> Dictionary:
 		"boss_kills": boss_kills,
 		"level_reached": level_reached,
 		"defeated_boss": defeated_boss,
+		"is_victory": is_victory,
 		"damage_dealt": damage_dealt,
 		"experience_gained": experience_gained,
 		"artifacts_collected": artifacts_collected,
+		"chests_opened": chests_opened,
+		"gold_collected": gold_collected,
 		"barrier_absorbed_damage": barrier_absorbed_damage,
 		"total_healing_done": total_healing_done,
 		"hit_count": hit_count,
@@ -202,9 +217,12 @@ func reset() -> void:
 	boss_kills = 0
 	level_reached = 1
 	defeated_boss = false
+	is_victory = false
 	damage_dealt = 0.0
 	experience_gained = 0.0
 	artifacts_collected = 0
+	chests_opened = 0
+	gold_collected = 0
 	barrier_absorbed_damage = 0.0
 	total_healing_done = 0.0
 	hit_count = 0

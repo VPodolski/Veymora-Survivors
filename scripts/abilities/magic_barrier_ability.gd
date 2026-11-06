@@ -34,6 +34,8 @@ func _ready() -> void:
 
 func get_effective_max_shield() -> float:
 	var s = max_shield
+	if player_owner and "stats" in player_owner and player_owner.stats and "barrier_durability_mult" in player_owner.stats:
+		s *= player_owner.stats.barrier_durability_mult
 	if player_owner and player_owner.has_meta("has_warding_rune"):
 		s *= 1.20
 	return s

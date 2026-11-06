@@ -243,5 +243,5 @@ func _on_card_selected(opt: Dictionary) -> void:
 func _notify_hud(reward_name: String) -> void:
 	var huds = get_tree().get_nodes_in_group("hud")
 	if huds.size() > 0 and huds[0].has_method("show_chest_notification"):
-		huds[0].show_chest_notification(reward_name)
+		huds[0].show_chest_notification("%s (+25 🪙)" % reward_name)
 

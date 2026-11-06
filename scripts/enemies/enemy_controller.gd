@@ -7,6 +7,7 @@ signal damage_taken(amount: float)
 
 @export var stats: EnemyStats
 @export var xp_gem_scene: PackedScene = preload("res://scenes/pickups/xp_gem.tscn")
+@export var gold_coin_scene: PackedScene = preload("res://scenes/pickups/gold_coin.tscn")
 @export var tags: Array = ["enemy"]
 
 var current_health: float = 30.0
@@ -196,8 +197,16 @@ func die() -> void:
 	if engine_nodes.size() > 0:
 		engine_nodes[0].on_enemy_death(self)
 
-	# Spawn XP Gem
-	if xp_gem_scene:
+	# Spawn XP Gem or Gold Coin
+	var coin_chance = 0.12 # 12% base chance
+	if players.size() > 0 and players[0].stats and "gold_drop_chance_bonus" in players[0].stats:
+		coin_chance += players[0].stats.gold_drop_chance_bonus
+
+	if gold_coin_scene and randf() < coin_chance:
+		var coin = gold_coin_scene.instantiate() as Node2D
+		coin.global_position = global_position
+		container.call_deferred("add_child", coin)
+	elif xp_gem_scene:
 		var gem = xp_gem_scene.instantiate() as Node2D
 		gem.global_position = global_position
 		container.call_deferred("add_child", gem)

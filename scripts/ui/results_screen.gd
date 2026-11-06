@@ -11,6 +11,8 @@ const PlatformManager = preload("res://scripts/platform/platform_manager.gd")
 const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
 const LocalizationManager = preload("res://scripts/game/localization_manager.gd")
 const SynergyRegistry = preload("res://scripts/synergies/synergy_registry.gd")
+const CharacterProgressionManager = preload("res://scripts/progression/character_progression_manager.gd")
+const MetaShopManager = preload("res://scripts/progression/meta_shop_manager.gd")
 
 const SYNERGY_NAMES = {
 	"resonance": "Чародейский резонанс",
@@ -39,6 +41,10 @@ var archive_dialog: ArchiveDialog = null
 var is_reward_claimed: bool = false
 var final_score: int = 0
 var score_value_label: Label = null
+var _progression_awarded: bool = false
+var run_earned_xp: int = 0
+var run_earned_gold: int = 0
+var char_xp_result: Dictionary = {}
 
 func _ready() -> void:
 	if retry_btn:
@@ -98,6 +104,29 @@ func display_stats(run_data: RunStats) -> void:
 		reward_bonus_btn.text = loc.get_text("btn_reward_bonus", "✦ ПОЛУЧИТЬ БОНУС К ОЧКАМ (+25%) ЗА ПРОСМОТР") if loc else "✦ ПОЛУЧИТЬ БОНУС К ОЧКАМ (+25%) ЗА ПРОСМОТР"
 		reward_bonus_btn.disabled = is_reward_claimed
 
+	# Award Meta-Progression (Gold & Character XP) strictly once per completed run
+	if not _progression_awarded:
+		_progression_awarded = true
+
+		# 1. Run completion gold bonus
+		var bounty_lvl = MetaShopManager.get_upgrade_level("treasure_bounty")
+		var bounty_mult = 1.0 + float(bounty_lvl) * 0.20
+		var completion_bonus_gold = 0
+		if run_data.survival_time >= 300.0:
+			completion_bonus_gold += int(round(50.0 * bounty_mult))
+		if run_data.defeated_boss or run_data.boss_kills > 0 or ("is_victory" in run_data and run_data.is_victory):
+			completion_bonus_gold += int(round(100.0 * bounty_mult))
+
+		if completion_bonus_gold > 0:
+			SaveManager.add_gold(completion_bonus_gold)
+			run_data.record_gold(completion_bonus_gold)
+
+		run_earned_gold = run_data.gold_collected
+
+		# 2. Permanent Character XP
+		run_earned_xp = CharacterProgressionManager.calculate_run_character_xp(run_data)
+		char_xp_result = CharacterProgressionManager.add_character_xp("wizard", run_earned_xp)
+
 	# Metrics Grid
 	_populate_metrics(run_data)
 
@@ -139,6 +168,8 @@ func _populate_metrics(data: RunStats) -> void:
 		{"label": loc.get_text("metric_bosses", "Повержено боссов:") if loc else "Повержено боссов:", "value": "%d" % data.boss_kills, "color": Color(1.0, 0.3, 0.5)},
 		{"label": loc.get_text("metric_damage", "Общий нанесённый урон:") if loc else "Общий нанесённый урон:", "value": "%d" % int(data.damage_dealt), "color": Color(0.95, 0.7, 1.0)},
 		{"label": loc.get_text("metric_xp", "Собрано маны (XP):") if loc else "Собрано маны (XP):", "value": "%d XP" % int(data.experience_gained), "color": Color(0.4, 1.0, 0.7)},
+		{"label": loc.get_text("metric_gold", "Добыча золота:") if loc else "Добыча золота:", "value": "+%d 🪙" % run_earned_gold, "color": Color(1.0, 0.88, 0.25)},
+		{"label": loc.get_text("metric_char_xp", "Опыт мага:") if loc else "Опыт мага:", "value": "+%d XP (Ур. %d [%d/%d])" % [run_earned_xp, char_xp_result.get("new_level", 1), char_xp_result.get("current_xp", 0), char_xp_result.get("required_xp", 100)] if not char_xp_result.get("leveled_up", false) else "+%d XP (НОВЫЙ УР. %d! ✨)" % [run_earned_xp, char_xp_result.get("new_level", 1)], "color": Color(0.4, 0.9, 1.0) if not char_xp_result.get("leveled_up", false) else Color(1.0, 0.85, 0.3)},
 		{"label": loc.get_text("metric_score", "Итоговые очки:") if loc else "Итоговые очки:", "value": "%d" % final_score, "color": Color(1.0, 0.85, 0.3), "is_score": true}
 	]
 

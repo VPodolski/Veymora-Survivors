@@ -228,4 +228,14 @@ func die() -> void:
 			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 			container.call_deferred("add_child", gem)
 
+	# Boss reward: guaranteed substantial gold cache (25 gold)
+	if gold_coin_scene:
+		var coin = gold_coin_scene.instantiate() as Node2D
+		if coin:
+			if "gold_value" in coin:
+				coin.gold_value = 25
+			coin.global_position = global_position + Vector2(-25.0, 0.0)
+			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+			container.call_deferred("add_child", coin)
+
 	super.die()

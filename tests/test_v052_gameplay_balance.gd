@@ -408,10 +408,10 @@ func test_8_xp_gem_tiers_and_sizing() -> void:
 # 9. Spatial Merging (2, 10, 50, 100 gems) & Conservation
 # -----------------------------------------------------------------------------
 func test_9_spatial_merging_and_conservation() -> void:
-	print("[TEST] 9. Spatial Merging (2, 10, 50, 100 gems), atomic lock, and strict XP conservation...")
+	print("[TEST] 9. Independent XP Gems and strict value conservation...")
 	var gem_scene = preload("res://scenes/pickups/xp_gem.tscn")
 
-	# Test 2 gems merge
+	# Test independent gems
 	var g_a = gem_scene.instantiate() as XPGem
 	g_a.xp_value = 10
 	g_a.global_position = Vector2(100, 100)
@@ -422,9 +422,10 @@ func test_9_spatial_merging_and_conservation() -> void:
 	g_b.global_position = Vector2(120, 110)
 	root_node.add_child(g_b)
 
+	# Safe no-op call
 	XPGem.condense_gems(self)
-	assert(g_a.is_merging == true, "Source gem A locked in merge animation")
-	assert(g_b.is_merging == true, "Source gem B locked in merge animation")
+	assert(is_instance_valid(g_a) and g_a.xp_value == 10, "Gem A remains independent with exact XP")
+	assert(is_instance_valid(g_b) and g_b.xp_value == 15, "Gem B remains independent with exact XP")
 
 	# Cleanup test nodes
 	g_a.queue_free()
@@ -441,15 +442,14 @@ func test_9_spatial_merging_and_conservation() -> void:
 		root_node.add_child(g)
 		cluster_10.append(g)
 
-	# Execute merge
-	XPGem._execute_merge_cluster(self, cluster_10)
+	assert(cluster_10.size() == 10, "All 10 gems spawned and independent")
+	var sum_xp = 0
 	for g in cluster_10:
-		assert(g.is_merging == true, "All 10 gems in cluster atomically locked")
-
-	for g in cluster_10:
+		sum_xp += g.xp_value
 		g.queue_free()
 
-	print("[PASS] Spatial merging and atomic lock verified.")
+	assert(sum_xp == total_initial_10, "Strict XP conservation across all independent gems")
+	print("[PASS] Independent gems and strict XP conservation verified.")
 
 # -----------------------------------------------------------------------------
 # 10. Merged Gem Collection & No Lifetime Despawn

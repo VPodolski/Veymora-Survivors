@@ -159,6 +159,11 @@ static func _apply_player_damage(ctx: DamageContext) -> Dictionary:
 		var armor_bonus = clampf(player.get_meta("font_overheal_armor", 0.0), 0.0, 0.15)
 		incoming *= max(0.0, 1.0 - armor_bonus)
 
+	# Permanent Damage Reduction (defense_armor meta upgrade)
+	if player.stats and "damage_reduction" in player.stats and player.stats.damage_reduction > 0.0:
+		var dr = clampf(player.stats.damage_reduction, 0.0, 0.75)
+		incoming *= (1.0 - dr)
+
 	# 3. Apply remaining damage to player health
 	player.current_health = max(0.0, player.current_health - incoming)
 	player.invulnerable_timer = player.stats.invulnerability_duration if player.stats else 0.85

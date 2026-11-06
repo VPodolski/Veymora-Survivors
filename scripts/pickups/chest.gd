@@ -1,6 +1,9 @@
 class_name Chest
 extends Area2D
 
+const SaveManager = preload("res://scripts/game/save_manager.gd")
+const RunStats = preload("res://scripts/game/run_stats.gd")
+
 @export var is_opened: bool = false
 var glow_time: float = 0.0
 
@@ -29,13 +32,28 @@ func open_chest(player: PlayerController) -> void:
 	set_deferred("monitoring", false)
 	set_deferred("monitorable", false)
 
-	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
-	CombatEffects.spawn_shockwave(container, global_position, 110.0, Color(1.0, 0.85, 0.25, 0.95))
+	var tree = get_tree() if is_inside_tree() else null
+	var container = (tree.current_scene if tree and tree.current_scene else (tree.root if tree else null))
+	if container:
+		CombatEffects.spawn_shockwave(container, global_position, 110.0, Color(1.0, 0.85, 0.25, 0.95))
 	if AudioManager.instance:
 		AudioManager.instance.play_chest()
 
+	# Award Chest Gold (scaled by treasure_bounty upgrade)
+	var base_gold = 25
+	var bounty_mult = 1.0
+	if player and player.stats and "gold_reward_mult" in player.stats:
+		bounty_mult = player.stats.gold_reward_mult
+	var actual_gold = int(round(base_gold * bounty_mult))
+	SaveManager.add_gold(actual_gold)
+	if RunStats.active_stats:
+		RunStats.active_stats.record_gold(actual_gold)
+		RunStats.active_stats.record_chest_opened()
+	if container:
+		CombatEffects.spawn_text_popup(container, global_position + Vector2(0, -20), "+%d 🪙" % actual_gold, Color(1.0, 0.85, 0.25, 1.0))
+
 	# Request reward modal via HUDController
-	var huds = get_tree().get_nodes_in_group("hud")
+	var huds = tree.get_nodes_in_group("hud") if tree else []
 	if huds.size() > 0 and huds[0].has_method("request_chest_reward"):
 		huds[0].request_chest_reward(player)
 	else:
@@ -43,10 +61,13 @@ func open_chest(player: PlayerController) -> void:
 		_fallback_reward(player)
 
 	# Fade out chest
-	var tween = create_tween()
-	tween.tween_property(self, "scale", Vector2(1.3, 1.3), 0.15)
-	tween.parallel().tween_property(self, "modulate:a", 0.0, 0.2)
-	tween.tween_callback(queue_free)
+	if tree:
+		var tween = create_tween()
+		tween.tween_property(self, "scale", Vector2(1.3, 1.3), 0.15)
+		tween.parallel().tween_property(self, "modulate:a", 0.0, 0.2)
+		tween.tween_callback(queue_free)
+	else:
+		queue_free()
 
 func _fallback_reward(player: PlayerController) -> void:
 	if not player or not player.inventory:
