@@ -190,7 +190,6 @@ func _update_stats_display() -> void:
 	var arenas = data.get("unlocked_arenas", ["forgotten_forest"])
 	var total_runs = int(data.get("total_runs", 0))
 	var bosses = int(data.get("bosses_defeated", 0))
-	var loc = LocalizationManager.instance
 	if loc:
 		var fmt = loc.get_text("menu_stats", "Всего забегов: %d   |   Рекорд: %02d:%02d   |   Повержено боссов: %d   |   Доступно арен: %d")
 		stats_label.text = fmt % [total_runs, m, s, bosses, arenas.size()]
