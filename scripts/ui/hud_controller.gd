@@ -216,6 +216,8 @@ func _on_pause_restart_pressed() -> void:
 	_on_restart_pressed()
 
 func _go_to_menu() -> void:
+	if run_stats and run_stats.gold_collected > 0 and not SaveManager.is_run_processed(run_stats.run_id):
+		SaveManager.claim_run_rewards(run_stats.run_id, run_stats.character_id, 0, run_stats.gold_collected)
 	if PauseManager.instance:
 		PauseManager.instance.clear_reasons(false)
 	else:

@@ -197,7 +197,16 @@ func die() -> void:
 	if engine_nodes.size() > 0:
 		engine_nodes[0].on_enemy_death(self)
 
-	# Spawn XP Gem or Gold Coin
+	# Spawn regular drop (Gem or Coin)
+	spawn_drop()
+
+	var tween = create_tween()
+	tween.tween_property(self, "modulate:a", 0.0, 0.2)
+	tween.tween_callback(queue_free)
+
+func spawn_drop() -> void:
+	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
+	var players = get_tree().get_nodes_in_group("player")
 	var coin_chance = 0.12 # 12% base chance
 	if players.size() > 0 and players[0].stats and "gold_drop_chance_bonus" in players[0].stats:
 		coin_chance += players[0].stats.gold_drop_chance_bonus
@@ -210,7 +219,3 @@ func die() -> void:
 		var gem = xp_gem_scene.instantiate() as Node2D
 		gem.global_position = global_position
 		container.call_deferred("add_child", gem)
-
-	var tween = create_tween()
-	tween.tween_property(self, "modulate:a", 0.0, 0.2)
-	tween.tween_callback(queue_free)

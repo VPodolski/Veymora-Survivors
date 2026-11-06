@@ -209,23 +209,25 @@ func take_damage(amount: float) -> void:
 func die() -> void:
 	if is_dead:
 		return
-
 	boss_defeated.emit()
+	super.die()
+
+func spawn_drop() -> void:
+	var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 
 	# Drop legendary chest
 	if chest_scene:
 		var chest = chest_scene.instantiate() as Node2D
 		chest.global_position = global_position
-		var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 		container.call_deferred("add_child", chest)
 
 	# Boss reward: drop super tier (Rare) XP gem (250 XP)
 	if xp_gem_scene:
-		var gem = xp_gem_scene.instantiate() as XPGem
+		var gem = xp_gem_scene.instantiate() as Node2D
 		if gem:
-			gem.xp_value = 250
+			if "xp_value" in gem:
+				gem.xp_value = 250
 			gem.global_position = global_position + Vector2(25.0, 0.0)
-			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 			container.call_deferred("add_child", gem)
 
 	# Boss reward: guaranteed substantial gold cache (25 gold)
@@ -235,7 +237,4 @@ func die() -> void:
 			if "gold_value" in coin:
 				coin.gold_value = 25
 			coin.global_position = global_position + Vector2(-25.0, 0.0)
-			var container = get_tree().current_scene if get_tree().current_scene else get_tree().root
 			container.call_deferred("add_child", coin)
-
-	super.die()

@@ -40,10 +40,17 @@ var synergy_kills: Dictionary = {} # synergy_id -> int kills caused by synergy
 var synergy_max_targets: Dictionary = {} # synergy_id -> int peak targets in single reaction
 var synergy_dot_damage: Dictionary = {} # synergy_id -> float periodic DoT damage
 
+# Run Tracking & Deduplication (v0.5.2)
+var run_id: String = ""
+var character_id: String = "wizard"
+var is_processed: bool = false
+
 var _recorded_enemy_ids: Dictionary = {}
 
 func _init() -> void:
 	active_stats = self
+	if run_id.is_empty():
+		run_id = "run_%d_%d" % [Time.get_unix_time_from_system(), randi() % 1000000]
 
 func record_kill(enemy: EnemyController) -> void:
 	if not enemy:
@@ -175,6 +182,9 @@ func get_synergy_damage_ratio() -> float:
 
 func to_dictionary() -> Dictionary:
 	return {
+		"run_id": run_id,
+		"character_id": character_id,
+		"is_processed": is_processed,
 		"arena_id": arena_id,
 		"arena_name": arena_name,
 		"survival_time": survival_time,
@@ -209,6 +219,9 @@ func to_dictionary() -> Dictionary:
 	}
 
 func reset() -> void:
+	run_id = "run_%d_%d" % [Time.get_unix_time_from_system(), randi() % 1000000]
+	character_id = "wizard"
+	is_processed = false
 	arena_id = "forgotten_forest"
 	arena_name = "Забытый лес"
 	survival_time = 0.0

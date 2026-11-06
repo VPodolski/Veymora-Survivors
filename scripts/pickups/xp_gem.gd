@@ -41,13 +41,13 @@ func get_tier() -> int:
 func get_tier_color() -> Color:
 	match get_tier():
 		GemTier.RARE:
-			return Color(0.85, 0.35, 1.0, 1.0) # Amethyst Royal Violet
+			return Color(0.85, 0.35, 1.0, 1.0)
 		GemTier.GREATER:
-			return Color(1.0, 0.82, 0.18, 1.0) # Amber Gold
+			return Color(1.0, 0.82, 0.18, 1.0)
 		GemTier.ENHANCED:
-			return Color(0.20, 0.95, 0.45, 1.0) # Emerald Jade
+			return Color(0.20, 0.95, 0.45, 1.0)
 		_:
-			return Color(0.25, 0.72, 1.0, 1.0) # Sapphire Azure
+			return Color(0.25, 0.72, 1.0, 1.0)
 
 func get_tier_halo_color() -> Color:
 	match get_tier():
@@ -114,19 +114,20 @@ func collect() -> void:
 		exp_managers[0].add_experience(xp_value)
 
 	var tween = create_tween()
-	tween.tween_property(self, "scale", Vector2.ZERO, 0.10)
-	tween.tween_callback(queue_free)
+	if tween:
+		tween.tween_property(self, "scale", Vector2.ZERO, 0.10)
+		tween.tween_callback(queue_free)
+	else:
+		queue_free()
 
 func _draw() -> void:
-	var tier = get_tier()
-	# Compact micro-scale radius: 3.5 px
-	var tier_scale = clamp(1.0 + float(tier - 1) * 0.08, 1.0, 1.25)
-	var r = 3.5 * tier_scale
+	# Uniform micro-scale radius: 3.5 px, strictly sapphire blue
+	var r = 3.5
+	var halo_col = Color(0.25, 0.72, 1.0, 0.20)
+	var body_col = Color(0.25, 0.72, 1.0, 1.0)
+	var glint_col = Color(1.0, 1.0, 1.0, 0.85)
 
-	var halo_col = get_tier_halo_color()
-	var body_col = get_tier_color()
-
-	# 1. Subtle glowing halo
+	# 1. Subtle glowing sapphire halo
 	draw_circle(Vector2.ZERO, r * 1.5, halo_col)
 
 	# 2. Sapphire diamond polygon
@@ -145,4 +146,4 @@ func _draw() -> void:
 		Vector2(0, r * 0.55),
 		Vector2(-r * 0.4, 0)
 	])
-	draw_colored_polygon(inner_pts, Color(1.0, 1.0, 1.0, 0.85))
+	draw_colored_polygon(inner_pts, glint_col)

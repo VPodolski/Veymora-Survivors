@@ -58,9 +58,16 @@ func try_cast() -> bool:
 		if is_instance_valid(oldest) and oldest.has_method("fade_out"):
 			oldest.fade_out()
 
+	var area_mult = 1.0
+	if player_owner:
+		if player_owner.has_meta("spell_area_mult"):
+			area_mult = player_owner.get_meta("spell_area_mult")
+		elif "stats" in player_owner and player_owner.stats and "spell_area_mult" in player_owner.stats:
+			area_mult = player_owner.stats.spell_area_mult
+
 	var zone = IceStormZone.new()
 	zone.global_position = spawn_pos
-	zone.radius = zone_radius
+	zone.radius = zone_radius * area_mult
 	zone.damage_per_tick = get_effective_damage()
 	zone.duration = storm_duration
 	zone.slow_ratio = slow_ratio

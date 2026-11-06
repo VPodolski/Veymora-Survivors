@@ -117,15 +117,19 @@ func display_stats(run_data: RunStats) -> void:
 		if run_data.defeated_boss or run_data.boss_kills > 0 or ("is_victory" in run_data and run_data.is_victory):
 			completion_bonus_gold += int(round(100.0 * bounty_mult))
 
-		if completion_bonus_gold > 0:
-			SaveManager.add_gold(completion_bonus_gold)
-			run_data.record_gold(completion_bonus_gold)
-
-		run_earned_gold = run_data.gold_collected
+		var total_run_gold = run_data.gold_collected + completion_bonus_gold
+		run_earned_gold = total_run_gold
 
 		# 2. Permanent Character XP
 		run_earned_xp = CharacterProgressionManager.calculate_run_character_xp(run_data)
-		char_xp_result = CharacterProgressionManager.add_character_xp("wizard", run_earned_xp)
+		var char_id = run_data.character_id if ("character_id" in run_data and not run_data.character_id.is_empty()) else SaveManager.get_selected_character()
+
+		# Atomic Claim with deduplication
+		char_xp_result = SaveManager.claim_run_rewards(run_data.run_id, char_id, run_earned_xp, total_run_gold)
+		if char_xp_result.get("already_processed", false):
+			run_data.is_processed = true
+		else:
+			run_data.is_processed = true
 
 	# Metrics Grid
 	_populate_metrics(run_data)

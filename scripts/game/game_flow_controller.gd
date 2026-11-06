@@ -6,6 +6,7 @@ const RunStats = preload("res://scripts/game/run_stats.gd")
 const PauseManager = preload("res://scripts/game/pause_manager.gd")
 const PlatformManager = preload("res://scripts/platform/platform_manager.gd")
 const YandexGamesBridge = preload("res://scripts/platform/yandex_games_bridge.gd")
+const SaveManager = preload("res://scripts/game/save_manager.gd")
 
 signal state_changed(new_state: String)
 
@@ -34,6 +35,7 @@ func _ready() -> void:
 func get_run_config() -> RunConfig:
 	if current_run_config == null:
 		current_run_config = RunConfig.new()
+		current_run_config.character_id = SaveManager.get_selected_character()
 	return current_run_config
 
 func open_arena_select() -> void:
@@ -43,6 +45,9 @@ func open_arena_select() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/arena_select.tscn")
 
 func start_run_with_config(config: RunConfig) -> void:
+	if config:
+		if config.character_id.is_empty():
+			config.character_id = SaveManager.get_selected_character()
 	current_run_config = config
 	current_state = STATE_LOADING
 	state_changed.emit(current_state)
@@ -74,6 +79,8 @@ func restart_run() -> void:
 	state_changed.emit(current_state)
 	_clear_pause_and_stop_gameplay()
 	var next_config = current_run_config.duplicate_config() if current_run_config else RunConfig.new()
+	if next_config.character_id.is_empty():
+		next_config.character_id = SaveManager.get_selected_character()
 	start_run_with_config(next_config)
 
 func go_to_main_menu() -> void:

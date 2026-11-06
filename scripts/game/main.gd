@@ -8,6 +8,7 @@ const MetaArchive = preload("res://scripts/game/meta_archive.gd")
 const AudioManager = preload("res://scripts/audio/audio_manager.gd")
 const GameFlowController = preload("res://scripts/game/game_flow_controller.gd")
 const MetaShopManager = preload("res://scripts/progression/meta_shop_manager.gd")
+const CharacterProgressionManager = preload("res://scripts/progression/character_progression_manager.gd")
 
 @onready var arena: Arena = $Arena
 @onready var player: PlayerController = $Player
@@ -24,11 +25,21 @@ func _ready() -> void:
 	ensure_input_mappings()
 
 	var target_arena_id = "forgotten_forest"
+	var target_character_id = "wizard"
 	if GameFlowController.instance:
-		target_arena_id = GameFlowController.instance.get_run_config().arena_id
+		var run_cfg = GameFlowController.instance.get_run_config()
+		target_arena_id = run_cfg.arena_id
+		if not run_cfg.character_id.is_empty():
+			target_character_id = run_cfg.character_id
+		else:
+			target_character_id = SaveManager.get_selected_character()
+	else:
+		target_character_id = SaveManager.get_selected_character()
+
 	var cfg = ArenaConfig.get_arena_config(target_arena_id)
 	run_stats.arena_id = target_arena_id
 	run_stats.arena_name = cfg.name
+	run_stats.character_id = target_character_id
 	RunStats.active_stats = run_stats
 
 	if arena:
@@ -39,6 +50,7 @@ func _ready() -> void:
 		hud.restart_requested.connect(_on_restart_game)
 
 	if player and hud:
+		CharacterProgressionManager.apply_character_progression_to_player(player, target_character_id)
 		MetaShopManager.apply_shop_upgrades_to_player(player)
 		player.health_changed.connect(hud.update_health)
 		player.died.connect(_on_player_died)

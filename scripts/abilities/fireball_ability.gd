@@ -54,6 +54,13 @@ func cast_fireball(target: EnemyController) -> void:
 	var count = fireball_count
 	var spread_angle = 0.22 # Radians
 
+	var area_mult = 1.0
+	if player_owner:
+		if player_owner.has_meta("spell_area_mult"):
+			area_mult = player_owner.get_meta("spell_area_mult")
+		elif "stats" in player_owner and player_owner.stats and "spell_area_mult" in player_owner.stats:
+			area_mult = player_owner.stats.spell_area_mult
+
 	for i in range(count):
 		var angle = base_angle
 		if count > 1:
@@ -71,7 +78,7 @@ func cast_fireball(target: EnemyController) -> void:
 		proj.projectile_color = Color(1.0, 0.45, 0.1, 1.0)
 		proj.is_evolved = is_evolved
 		proj.is_area = true
-		proj.area_radius = explosion_radius
+		proj.area_radius = explosion_radius * area_mult
 		proj.status_to_apply = StatusEffects.STATUS_BURNING
 		proj.status_duration = burn_duration
 		proj.ability_source_id = "fireball"
@@ -79,7 +86,7 @@ func cast_fireball(target: EnemyController) -> void:
 		if is_evolved:
 			proj.damage *= 1.8
 			proj.speed = 520.0
-			proj.area_radius = 160.0
+			proj.area_radius = 160.0 * area_mult
 			proj.pierce_count = 999
 			proj.scale = Vector2(1.6, 1.6)
 

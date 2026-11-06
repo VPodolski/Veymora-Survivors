@@ -26,11 +26,7 @@ static func purchase_upgrade(upgrade_id: String) -> bool:
 	var current_lvl = get_upgrade_level(upgrade_id)
 	var cost = MetaShopConfig.get_upgrade_cost(upgrade_id, current_lvl)
 
-	if not SaveManager.spend_gold(cost):
-		return false
-
-	SaveManager.set_upgrade_level(upgrade_id, current_lvl + 1)
-	return true
+	return SaveManager.atomic_purchase_upgrade(upgrade_id, cost, current_lvl + 1)
 
 static func apply_shop_upgrades_to_player(player: Node2D) -> void:
 	if not player or not ("stats" in player) or not player.stats:

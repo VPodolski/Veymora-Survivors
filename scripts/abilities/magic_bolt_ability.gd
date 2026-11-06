@@ -20,17 +20,21 @@ func _init() -> void:
 	pierce_count = 1
 
 func get_effective_damage() -> float:
-	var bonus_dmg = 0.0
-	if player_owner and player_owner.has_meta("char_spell_damage_bonus"):
-		bonus_dmg = player_owner.get_meta("char_spell_damage_bonus")
+	var char_bonus_mult = 0.0
+	if player_owner:
+		if player_owner.has_meta("char_spell_damage_mult_bonus"):
+			char_bonus_mult = float(player_owner.get_meta("char_spell_damage_mult_bonus"))
+		elif player_owner.has_meta("char_spell_damage_bonus"):
+			char_bonus_mult = float(player_owner.get_meta("char_spell_damage_bonus")) / max(1.0, base_damage)
+	var char_scaled_base = base_damage * (1.0 + char_bonus_mult)
 	var mult = 1.0
 	if player_owner and player_owner.has_meta("spell_power_mult"):
 		mult = player_owner.get_meta("spell_power_mult")
 	if player_owner and player_owner.has_meta("obsidian_heart_bonus"):
 		mult += player_owner.get_meta("obsidian_heart_bonus")
-	if player_owner and player_owner.get_meta("in_rune_zone", false):
+	if player_owner and player_owner.has_meta("in_rune_zone") and player_owner.get_meta("in_rune_zone"):
 		mult += 0.20
-	return (base_damage + bonus_dmg) * mult
+	return char_scaled_base * mult
 
 func _physics_process(delta: float) -> void:
 	if cooldown_timer > 0.0:
@@ -75,8 +79,6 @@ func fire_projectiles(base_dir: Vector2) -> void:
 		proj.global_position = player_owner.global_position
 		proj.direction = Vector2(cos(angle), sin(angle))
 		proj.damage = get_effective_damage()
-		if player_owner and player_owner.has_meta("char_projectile_speed_bonus"):
-			proj.speed += player_owner.get_meta("char_projectile_speed_bonus")
 		proj.ability_source_id = "magic_bolt"
 		proj.pierce_count = pierce_count
 		proj.tags = ["arcane", "projectile"]

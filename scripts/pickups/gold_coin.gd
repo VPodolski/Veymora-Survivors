@@ -1,7 +1,6 @@
 class_name GoldCoin
 extends Area2D
 
-const SaveManager = preload("res://scripts/game/save_manager.gd")
 const RunStats = preload("res://scripts/game/run_stats.gd")
 
 @export var gold_value: int = 1
@@ -66,8 +65,7 @@ func collect() -> void:
 		return
 	is_collected = true
 
-	# Persist gold & record in active run stats
-	SaveManager.add_gold(gold_value)
+	# Batch optimization: record in active run stats without disk I/O
 	if RunStats.active_stats:
 		RunStats.active_stats.record_gold(gold_value)
 
@@ -84,20 +82,20 @@ func collect() -> void:
 		queue_free()
 
 func _draw() -> void:
-	var r = 3.6
-	var halo_col = Color(1.0, 0.82, 0.2, 0.22)
+	var r = 3.5
+	var halo_col = Color(1.0, 0.85, 0.2, 0.22)
 	var rim_col = Color(0.85, 0.65, 0.1, 1.0)
-	var body_col = Color(1.0, 0.88, 0.25, 1.0)
+	var body_col = Color(1.0, 0.85, 0.2, 1.0)
 	var shine_col = Color(1.0, 1.0, 0.85, 0.9)
 
 	# 1. Subtle golden glow halo
 	draw_circle(Vector2.ZERO, r * 1.5, halo_col)
 
-	# 2. Outer gold coin body & dark rim
+	# 2. Outer gold coin body & rim
 	draw_circle(Vector2.ZERO, r, rim_col)
-	draw_circle(Vector2.ZERO, r * 0.82, body_col)
+	draw_circle(Vector2.ZERO, r * 0.80, body_col)
 
-	# 3. Inner engraved emblem (diamond or circle star)
+	# 3. Inner engraved emblem
 	var pts = PackedVector2Array([
 		Vector2(0, -r * 0.45),
 		Vector2(r * 0.45, 0),

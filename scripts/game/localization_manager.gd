@@ -209,7 +209,25 @@ const STRINGS = {
 		"codex_reward_prefix": "%s\nНаграда: %s",
 
 		# Orientation warning
-		"rotate_device_warning": "Пожалуйста, поверните устройство горизонтально для комфортной игры."
+		"rotate_device_warning": "Пожалуйста, поверните устройство горизонтально для комфортной игры.",
+
+		# Meta Shop & Progression
+		"shop_title": "МАГАЗИН РАЗЛОМА: ПОСТОЯННЫЕ УЛУЧШЕНИЯ",
+		"shop_progress_fmt": "Общий прогресс: %d / %d (%d%%) • Завершено: %d / %d",
+		"shop_cat_progress_fmt": "%s (%d/%d)",
+		"shop_buy_btn": "КУПИТЬ\n🪙 %d",
+		"shop_btn_maxed": "ИЗУЧЕНО",
+		"shop_btn_locked": "ЗАКРЫТО",
+		"shop_insufficient_gold": "Недостаточно золота",
+		"shop_effect_fmt": "Текущий бонус: %s  ➜  Следующий: %s",
+		"shop_effect_max_fmt": "Эффект: %s (МАКСИМУМ)",
+		"shop_effect_none": "Нет",
+		"menu_shop": "🏛 МАГАЗИН УЛУЧШЕНИЙ",
+		"menu_char_card_title": "🧙 Маг Разлома",
+		"menu_char_lvl_fmt": "Ур. %d",
+		"menu_char_xp_fmt": "Опыт мага: %d / %d XP",
+		"menu_char_bonus_fmt": "Магическая стрела: %s к базовому урону",
+		"menu_char_bonus_base": "Магическая стрела: базовая форма"
 	},
 	"en": {
 		# Common
@@ -410,7 +428,25 @@ const STRINGS = {
 		"codex_reward_prefix": "%s\nReward: %s",
 
 		# Orientation warning
-		"rotate_device_warning": "Please rotate your device to landscape mode for optimal gameplay."
+		"rotate_device_warning": "Please rotate your device to landscape mode for optimal gameplay.",
+
+		# Meta Shop & Progression
+		"shop_title": "RIFT SHOP: PERMANENT UPGRADES",
+		"shop_progress_fmt": "Overall Progress: %d / %d (%d%%) • Maxed: %d / %d",
+		"shop_cat_progress_fmt": "%s (%d/%d)",
+		"shop_buy_btn": "UPGRADE\n🪙 %d",
+		"shop_btn_maxed": "MAXED",
+		"shop_btn_locked": "LOCKED",
+		"shop_insufficient_gold": "Not enough gold",
+		"shop_effect_fmt": "Current bonus: %s  ➜  Next: %s",
+		"shop_effect_max_fmt": "Effect: %s (MAXIMUM)",
+		"shop_effect_none": "None",
+		"menu_shop": "🏛 UPGRADE SHOP",
+		"menu_char_card_title": "🧙 Rift Wizard",
+		"menu_char_lvl_fmt": "Lv. %d",
+		"menu_char_xp_fmt": "Wizard XP: %d / %d XP",
+		"menu_char_bonus_fmt": "Magic Bolt: %s to base damage",
+		"menu_char_bonus_base": "Magic Bolt: base form"
 	}
 }
 

@@ -9,12 +9,15 @@ const CHARACTERS = {
 	"wizard": {
 		"id": "wizard",
 		"name": "Маг Разлома",
+		"name_en": "Rift Wizard",
 		"title": "Хранитель Первородной Магии",
+		"title_en": "Keeper of Primal Weaving",
 		"description": "Властитель чародейской энергии и тайных плетений.",
+		"description_en": "Master of raw arcane power and celestial weavers.",
 		"starting_spell_id": "magic_bolt",
 		"starting_spell_name": "Чародейская стрела",
-		"damage_per_level": 2.5,
-		"speed_per_level": 20.0
+		"starting_spell_name_en": "Arcane Bolt",
+		"damage_bonus_per_level": 0.01 # +1% base damage per level above 1
 	}
 }
 
@@ -27,6 +30,27 @@ static func get_required_xp(level: int) -> int:
 	var safe_lvl = max(1, level)
 	# Smooth scaling curve: L1: 100, L2: 273, L3: 494, L4: 752, L5: 1041...
 	return int(round(100.0 * pow(float(safe_lvl), 1.45)))
+
+static func calc_total_xp_for_level_and_residual(level: int, residual_xp: int) -> int:
+	var total = max(0, residual_xp)
+	for l in range(1, max(1, level)):
+		total += get_required_xp(l)
+	return total
+
+static func calc_level_and_residual_from_total(total_xp: int) -> Dictionary:
+	var lvl = 1
+	var rem = max(0, total_xp)
+	var req = get_required_xp(lvl)
+	while rem >= req:
+		rem -= req
+		lvl += 1
+		req = get_required_xp(lvl)
+	return {
+		"level": lvl,
+		"xp": rem,
+		"total_xp": max(0, total_xp),
+		"required_xp": req
+	}
 
 static func calculate_run_character_xp(run_stats: RunStats) -> int:
 	if not run_stats:
@@ -54,54 +78,61 @@ static func calculate_run_character_xp(run_stats: RunStats) -> int:
 	return max(10, earned_xp)
 
 static func add_character_xp(char_id: String, xp_amount: int) -> Dictionary:
-	var data = SaveManager.get_character_data(char_id)
-	var current_level = int(data.get("level", 1))
-	var current_xp = int(data.get("xp", 0))
-	var old_level = current_level
+	var safe_char_id = char_id if CHARACTERS.has(char_id) else "wizard"
+	var data = SaveManager.get_character_data(safe_char_id)
+	var old_level = int(data.get("level", 1))
+	var old_residual = int(data.get("xp", 0))
 
-	if xp_amount > 0:
-		current_xp += xp_amount
+	# Compute total XP accurately
+	var old_total_xp = int(data.get("total_xp", 0))
+	if old_total_xp <= 0 and (old_level > 1 or old_residual > 0):
+		old_total_xp = calc_total_xp_for_level_and_residual(old_level, old_residual)
 
-		var req_xp = get_required_xp(current_level)
-		while current_xp >= req_xp:
-			current_xp -= req_xp
-			current_level += 1
-			req_xp = get_required_xp(current_level)
+	var new_total_xp = old_total_xp + max(0, xp_amount)
+	var reconstructed = calc_level_and_residual_from_total(new_total_xp)
+	var new_level = reconstructed.level
+	var new_residual = reconstructed.xp
 
-		SaveManager.save_character_data(char_id, current_level, current_xp)
+	SaveManager.save_character_data(safe_char_id, new_level, new_residual, new_total_xp)
 
 	return {
-		"char_id": char_id,
+		"char_id": safe_char_id,
 		"old_level": old_level,
-		"new_level": current_level,
+		"new_level": new_level,
 		"gained_xp": xp_amount,
-		"current_xp": current_xp,
-		"required_xp": get_required_xp(current_level),
-		"leveled_up": current_level > old_level
+		"current_xp": new_residual,
+		"total_xp": new_total_xp,
+		"required_xp": reconstructed.required_xp,
+		"leveled_up": new_level > old_level
 	}
 
 static func get_character_bonuses(char_id: String = "wizard") -> Dictionary:
-	var data = SaveManager.get_character_data(char_id)
+	var safe_char_id = char_id if CHARACTERS.has(char_id) else "wizard"
+	var data = SaveManager.get_character_data(safe_char_id)
 	var lvl = int(data.get("level", 1))
-	var defn = get_character_def(char_id)
+	var defn = get_character_def(safe_char_id)
 
 	var bonus_levels = max(0, lvl - 1)
-	var dmg_bonus = float(bonus_levels) * float(defn.get("damage_per_level", 2.5))
-	var spd_bonus = float(bonus_levels) * float(defn.get("speed_per_level", 20.0))
+	# +1% base damage to starting spell per level above 1
+	var pct_per_lvl = float(defn.get("damage_bonus_per_level", 0.01))
+	var damage_mult_bonus = float(bonus_levels) * pct_per_lvl
 
 	return {
 		"level": lvl,
-		"damage_bonus": dmg_bonus,
-		"speed_bonus": spd_bonus
+		"char_id": safe_char_id,
+		"starting_spell_id": defn.get("starting_spell_id", "magic_bolt"),
+		"damage_mult_bonus": damage_mult_bonus, # e.g. 0.09 for level 10 (+9%)
+		"damage_percent_text": "+%d%%" % int(round(damage_mult_bonus * 100.0))
 	}
 
 static func apply_character_progression_to_player(player: Node2D, char_id: String = "wizard") -> void:
 	if not player:
 		return
 
-	var bonuses = get_character_bonuses(char_id)
-	player.set_meta("character_id", char_id)
-	player.set_meta("character_level", bonuses.level)
-	player.set_meta("char_spell_damage_bonus", bonuses.damage_bonus)
-	player.set_meta("char_projectile_speed_bonus", bonuses.speed_bonus)
+	var safe_char_id = char_id if CHARACTERS.has(char_id) else "wizard"
+	var bonuses = get_character_bonuses(safe_char_id)
 
+	player.set_meta("character_id", safe_char_id)
+	player.set_meta("character_level", bonuses.level)
+	player.set_meta("char_starting_spell_id", bonuses.starting_spell_id)
+	player.set_meta("char_spell_damage_mult_bonus", bonuses.damage_mult_bonus)

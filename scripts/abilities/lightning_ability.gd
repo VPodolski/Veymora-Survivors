@@ -68,9 +68,16 @@ func cast_lightning(target: EnemyController) -> void:
 	var max_targets = (8 if is_evolved else (1 + chain_jumps)) + extra_jumps
 	var current_pos = pos
 
-	var effective_radius = search_radius * (1.3 if (player_owner and player_owner.get_meta("has_lightning_rod", false)) else 1.0)
+	var area_mult = 1.0
+	if player_owner:
+		if player_owner.has_meta("spell_area_mult"):
+			area_mult = player_owner.get_meta("spell_area_mult")
+		elif "stats" in player_owner and player_owner.stats and "spell_area_mult" in player_owner.stats:
+			area_mult = player_owner.stats.spell_area_mult
+
+	var effective_radius = search_radius * area_mult * (1.3 if (player_owner and player_owner.get_meta("has_lightning_rod", false)) else 1.0)
 	if is_evolved:
-		effective_radius = max(effective_radius, 220.0)
+		effective_radius = max(effective_radius, 220.0 * area_mult)
 
 	var nearby = TargetSelector.find_enemies_in_radius(get_tree(), pos, effective_radius)
 	for next_enemy in nearby:

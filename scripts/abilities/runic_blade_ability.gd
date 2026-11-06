@@ -45,13 +45,23 @@ func _physics_process(delta: float) -> void:
 
 	# Position blades around player
 	var count = blade_nodes.size()
+	var eff_radius = get_effective_orbit_radius()
 	for i in range(count):
 		var blade = blade_nodes[i]
 		if is_instance_valid(blade):
 			var angle = current_angle + (float(i) * TAU / float(count))
-			var offset = Vector2(cos(angle), sin(angle)) * orbit_radius
+			var offset = Vector2(cos(angle), sin(angle)) * eff_radius
 			blade.position = offset
 			blade.rotation = angle + PI * 0.5
+
+func get_effective_orbit_radius() -> float:
+	var area_mult = 1.0
+	if player_owner:
+		if player_owner.has_meta("spell_area_mult"):
+			area_mult = player_owner.get_meta("spell_area_mult")
+		elif "stats" in player_owner and player_owner.stats and "spell_area_mult" in player_owner.stats:
+			area_mult = player_owner.stats.spell_area_mult
+	return orbit_radius * area_mult
 
 func rebuild_blades() -> void:
 	# Clear old blades

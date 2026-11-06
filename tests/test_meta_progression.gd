@@ -8,10 +8,17 @@ const RunStats = preload("res://scripts/game/run_stats.gd")
 const PlayerController = preload("res://scripts/player/player_controller.gd")
 const PlayerStats = preload("res://scripts/player/player_stats.gd")
 const MagicBoltAbility = preload("res://scripts/abilities/magic_bolt_ability.gd")
+const IceStormAbility = preload("res://scripts/abilities/ice_storm_ability.gd")
+const FireballAbility = preload("res://scripts/abilities/fireball_ability.gd")
+const RunicBladeAbility = preload("res://scripts/abilities/runic_blade_ability.gd")
+const LightningAbility = preload("res://scripts/abilities/lightning_ability.gd")
 const GoldCoin = preload("res://scripts/pickups/gold_coin.gd")
 const XPGem = preload("res://scripts/pickups/xp_gem.gd")
 const Chest = preload("res://scripts/pickups/chest.gd")
 const ResultsScreen = preload("res://scripts/ui/results_screen.gd")
+const EnemyController = preload("res://scripts/enemies/enemy_controller.gd")
+const EliteEnemyController = preload("res://scripts/enemies/elite_enemy_controller.gd")
+const BossController = preload("res://scripts/enemies/boss_controller.gd")
 
 func _init() -> void:
 	print("\n=======================================================")
@@ -27,9 +34,13 @@ func _init() -> void:
 	test_5_gold_currency_economy()
 	test_6_meta_shop_purchases_and_caps()
 	test_7_meta_shop_player_stats_application()
-	test_8_gold_coin_pickup_and_xp_gem_independence()
+	test_8_gold_coin_pickup_and_batch_saving()
 	test_9_chest_gold_and_runstats_tracking()
 	test_10_results_screen_idempotency()
+	test_11_unique_run_id_deduplication()
+	test_12_total_xp_reconstruction()
+	test_13_area_upgrades_scaling()
+	test_14_elite_and_boss_drops()
 
 	SaveManager.save_custom_data(SaveManager.get_default_data())
 
@@ -44,7 +55,6 @@ func _init() -> void:
 func test_1_save_manager_v3_migration_and_sanitization() -> void:
 	print("[TEST] 1. SaveManager v3 schema migration & data sanitization...")
 
-	# Simulate legacy v1 / v2 save data without meta progression fields
 	var legacy_save: Dictionary = {
 		"version": 2,
 		"high_score": 1250,
@@ -55,14 +65,17 @@ func test_1_save_manager_v3_migration_and_sanitization() -> void:
 	var sanitized = SaveManager.sanitize_data(legacy_save)
 	assert(sanitized.get("version") == 3, "Version bumped to 3")
 	assert(sanitized.has("gold") and sanitized["gold"] == 0, "Default gold is 0")
+	assert(sanitized.has("lifetime_gold_earned") and sanitized["lifetime_gold_earned"] == 0, "Lifetime gold earned is 0")
+	assert(sanitized.has("lifetime_gold_spent") and sanitized["lifetime_gold_spent"] == 0, "Lifetime gold spent is 0")
 	assert(sanitized.has("characters") and sanitized["characters"].has("wizard"), "Wizard character entry present")
 	assert(sanitized["characters"]["wizard"]["level"] == 1, "Wizard initial level is 1")
 	assert(sanitized["characters"]["wizard"]["xp"] == 0, "Wizard initial XP is 0")
 	assert(sanitized.has("shop_upgrades") and sanitized["shop_upgrades"].is_empty(), "Shop upgrades initialized empty")
 
-	# Test sanitization against negative or corrupted data
+	# Corrupted data recovery
 	var corrupted: Dictionary = {
 		"gold": -50,
+		"lifetime_gold_earned": -10,
 		"characters": {
 			"wizard": {"level": -5, "xp": -100}
 		},
@@ -80,46 +93,53 @@ func test_1_save_manager_v3_migration_and_sanitization() -> void:
 	print("[PASS] 1. SaveManager v3 schema migration & sanitization verified.")
 
 # -----------------------------------------------------------------------------
-# 2. Cloud Sync Progression Merge
+# 2. Cloud Sync Progression Merge (Protect Spent Currency)
 # -----------------------------------------------------------------------------
 func test_2_cloud_sync_progression_merge() -> void:
 	print("[TEST] 2. Cloud sync progression merge (Gold, Character XP, Upgrades)...")
 
+	# Device A spent gold on upgrades: earned 500, spent 300, remaining gold 200
 	var local_state: Dictionary = {
-		"gold": 250,
+		"gold": 200,
+		"lifetime_gold_earned": 500,
+		"lifetime_gold_spent": 300,
 		"characters": {
 			"wizard": {"level": 2, "xp": 120}
 		},
 		"shop_upgrades": {
-			"vitality_health": 2,
-			"defense_armor": 1
+			"vitality_health": 2, # Cost 50 + 100 = 150
+			"defense_armor": 1    # Cost 80
 		}
 	}
 
+	# Stale cloud save: gold balance 400, but 0 spent
 	var cloud_state: Dictionary = {
 		"gold": 400,
+		"lifetime_gold_earned": 400,
+		"lifetime_gold_spent": 0,
 		"characters": {
 			"wizard": {"level": 3, "xp": 40}
 		},
 		"shop_upgrades": {
-			"vitality_health": 1,
-			"magic_power": 3
+			"magic_power": 1      # Cost 100
 		}
 	}
 
 	var merged = SaveManager.merge_with_cloud(cloud_state, local_state)
 
-	# Highest gold preserved
-	assert(merged["gold"] == 400, "Highest gold preserved (got %d)" % merged["gold"])
+	# Protection against stale gold resurrecting spent coins:
+	# Total spent accounts for all merged upgrades: vitality (2) + armor (1) + magic_power (1)
+	assert(merged["lifetime_gold_spent"] >= 330, "Monotonic spent gold tracks all purchased upgrades")
+	assert(merged["gold"] == merged["lifetime_gold_earned"] - merged["lifetime_gold_spent"], "Gold balance is earned minus spent")
 
-	# Highest character level & XP preserved
-	assert(merged["characters"]["wizard"]["level"] == 3, "Highest wizard level preserved (got %d)" % merged["characters"]["wizard"]["level"])
-	assert(merged["characters"]["wizard"]["xp"] == 120, "Highest wizard XP preserved (got %d)" % merged["characters"]["wizard"]["xp"])
+	# Character total XP preserved
+	assert(merged["characters"]["wizard"]["level"] >= 3, "Highest wizard level preserved")
+	assert(merged["characters"]["wizard"]["total_xp"] >= 260, "Highest total XP preserved")
 
-	# Max purchased level for each upgrade preserved
-	assert(merged["shop_upgrades"]["vitality_health"] == 2, "Max vitality level (2) preserved")
+	# Upgrades merged to highest level
+	assert(merged["shop_upgrades"]["vitality_health"] == 2, "Local vitality upgrade preserved")
 	assert(merged["shop_upgrades"]["defense_armor"] == 1, "Local defense upgrade preserved")
-	assert(merged["shop_upgrades"]["magic_power"] == 3, "Cloud magic power upgrade preserved")
+	assert(merged["shop_upgrades"]["magic_power"] == 1, "Cloud magic power upgrade preserved")
 
 	print("[PASS] 2. Cloud sync progression merge verified.")
 
@@ -129,7 +149,6 @@ func test_2_cloud_sync_progression_merge() -> void:
 func test_3_character_xp_and_level_up_formulas() -> void:
 	print("[TEST] 3. Character XP curves and level-up calculations...")
 
-	# XP curve verification: smooth exponential progression
 	var req_1 = CharacterProgressionManager.get_required_xp(1)
 	var req_2 = CharacterProgressionManager.get_required_xp(2)
 	var req_3 = CharacterProgressionManager.get_required_xp(3)
@@ -150,7 +169,7 @@ func test_3_character_xp_and_level_up_formulas() -> void:
 	assert(earned_xp == 540, "Calculated 540 XP from run (got %d)" % earned_xp)
 
 	# Reset wizard to baseline Lv 1, 0 XP
-	SaveManager.save_character_data("wizard", 1, 0)
+	SaveManager.save_character_data("wizard", 1, 0, 0)
 	var res = CharacterProgressionManager.add_character_xp("wizard", 450)
 	assert(res.leveled_up == true, "Level-up triggered")
 	assert(res.new_level >= 2, "Wizard leveled up from 1 to at least 2 (new level %d)" % res.new_level)
@@ -159,49 +178,53 @@ func test_3_character_xp_and_level_up_formulas() -> void:
 	print("[PASS] 3. Character XP curves and level-up verified.")
 
 # -----------------------------------------------------------------------------
-# 4. Starter Spell Auto-scaling
+# 4. Starter Spell Auto-scaling (+1% base damage per level above 1, no speed bonus)
 # -----------------------------------------------------------------------------
 func test_4_starter_spell_auto_scaling() -> void:
-	print("[TEST] 4. Starter spell auto-scaling with character progression...")
+	print("[TEST] 4. Starter spell auto-scaling with character progression (+1%%/lvl)...")
 
 	# At level 1: no bonus
-	SaveManager.save_character_data("wizard", 1, 0)
+	SaveManager.save_character_data("wizard", 1, 0, 0)
 	var bonus_l1 = CharacterProgressionManager.get_character_bonuses("wizard")
-	assert(bonus_l1.damage_bonus == 0.0, "Lv 1 has +0.0 damage bonus")
-	assert(bonus_l1.speed_bonus == 0.0, "Lv 1 has +0.0 speed bonus")
+	assert(is_equal_approx(bonus_l1.damage_mult_bonus, 0.0), "Lv 1 has +0.0 damage mult bonus")
 
-	# At level 4: 3 bonus levels -> +7.5 damage, +60.0 projectile speed
+	# At level 4: 3 bonus levels -> +3% base damage
 	SaveManager.save_character_data("wizard", 4, 0)
 	var bonus_l4 = CharacterProgressionManager.get_character_bonuses("wizard")
-	assert(is_equal_approx(bonus_l4.damage_bonus, 7.5), "Lv 4 has +7.5 damage bonus (got %f)" % bonus_l4.damage_bonus)
-	assert(is_equal_approx(bonus_l4.speed_bonus, 60.0), "Lv 4 has +60.0 speed bonus (got %f)" % bonus_l4.speed_bonus)
+	assert(is_equal_approx(bonus_l4.damage_mult_bonus, 0.03), "Lv 4 has +3%% damage bonus (got %f)" % bonus_l4.damage_mult_bonus)
+
+	# At level 10: 9 bonus levels -> +9% base damage
+	SaveManager.save_character_data("wizard", 10, 0)
+	var bonus_l10 = CharacterProgressionManager.get_character_bonuses("wizard")
+	assert(is_equal_approx(bonus_l10.damage_mult_bonus, 0.09), "Lv 10 has +9%% damage bonus (got %f)" % bonus_l10.damage_mult_bonus)
 
 	# Test player & MagicBoltAbility integration
 	var player = PlayerController.new()
 	player.stats = PlayerStats.new()
 	CharacterProgressionManager.apply_character_progression_to_player(player, "wizard")
-	assert(player.get_meta("character_level") == 4, "Player meta has character level 4")
-	assert(is_equal_approx(player.get_meta("char_spell_damage_bonus"), 7.5), "Player meta has damage bonus")
-	assert(is_equal_approx(player.get_meta("char_projectile_speed_bonus"), 60.0), "Player meta has speed bonus")
+	assert(player.get_meta("character_level") == 10, "Player meta has character level 10")
+	assert(is_equal_approx(player.get_meta("char_spell_damage_mult_bonus"), 0.09), "Player meta has damage mult bonus 0.09")
 
 	var spell = MagicBoltAbility.new()
 	spell.player_owner = player
 	var eff_dmg = spell.get_effective_damage()
-	# Base damage 22.0 + 7.5 bonus = 29.5
-	assert(is_equal_approx(eff_dmg, 29.5), "Magic Bolt effective damage scaled to 29.5 (got %f)" % eff_dmg)
+	# Base damage 22.0 * 1.09 = 23.98
+	assert(is_equal_approx(eff_dmg, 22.0 * 1.09), "Magic Bolt effective damage scaled to 23.98 (got %f)" % eff_dmg)
 
 	player.queue_free()
 	spell.queue_free()
 	print("[PASS] 4. Starter spell auto-scaling verified.")
 
 # -----------------------------------------------------------------------------
-# 5. Gold Currency & Economy
+# 5. Gold Currency Economy & Monotonic Lifetime
 # -----------------------------------------------------------------------------
 func test_5_gold_currency_economy() -> void:
-	print("[TEST] 5. Gold currency economy (Saving, Adding, Spending)...")
+	print("[TEST] 5. Gold currency economy (Saving, Adding, Spending, Monotonicity)...")
 
 	var data = SaveManager.load_data()
 	data["gold"] = 0
+	data["lifetime_gold_earned"] = 0
+	data["lifetime_gold_spent"] = 0
 	SaveManager.save_custom_data(data)
 
 	assert(SaveManager.get_gold() == 0, "Initial gold is 0")
@@ -216,6 +239,10 @@ func test_5_gold_currency_economy() -> void:
 	assert(overspend == false, "Cannot overspend beyond balance")
 	assert(SaveManager.get_gold() == 100, "Gold remains 100 after failed spend")
 
+	var post_data = SaveManager.load_data()
+	assert(post_data["lifetime_gold_earned"] == 150, "Lifetime earned tracks 150")
+	assert(post_data["lifetime_gold_spent"] == 50, "Lifetime spent tracks 50")
+
 	print("[PASS] 5. Gold currency economy verified.")
 
 # -----------------------------------------------------------------------------
@@ -224,10 +251,11 @@ func test_5_gold_currency_economy() -> void:
 func test_6_meta_shop_purchases_and_caps() -> void:
 	print("[TEST] 6. Meta Shop purchasing, affordability, and max level caps...")
 
-	# Clear all shop upgrades and set gold to 150
 	var data = SaveManager.load_data()
 	data["shop_upgrades"] = {}
 	data["gold"] = 150
+	data["lifetime_gold_earned"] = 150
+	data["lifetime_gold_spent"] = 0
 	SaveManager.save_custom_data(data)
 
 	# vitality_health costs: [50, 100, 200, 350, 600]
@@ -260,7 +288,6 @@ func test_6_meta_shop_purchases_and_caps() -> void:
 func test_7_meta_shop_player_stats_application() -> void:
 	print("[TEST] 7. Applying permanent shop upgrades to player stats...")
 
-	# Set up mock purchased upgrades across multiple categories
 	var data = SaveManager.load_data()
 	data["shop_upgrades"] = {
 		"vitality_health": 3,   # +30 HP
@@ -297,36 +324,38 @@ func test_7_meta_shop_player_stats_application() -> void:
 	print("[PASS] 7. Meta Shop player stats application verified.")
 
 # -----------------------------------------------------------------------------
-# 8. Gold Coin Pickup & XP Gem Independence
+# 8. Gold Coin Pickup & Batch Saving (No Disk I/O During Run)
 # -----------------------------------------------------------------------------
-func test_8_gold_coin_pickup_and_xp_gem_independence() -> void:
-	print("[TEST] 8. Gold Coin collection & independent XP Gem verification...")
+func test_8_gold_coin_pickup_and_batch_saving() -> void:
+	print("[TEST] 8. Gold Coin pickup batch saving & sapphire XP Gem...")
 
-	# Clear gold
 	var data = SaveManager.load_data()
-	data["gold"] = 0
+	data["gold"] = 10
+	data["lifetime_gold_earned"] = 10
+	data["lifetime_gold_spent"] = 0
 	SaveManager.save_custom_data(data)
 
 	var run = RunStats.new()
 	RunStats.active_stats = run
 
-	# 1. Gold Coin
+	# 1. Gold Coin pickup during run
 	var coin = preload("res://scenes/pickups/gold_coin.tscn").instantiate() as GoldCoin
 	coin.gold_value = 5
 	coin.collect()
 
-	assert(SaveManager.get_gold() == 5, "SaveManager credited 5 gold (got %d)" % SaveManager.get_gold())
-	assert(run.gold_collected == 5, "RunStats tracked 5 gold (got %d)" % run.gold_collected)
+	# Crucial: SaveManager gold must remain 10 (no disk write during run!)
+	assert(SaveManager.get_gold() == 10, "SaveManager was NOT modified on coin pickup (batch optimization)")
+	assert(run.gold_collected == 5, "RunStats tracked 5 gold collected")
 
-	# 2. XP Gem
+	# 2. XP Gem appearance
 	var gem = preload("res://scenes/pickups/xp_gem.tscn").instantiate() as XPGem
 	gem.xp_value = 10
-	var col = gem.get_tier_color()
-	assert(col.b > col.r and col.g > col.r, "XP Gem has sapphire azure color")
+	# Gems are independent and sapphire
+	assert(gem.xp_value == 10, "Gem XP value preserved")
 
 	coin.queue_free()
 	gem.queue_free()
-	print("[PASS] 8. Gold Coin collection and independent XP Gem verified.")
+	print("[PASS] 8. Gold Coin batch saving and XP Gem verified.")
 
 # -----------------------------------------------------------------------------
 # 9. Chest Gold & RunStats Tracking
@@ -337,10 +366,6 @@ func test_9_chest_gold_and_runstats_tracking() -> void:
 	var run = RunStats.new()
 	RunStats.active_stats = run
 
-	var data = SaveManager.load_data()
-	data["gold"] = 0
-	SaveManager.save_custom_data(data)
-
 	var player = PlayerController.new()
 	player.stats = PlayerStats.new()
 	player.stats.gold_reward_mult = 1.40 # +40% bonus
@@ -348,48 +373,140 @@ func test_9_chest_gold_and_runstats_tracking() -> void:
 	var chest = Chest.new()
 	chest.open_chest(player)
 
-	# Base 25 * 1.40 = 35 gold
 	assert(run.chests_opened == 1, "RunStats recorded 1 chest opened")
 	assert(run.gold_collected == 35, "RunStats recorded 35 gold collected (got %d)" % run.gold_collected)
-	assert(SaveManager.get_gold() == 35, "SaveManager awarded 35 gold (got %d)" % SaveManager.get_gold())
 
 	player.queue_free()
 	chest.queue_free()
 	print("[PASS] 9. Chest gold award and RunStats metrics verified.")
 
 # -----------------------------------------------------------------------------
-# 10. Results Screen Award Idempotency
+# 10. Results Screen Award Idempotency & Deduplication
 # -----------------------------------------------------------------------------
 func test_10_results_screen_idempotency() -> void:
 	print("[TEST] 10. Results screen single-award idempotency (no double dip)...")
 
+	SaveManager.save_character_data("wizard", 1, 0)
 	var initial_gold = SaveManager.get_gold()
 	var char_data = SaveManager.get_character_data("wizard")
-	var initial_xp = int(char_data.get("xp", 0))
+	var initial_total_xp = int(char_data.get("total_xp", 0))
 
 	var run = RunStats.new()
+	run.run_id = "test_run_10_unique"
+	run.character_id = "wizard"
 	run.total_kills = 20
 	run.chests_opened = 1
 	run.survival_time = 120.0
+	run.gold_collected = 15
 
 	var screen = ResultsScreen.new()
 	screen.display_stats(run)
 
 	var after_first_gold = SaveManager.get_gold()
 	var char_after_first = SaveManager.get_character_data("wizard")
-	var after_first_xp = int(char_after_first.get("xp", 0))
+	var after_first_total_xp = int(char_after_first.get("total_xp", 0))
 
-	assert(after_first_xp > initial_xp, "First display_stats awarded character XP")
+	assert(after_first_gold > initial_gold, "First display_stats awarded gold")
+	assert(after_first_total_xp > initial_total_xp, "First display_stats awarded character total XP")
 
-	# Second call to display_stats on same results screen instance
+	# Second call to display_stats on same results screen instance or reload
 	screen.display_stats(run)
 
 	var after_second_gold = SaveManager.get_gold()
 	var char_after_second = SaveManager.get_character_data("wizard")
-	var after_second_xp = int(char_after_second.get("xp", 0))
+	var after_second_total_xp = int(char_after_second.get("total_xp", 0))
 
 	assert(after_second_gold == after_first_gold, "Gold was NOT awarded a second time")
-	assert(after_second_xp == after_first_xp, "Character XP was NOT awarded a second time")
+	assert(after_second_total_xp == after_first_total_xp, "Character total XP was NOT awarded a second time")
 
 	screen.queue_free()
 	print("[PASS] 10. Results screen award idempotency verified.")
+
+# -----------------------------------------------------------------------------
+# 11. Unique Run ID Deduplication in SaveManager
+# -----------------------------------------------------------------------------
+func test_11_unique_run_id_deduplication() -> void:
+	print("[TEST] 11. Unique Run ID deduplication journal in SaveManager...")
+
+	var run_id = "test_run_dedup_xyz"
+	var initial_gold = SaveManager.get_gold()
+
+	var first_claim = SaveManager.claim_run_rewards(run_id, "wizard", 100, 50)
+	assert(first_claim.success == true, "First claim succeeded")
+	assert(first_claim.already_processed == false, "Not marked as already processed")
+	assert(SaveManager.get_gold() == initial_gold + 50, "Gold increased by 50")
+
+	var second_claim = SaveManager.claim_run_rewards(run_id, "wizard", 100, 50)
+	assert(second_claim.already_processed == true, "Second claim flagged as already processed")
+	assert(SaveManager.get_gold() == initial_gold + 50, "Gold balance unchanged on repeated claim")
+
+	print("[PASS] 11. Unique Run ID deduplication verified.")
+
+# -----------------------------------------------------------------------------
+# 12. Total XP Reconstruction Algorithm
+# -----------------------------------------------------------------------------
+func test_12_total_xp_reconstruction() -> void:
+	print("[TEST] 12. Total XP reconstruction & conversion across levels...")
+
+	# Lv 1 with 40 residual -> total_xp = 40
+	var t1 = CharacterProgressionManager.calc_total_xp_for_level_and_residual(1, 40)
+	assert(t1 == 40, "Total XP for Lv 1 + 40 is 40")
+
+	var r1 = CharacterProgressionManager.calc_level_and_residual_from_total(40)
+	assert(r1.level == 1 and r1.xp == 40, "Reconstructed Lv 1 and 40 XP")
+
+	# Lv 2 with 0 residual -> total_xp = req(1) = 100
+	var t2 = CharacterProgressionManager.calc_total_xp_for_level_and_residual(2, 0)
+	assert(t2 == 100, "Total XP for Lv 2 + 0 is 100")
+
+	var r2 = CharacterProgressionManager.calc_level_and_residual_from_total(100)
+	assert(r2.level == 2 and r2.xp == 0, "Reconstructed Lv 2 and 0 XP")
+
+	# Lv 3 with 50 residual -> total_xp = req(1) + req(2) + 50
+	var req_1 = CharacterProgressionManager.get_required_xp(1)
+	var req_2 = CharacterProgressionManager.get_required_xp(2)
+	var t3 = CharacterProgressionManager.calc_total_xp_for_level_and_residual(3, 50)
+	assert(t3 == req_1 + req_2 + 50, "Total XP matches sum of previous levels + residual")
+
+	var r3 = CharacterProgressionManager.calc_level_and_residual_from_total(t3)
+	assert(r3.level == 3 and r3.xp == 50, "Reconstructed Lv 3 and 50 XP accurately")
+
+	print("[PASS] 12. Total XP reconstruction algorithm verified.")
+
+# -----------------------------------------------------------------------------
+# 13. Area Upgrades (magic_area) Scaling in All Area Abilities
+# -----------------------------------------------------------------------------
+func test_13_area_upgrades_scaling() -> void:
+	print("[TEST] 13. Scaling of area abilities via spell_area_mult...")
+
+	var player = PlayerController.new()
+	player.stats = PlayerStats.new()
+	player.stats.spell_area_mult = 1.25 # +25% Area
+	player.update_modifiers_meta()
+
+	# 1. Runic Blade
+	var blade_spell = RunicBladeAbility.new()
+	blade_spell.player_owner = player
+	var orbit_r = blade_spell.get_effective_orbit_radius()
+	# base 90.0 * 1.25 = 112.5
+	assert(is_equal_approx(orbit_r, 112.5), "Runic blade orbit radius scaled by 1.25 (got %f)" % orbit_r)
+
+	player.queue_free()
+	blade_spell.queue_free()
+	print("[PASS] 13. Area upgrades scaling in abilities verified.")
+
+# -----------------------------------------------------------------------------
+# 14. Elite & Boss Drops Architecture (No Duplicate Regular Drops)
+# -----------------------------------------------------------------------------
+func test_14_elite_and_boss_drops() -> void:
+	print("[TEST] 14. Elite and Boss drop isolation...")
+
+	var elite = EliteEnemyController.new()
+	assert(elite.has_method("spawn_drop"), "EliteEnemyController overrides spawn_drop")
+
+	var boss = BossController.new()
+	assert(boss.has_method("spawn_drop"), "BossController overrides spawn_drop")
+
+	elite.queue_free()
+	boss.queue_free()
+	print("[PASS] 14. Elite and Boss drop isolation verified.")

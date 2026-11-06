@@ -124,6 +124,8 @@ func _update_localized_texts() -> void:
 		subtitle_label.text = loc.get_text("app_subtitle", "Магические синергии • Разломы стихий • Версия 0.3")
 	if start_btn:
 		start_btn.text = loc.get_text("menu_start", "⚔ ВЫБОР АРЕНЫ")
+	if shop_btn:
+		shop_btn.text = loc.get_text("menu_shop", "🏛 МАГАЗИН УЛУЧШЕНИЙ")
 	if archive_btn:
 		archive_btn.text = loc.get_text("menu_codex", "📖 КОДЕКС И АТЛАС")
 	if settings_btn:
@@ -155,25 +157,30 @@ func _update_stats_display() -> void:
 		gold_label.text = "🪙 %d" % current_gold
 
 	# Update Character Card Display
-	var char_data = SaveManager.get_character_data("wizard")
+	var char_id = SaveManager.get_selected_character()
+	var char_data = SaveManager.get_character_data(char_id)
 	var char_lvl = int(char_data.get("level", 1))
 	var char_xp = int(char_data.get("xp", 0))
 	var req_xp = CharacterProgressionManager.get_required_xp(char_lvl)
-	var bonuses = CharacterProgressionManager.get_character_bonuses("wizard")
+	var bonuses = CharacterProgressionManager.get_character_bonuses(char_id)
+	var loc = LocalizationManager.instance
 
 	if char_name_label:
-		char_name_label.text = "🧙 Маг Разлома"
+		char_name_label.text = loc.get_text("menu_char_card_title", "🧙 Маг Разлома") if loc else "🧙 Маг Разлома"
 	if char_level_label:
-		char_level_label.text = "Ур. %d" % char_lvl
+		var lvl_fmt = loc.get_text("menu_char_lvl_fmt", "Ур. %d") if loc else "Ур. %d"
+		char_level_label.text = lvl_fmt % char_lvl
 	if char_xp_bar:
 		char_xp_bar.max_value = req_xp
 		char_xp_bar.value = char_xp
-		char_xp_bar.tooltip_text = "Опыт мага: %d / %d XP" % [char_xp, req_xp]
+		var xp_fmt = loc.get_text("menu_char_xp_fmt", "Опыт мага: %d / %d XP") if loc else "Опыт мага: %d / %d XP"
+		char_xp_bar.tooltip_text = xp_fmt % [char_xp, req_xp]
 	if char_bonus_label:
 		if char_lvl > 1:
-			char_bonus_label.text = "Чародейская стрела: +%.1f урона, +%d скорости" % [bonuses.damage_bonus, int(bonuses.speed_bonus)]
+			var bonus_fmt = loc.get_text("menu_char_bonus_fmt", "Магическая стрела: %s к базовому урону") if loc else "Магическая стрела: %s к базовому урону"
+			char_bonus_label.text = bonus_fmt % bonuses.get("damage_percent_text", "+0%")
 		else:
-			char_bonus_label.text = "Чародейская стрела: базовая форма"
+			char_bonus_label.text = loc.get_text("menu_char_bonus_base", "Магическая стрела: базовая форма") if loc else "Магическая стрела: базовая форма"
 
 	if not stats_label:
 		return
