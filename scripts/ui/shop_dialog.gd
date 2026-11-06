@@ -178,18 +178,18 @@ func _create_upgrade_card(upgrade: Dictionary, current_gold: int) -> Control:
 	panel.add_child(margin)
 
 	var hbox = HBoxContainer.new()
-	hbox.theme_override_constants.separation = 16
+	hbox.add_theme_constant_override("separation", 16)
 	margin.add_child(hbox)
 
 	# Left VBox: Info & Description
 	var vbox_left = VBoxContainer.new()
 	vbox_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox_left.theme_override_constants.separation = 6
+	vbox_left.add_theme_constant_override("separation", 6)
 	hbox.add_child(vbox_left)
 
 	# Header: Name + Level Pips
 	var row_header = HBoxContainer.new()
-	row_header.theme_override_constants.separation = 12
+	row_header.add_theme_constant_override("separation", 12)
 	vbox_left.add_child(row_header)
 
 	var name_lbl = Label.new()

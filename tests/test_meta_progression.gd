@@ -280,6 +280,16 @@ func test_6_meta_shop_purchases_and_caps() -> void:
 	SaveManager.add_gold(10000)
 	assert(MetaShopManager.can_purchase("vitality_health") == false, "Cannot purchase beyond max level 5")
 
+	# Verify ShopDialog UI instantiation, opening and category switching
+	var shop_scene = preload("res://scenes/ui/shop_dialog.tscn")
+	var shop = shop_scene.instantiate() as Control
+	root.add_child(shop)
+	shop.open()
+	for cat in ["vitality", "defense", "magic_mastery", "synergies", "treasures"]:
+		shop._select_category(cat)
+	shop.close()
+	shop.queue_free()
+
 	print("[PASS] 6. Meta Shop purchases and level caps verified.")
 
 # -----------------------------------------------------------------------------
