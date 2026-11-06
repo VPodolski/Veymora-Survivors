@@ -74,3 +74,4 @@ static func apply_shop_upgrades_to_player(player: Node2D) -> void:
 		player.update_modifiers_meta()
 	if player.has_signal("health_changed") and "current_health" in player:
 		player.health_changed.emit(player.current_health, stats.max_health)
+

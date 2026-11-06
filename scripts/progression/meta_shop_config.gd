@@ -178,3 +178,4 @@ static func get_effect_summary(upgrade_id: String, level: int) -> String:
 			return "+%d%% золота" % (level * 20)
 		_:
 			return "Ур. %d" % level
+

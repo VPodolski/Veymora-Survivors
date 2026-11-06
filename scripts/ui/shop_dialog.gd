@@ -206,3 +206,4 @@ func _on_buy_pressed(upgrade_id: String) -> void:
 			AudioManager.instance.play_ui_click()
 		refresh_shop()
 		gold_updated.emit(SaveManager.get_gold())
+

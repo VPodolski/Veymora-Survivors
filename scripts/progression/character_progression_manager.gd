@@ -104,3 +104,4 @@ static func apply_character_progression_to_player(player: Node2D, char_id: Strin
 	player.set_meta("character_level", bonuses.level)
 	player.set_meta("char_spell_damage_bonus", bonuses.damage_bonus)
 	player.set_meta("char_projectile_speed_bonus", bonuses.speed_bonus)
+
